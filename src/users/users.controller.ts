@@ -28,24 +28,6 @@ export class UsersController {
     return this.usersService.findById(user.userId);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Patch('updatemyprofile')
-  updateMyProfile(@Req() req: Request, @Body() updates: UpdateUserDto) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const user = req.user as any;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
-    return this.usersService.updateUser(user.userId, updates);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Delete('deletemyprofile')
-  deleteMyAccount(@Req() req: Request) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const user = req.user as any;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
-    return this.usersService.deleteUser(user.userId);
-  }
-
   // Admin or internal routes
   @UseGuards(JwtAuthGuard, AdminGuard)
   @Get('allUsers')

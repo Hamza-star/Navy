@@ -22,13 +22,9 @@ export class AuthService {
     if (!hashedPassword) {
       throw new BadRequestException('Error hashing password');
     }
-    const user = await this.usersService.registerUser(email, hashedPassword);
+    await this.usersService.registerUser(email, hashedPassword);
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const payload = { sub: user.id, email: user.email, role: user.role };
-    const token = this.jwtService.sign(payload);
-
-    return { user, token };
+    return { message: 'Signup Successfull' };
   }
 
   async login(email: string, password: string) {

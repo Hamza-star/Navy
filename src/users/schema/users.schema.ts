@@ -1,6 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
-
 export type UsersDocument = HydratedDocument<Users>;
 
 @Schema({ timestamps: true })
@@ -26,6 +25,7 @@ export class Users {
   @Prop({ default: Date.now })
   updatedAt: Date;
   id: any;
+  populate: any;
 }
 
 export const UsersSchema = SchemaFactory.createForClass(Users);

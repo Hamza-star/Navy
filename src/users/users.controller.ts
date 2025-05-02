@@ -8,6 +8,7 @@ import {
   Req,
   UseGuards,
   BadRequestException,
+  Post,
 } from '@nestjs/common';
 import { UpdateUserDto } from './dto/users.dto';
 import { UsersService } from './users.service';
@@ -19,6 +20,29 @@ import { Request } from 'express';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  @UseGuards(JwtAuthGuard)
+  @Post('addUser')
+  async addnewUser(
+    @Req() req: Request,
+    @Body()
+    body: { name: string; email: string; password: string; role: string },
+  ) {
+    const { name, email, password, role } = body;
+
+    try {
+      // Call the service to add the user
+      const newUser = await this.usersService.addUser(
+        name,
+        email,
+        password,
+        role,
+      );
+      return { message: 'User created successfully', user: newUser };
+    } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      throw new BadRequestException(error.message);
+    }
+  }
   @UseGuards(JwtAuthGuard)
   @Get('myprofile')
   getMyProfile(@Req() req: Request) {

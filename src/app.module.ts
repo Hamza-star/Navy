@@ -13,7 +13,7 @@ import { PrivellegesModule } from './privelleges/privelleges.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     MongooseModule.forRoot(
-      process.env.MONGODB_URI || 'mongodb://localhost:27017/',
+      process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/ifl-project-ifl',
     ),
     UsersModule,
     AuthModule,

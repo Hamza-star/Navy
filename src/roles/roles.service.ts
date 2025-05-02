@@ -1,15 +1,27 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Roles, RolesDocument } from './schema/roles.schema';
 import { UsersDocument } from 'src/users/schema/users.schema';
+import { PrivellegesDocument } from 'src/privelleges/schema/privelleges.schema';
 @Injectable()
 export class RolesService {
+  findByName: any;
   constructor(
     @InjectModel('Roles')
     private readonly rolesModel: Model<RolesDocument>,
     @InjectModel('Users')
     private readonly usersModel: Model<UsersDocument>,
+    @InjectModel('Privelleges')
+    private readonly privellegesModel: Model<PrivellegesDocument>,
   ) {}
 
   async createRole(name: string): Promise<Roles> {
@@ -45,5 +57,63 @@ export class RolesService {
       throw new NotFoundException(`Roles with id ${id} not found`);
     }
     return { message: 'Roles deleted successfully' };
+  }
+
+  async editRolePrivilegesById(
+    roleId: string,
+    privilegeNames: string[],
+  ): Promise<Roles> {
+    const role = await this.rolesModel.findById(roleId);
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    }
+
+    const privileges = await this.privellegesModel.find({
+      name: { $in: privilegeNames },
+    });
+
+    if (privileges.length !== privilegeNames.length) {
+      throw new BadRequestException('One or more privileges not found');
+    }
+
+    role.privelleges = privileges.map((p) => p._id);
+    return role.save();
+  }
+  async removePrivilegeFromRoleById(
+    roleId: string,
+    privilegeId: string,
+  ): Promise<Roles> {
+    const role = await this.rolesModel.findById(roleId);
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    }
+
+    const privilegeObjectId = new Types.ObjectId(privilegeId);
+
+    // Filter out the privilege to be removed
+    role.privelleges = role.privelleges.filter(
+      (pId: Types.ObjectId) => !pId.equals(privilegeObjectId),
+    );
+
+    return role.save();
+  }
+  async removeMultiplePrivilegesFromRole(
+    roleId: string,
+    privilegeIds: string[],
+  ): Promise<Roles> {
+    const role = await this.rolesModel.findById(roleId);
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    }
+
+    const objectIdsToRemove = privilegeIds.map((id) => new Types.ObjectId(id));
+
+    // Filter out all matching privilege IDs
+    role.privelleges = role.privelleges.filter(
+      (pId: Types.ObjectId) =>
+        !objectIdsToRemove.some((removeId) => removeId.equals(pId)),
+    );
+
+    return role.save();
   }
 }

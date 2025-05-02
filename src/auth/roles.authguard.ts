@@ -6,14 +6,33 @@ import {
   Injectable,
   ForbiddenException,
 } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Roles, RolesDocument } from 'src/roles/schema/roles.schema';
 
 @Injectable()
 export class AdminGuard implements CanActivate {
-  canActivate(context: ExecutionContext): boolean {
+  constructor(
+    @InjectModel(Roles.name)
+    private readonly rolesModel: Model<RolesDocument>,
+  ) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
-    if (!user || user.role !== 'admin') {
+    if (!user?.role) {
+      throw new ForbiddenException('No role found in token.');
+    }
+
+    // Fetch the role document from the database using the role ID
+    const role = await this.rolesModel.findById(user.role);
+    if (!role) {
+      throw new ForbiddenException('Invalid role.');
+    }
+
+    // Check if it's Admin
+    if (role.name !== 'admin') {
       throw new ForbiddenException('Access denied. Admins only.');
     }
 

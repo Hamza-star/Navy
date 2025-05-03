@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import {
   Controller,
   Get,
@@ -10,11 +11,11 @@ import {
   BadRequestException,
   Post,
 } from '@nestjs/common';
-import { UpdateUserDto } from './dto/users.dto';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt.authguard';
 import { AdminGuard } from '../auth/roles.authguard';
 import { Request } from 'express';
+import { Users } from './schema/users.schema';
 
 @Controller('users')
 export class UsersController {
@@ -22,26 +23,15 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard)
   @Post('addUser')
-  async addnewUser(
-    @Req() req: Request,
-    @Body()
-    body: { name: string; email: string; password: string; role: string },
-  ) {
-    const { name, email, password, role } = body;
+  async addUser(@Body() body: Partial<any>): Promise<Users> {
+    const { name, email, password, roleId } = body;
 
-    try {
-      // Call the service to add the user
-      const newUser = await this.usersService.addUser(
-        name,
-        email,
-        password,
-        role,
-      );
-      return { message: 'User created successfully', user: newUser };
-    } catch (error) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      throw new BadRequestException(error.message);
+    // Basic checks (replace with full validation if needed)
+    if (!name || !email || !password || !roleId) {
+      throw new BadRequestException('Missing required fields');
     }
+
+    return this.usersService.addUser(name, email, password, roleId);
   }
   @UseGuards(JwtAuthGuard)
   @Get('myprofile')
@@ -75,16 +65,5 @@ export class UsersController {
   @Delete('delete/:id')
   deleteUser(@Param('id') id: string) {
     return this.usersService.deleteUser(id);
-  }
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  @Patch('updateRole/:id')
-  updateUserRole(
-    @Param('id') id: string,
-    @Body('role') role: UpdateUserDto['role'],
-  ) {
-    if (!role) {
-      throw new BadRequestException('Role is required');
-    }
-    return this.usersService.updateUserRole(id, role);
   }
 }

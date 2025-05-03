@@ -61,21 +61,36 @@ export class RolesService {
 
   async editRolePrivilegesById(
     roleId: string,
-    privilegeNames: string[],
+    privilegeIds: string[],
   ): Promise<Roles> {
+    // Validate role ID
+    if (!Types.ObjectId.isValid(roleId)) {
+      throw new BadRequestException('Invalid role ID format');
+    }
+
+    // Validate each privilege ID format
+    for (const id of privilegeIds) {
+      if (!Types.ObjectId.isValid(id)) {
+        throw new BadRequestException(`Invalid privilege ID format: ${id}`);
+      }
+    }
+
+    // Find role
     const role = await this.rolesModel.findById(roleId);
     if (!role) {
       throw new NotFoundException('Role not found');
     }
 
+    // Find all matching privileges by ID
     const privileges = await this.privellegesModel.find({
-      name: { $in: privilegeNames },
+      _id: { $in: privilegeIds },
     });
 
-    if (privileges.length !== privilegeNames.length) {
+    if (privileges.length !== privilegeIds.length) {
       throw new BadRequestException('One or more privileges not found');
     }
 
+    // Assign privilege ObjectIds to the role
     role.privelleges = privileges.map((p) => p._id);
     return role.save();
   }

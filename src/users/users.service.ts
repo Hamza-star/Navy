@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   BadRequestException,
@@ -5,10 +7,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Users, UsersDocument } from './schema/users.schema';
 import { Roles, RolesDocument } from '../roles/schema/roles.schema';
 import * as bcrypt from 'bcrypt';
+
 @Injectable()
 export class UsersService {
   async registerUser(email: string, hashedPassword: string): Promise<Users> {
@@ -24,7 +27,7 @@ export class UsersService {
     name: string,
     email: string,
     password: string,
-    roleName: string,
+    roleId: string, // changed from roleName to roleId
   ): Promise<Users> {
     // Check if user already exists
     const existingUser = await this.userModel.findOne({ email });
@@ -32,14 +35,18 @@ export class UsersService {
       throw new BadRequestException('User with this email already exists');
     }
 
-    // Find role by name
-    const role = await this.roleModel.findOne({ name: roleName });
+    // Validate role ID format
+    if (!Types.ObjectId.isValid(roleId)) {
+      throw new BadRequestException('Invalid role ID format');
+    }
+
+    // Check if role exists
+    const role = await this.roleModel.findById(roleId);
     if (!role) {
-      throw new BadRequestException('Invalid role');
+      throw new BadRequestException('Role not found');
     }
 
     // Hash password
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create and save user
@@ -47,18 +54,38 @@ export class UsersService {
       name,
       email,
       password: hashedPassword,
-      role: role._id, // reference ObjectId
+      role: role._id, // store ObjectId reference
     });
 
     return newUser.save();
   }
 
   async findAll(): Promise<Users[]> {
-    return this.userModel.find().exec();
+    const users = await this.userModel
+      .find()
+      .populate({
+        path: 'role',
+        populate: {
+          path: 'privelleges', // populate inside role
+        },
+      })
+      .exec();
+
+    if (!users) throw new NotFoundException('User not found');
+    return users;
   }
 
   async findById(id: string): Promise<Users> {
-    const user = await this.userModel.findById(id).exec();
+    const user = await this.userModel
+      .findById(id)
+      .populate({
+        path: 'role',
+        populate: {
+          path: 'privelleges', // populate inside role
+        },
+      })
+      .exec();
+
     if (!user) throw new NotFoundException('User not found');
     return user;
   }
@@ -67,22 +94,36 @@ export class UsersService {
     return this.userModel.findOne({ email }).exec();
   }
 
-  async updateUser(id: string, updates: Partial<Users>): Promise<Users> {
+  async updateUser(
+    id: string,
+    updates: Partial<Users>,
+  ): Promise<{ message: string }> {
+    // Validate the role ID if provided
+    if (updates.role) {
+      if (!Types.ObjectId.isValid(updates.role.toString())) {
+        throw new BadRequestException('Invalid role ID format');
+      }
+
+      const roleExists = await this.roleModel.exists({ _id: updates.role });
+      if (!roleExists) {
+        throw new BadRequestException(`Role with ID  does not exist`);
+      }
+    }
+
     const updated = await this.userModel
       .findByIdAndUpdate(id, updates, { new: true })
       .exec();
-    if (!updated) throw new NotFoundException('User not found');
-    return updated;
+
+    if (!updated) {
+      throw new NotFoundException('User not found');
+    }
+
+    return { message: `User Updated Successfully` };
   }
-  async updateUserRole(id: string, role: string): Promise<Users> {
-    const updated = await this.userModel
-      .findByIdAndUpdate(id, { role }, { new: true })
-      .exec();
-    if (!updated) throw new NotFoundException('User not found');
-    return updated;
-  }
-  async deleteUser(_id: string): Promise<void> {
+
+  async deleteUser(_id: string): Promise<{ message: string }> {
     const result = await this.userModel.findByIdAndDelete(_id).exec();
     if (!result) throw new NotFoundException('User not found');
+    return { message: `User Deleted` };
   }
 }

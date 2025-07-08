@@ -8,6 +8,8 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { RolesModule } from './roles/roles.module';
 import { PrivellegesModule } from './privelleges/privelleges.module';
+import { NodeRedLinkModule } from './nodered/node_red_link.module';
+import { meter_dataModule } from './meter_data/meter_data.module';
 
 @Module({
   imports: [
@@ -19,6 +21,8 @@ import { PrivellegesModule } from './privelleges/privelleges.module';
     AuthModule,
     RolesModule,
     PrivellegesModule,
+    NodeRedLinkModule,
+    meter_dataModule,
   ],
   controllers: [AppController],
   providers: [AppService],

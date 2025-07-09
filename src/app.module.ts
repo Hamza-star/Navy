@@ -10,6 +10,7 @@ import { RolesModule } from './roles/roles.module';
 import { PrivellegesModule } from './privelleges/privelleges.module';
 import { NodeRedLinkModule } from './nodered/node_red_link.module';
 import { meter_dataModule } from './meter_data/meter_data.module';
+import { LogsDataModule } from './logs_data/logs_data.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { meter_dataModule } from './meter_data/meter_data.module';
     PrivellegesModule,
     NodeRedLinkModule,
     meter_dataModule,
+    LogsDataModule,
   ],
   controllers: [AppController],
   providers: [AppService],

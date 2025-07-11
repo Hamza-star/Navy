@@ -8,12 +8,7 @@ import { LogEntry } from './schemas/logs.schema';
 @Injectable()
 export class LogsDataService {
   private readonly tagGroups = {
-    voltage: [
-      'Voltage_AN_V',
-      'Voltage_BN_V',
-      'Voltage_CN_V',
-      'Voltage_LN_V',
-    ],
+    voltage: ['Voltage_AN_V', 'Voltage_BN_V', 'Voltage_CN_V', 'Voltage_LN_V'],
     current: [
       'Current_AN_Amp',
       'Current_BN_Amp',
@@ -48,18 +43,13 @@ export class LogsDataService {
   async fetchLogs(query: LogsQueryDto) {
     const { type, meters, start_date, end_date } = query;
 
-    console.log('Received query:', query);
-
     const baseTags = this.tagGroups[type];
-    console.log('Base tags:', baseTags);
 
     if (!baseTags) {
-      console.log('Invalid type specified:', type);
       return { success: false, message: 'Invalid type specified.' };
     }
 
     const meterIds = meters.split(',').map((m) => m.trim());
-    console.log('Meter IDs:', meterIds);
 
     const startUTC = moment
       .tz(start_date, 'Asia/Karachi')
@@ -80,12 +70,8 @@ export class LogsDataService {
       },
     };
 
-    console.log('MongoDB query:', dbQuery);
-
     const data = await this.logEntryModel.find(dbQuery).lean().exec();
-    console.log(`Fetched ${data.length} records`);
     if (data.length > 0) {
-      console.log('Sample record:', data[0]);
     }
 
     const results: any[] = [];
@@ -103,20 +89,16 @@ export class LogsDataService {
 
         for (const tag of baseTags) {
           const field = `${meterId}_${tag}`;
-          console.log('Checking field:', field, 'Value:', item[field]);
           if (item[field] !== undefined) {
             entry[tag] = item[field];
           }
         }
 
         if (Object.keys(entry).length > 2) {
-          console.log('Pushing entry:', entry);
           results.push(entry);
         }
       }
     }
-
-    console.log('Final results:', results);
 
     return { success: true, data: results };
   }

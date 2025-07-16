@@ -11,6 +11,12 @@ import { PrivellegesModule } from './privelleges/privelleges.module';
 import { NodeRedLinkModule } from './nodered/node_red_link.module';
 import { meter_dataModule } from './meter_data/meter_data.module';
 import { LogsDataModule } from './logs_data/logs_data.module';
+import { ReportsModule } from './reports/report.module';
+import { AnalysisService } from './analysis/analysis.service';
+import { AnalysisController } from './analysis/analysis.controller';
+import { AnalysisModule } from './analysis/analysis.module';
+import { HelpersModule } from './helpers/helpers.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -25,8 +31,12 @@ import { LogsDataModule } from './logs_data/logs_data.module';
     NodeRedLinkModule,
     meter_dataModule,
     LogsDataModule,
+    ReportsModule,
+    AnalysisModule,
+    HelpersModule,
+    DashboardModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [AppController, AnalysisController],
+  providers: [AppService, AnalysisService],
 })
 export class AppModule {}

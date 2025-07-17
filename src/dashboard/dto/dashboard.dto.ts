@@ -1,6 +1,32 @@
-import { IsString } from 'class-validator';
+import { IsOptional, IsString, IsDateString, IsArray } from 'class-validator';
 
 export class DashboardDto {
+  @IsOptional()
   @IsString()
-  timestamp;
+  date?: string;
+
+  @IsOptional()
+  @IsString()
+  range?: string; // 'today', 'week', 'lastMonth', etc.
+
+  @IsOptional()
+  @IsDateString()
+  fromDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  toDate?: string;
+
+  @IsOptional()
+  @IsString()
+  startTime?: string; // Format: 'HH:MM:SS'
+
+  @IsOptional()
+  @IsString()
+  endTime?: string; // Format: 'HH:MM:SS'
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[]; // Tags to filter the data
 }

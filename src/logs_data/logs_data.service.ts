@@ -44,13 +44,13 @@ export class LogsDataService {
     const { type, meters, start_date, end_date } = query;
 
     const baseTags = this.tagGroups[type];
-
+     console.log(baseTags)
     if (!baseTags) {
       return { success: false, message: 'Invalid type specified.' };
     }
-
+console.log(meters)
     const meterIds = meters.split(',').map((m) => m.trim());
-
+console.log(meterIds)
     const startUTC = moment
       .tz(start_date, 'Asia/Karachi')
       .startOf('day')
@@ -88,7 +88,7 @@ export class LogsDataService {
         };
 
         for (const tag of baseTags) {
-          const field = `${meterId}_${tag}`;
+          const field = `${meterId}_EM01_${tag}`;
           if (item[field] !== undefined) {
             entry[tag] = item[field];
           }
@@ -99,7 +99,7 @@ export class LogsDataService {
         }
       }
     }
-
+console.log(results)
     return { success: true, data: results };
   }
 }

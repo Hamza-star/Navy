@@ -20,39 +20,53 @@ export class NodeRedLinkService {
         'http://13.234.241.103:1880/ifl_realtime',
       );
       const data = response.data;
-
+      const WET_BULB = 25;
+      const Fixed_Value = 1350; 
       // Example: Calculate new fields
       // Replace these formulas with your actual logic
-      data.range1_3851 =
-        (data.r_Cooling_Water_Supply_Header_4101_TI_71_Scaled || 0) -
-        (data.r_Cooling_Water_Supply_Header_3851_TI_44_Scaled || 0);
-      data.range2_3851 =
-        (data.Cooling_Water_Supply_Header_4101_TI_81_Scaled || 0) -
-        (data.r_Cooling_Water_Supply_Header_3851_TI_72_Scaled || 0);
-      data.approach1_3851 = (data.r_Cooling_Water_Supply_Header_3851_TI_44_Scaled)-25;
-      data.approach2_3851 = (data.r_Cooling_Water_Supply_Header_3851_TI_72_Scaled)-25;
-      data.range1_4101 =
-        (data.r_Cooling_Water_Supply_Header_4101_TI_44_Scaled || 0) -
-        (data.r_Cooling_Water_Supply_Header_4101_TI_41_Scaled || 0);
-      data.range2_4101 =
-        (data.r_Cooling_Water_Supply_Header_4101_TI_54_Scaled || 0) -
-        (data.r_Cooling_Water_Supply_Header_4101_TI_51_Scaled || 0);
-      data.approach1_4101 = (data.r_Cooling_Water_Supply_Header_4101_TI_41_Scaled)-25;
-      data.approach2_4101 = (data.r_Cooling_Water_Supply_Header_4101_TI_51_Scaled)-25;
-      (data.UI_51_51 = 'NotConnected'),
+      console.log(data.CHCT1_TEMP_RTD_02_AI)
+      console.log(data.CHCT1_TEMP_RTD_01_AI)
+      console.log(data.CT1_TEMP_RTD_02_AI)
+      console.log(data.CT1_TEMP_RTD_01_AI)
+      data.CHCT1_RANGE =
+        (data.CHCT1_TEMP_RTD_02_AI || 0) -
+        (data.CHCT1_TEMP_RTD_01_AI || 0);
+        console.log(data.CHCT1_RANGE)
+      data.CHCT2_RANGE =
+        (data.CHCT2_TEMP_RTD_02_AI || 0) -
+        (data.CHCT2_TEMP_RTD_01_AI || 0);
+      console.log(data.CHCT2_RANGE)
+      data.CHCT1_APPROACH = (data.CHCT1_TEMP_RTD_01_AI)-WET_BULB;
+      data.CHCT2_APPROACH = (data.CHCT2_TEMP_RTD_01_AI)-WET_BULB;
+      console.log(data.CHCT1_APPROACH)
+      console.log(data.CHCT2_APPROACH)
+      data.CT1_RANGE =
+        (data.CT1_TEMP_RTD_02_AI || 0) -
+        (data.CT1_TEMP_RTD_01_AI || 0);
+        console.log(data.CT1_RANGE)
+      data.CT2_RANGE =
+        (data.CT2_TEMP_RTD_02_AI || 0) -
+        (data.CT2_TEMP_RTD_01_AI || 0);
+      console.log(data.CT2_RANGE)
+      data.CT1_APPROACH = (data.CT1_TEMP_RTD_01_AI)-WET_BULB;
+      console.log(data.CT1_APPROACH);
+      data.CT2_APPROACH = (data.CT2_TEMP_RTD_01_AI)-WET_BULB;
+       console.log(data.CT1_APPROACH);
+     
+       (data.UI_51_51 = 'NotConnected'),
         (data.UI_01_xx = 'NotConnected'),
         (data.TIC_51_71_percent =
-          ((data.r_Inverter3_Speed_3851_E07_Q01_Scaled || 0) / 1350) * 100);
-      data.TIC_51_71_sp = (data.r_Cooling_Water_Supply_Header_4101_TI_71_Scaled)-(data.range1_3851);
+          ((data.CHCT1_INV_01_SPD_AI || 0) / Fixed_Value) * 100);
+      data.TIC_51_71_sp = (data.CHCT1_TEMP_RTD_02_AI)-(data.CHCT1_RANGE);
       data.TIC_51_81_percent =
-        ((data.r_Inverter4_Speed_3851_E08_Q01_Scaled || 0) / 1350) * 100;
-      data.TIC_51_81_sp = (data.Cooling_Water_Supply_Header_4101_TI_81_Scaled)-(data.range2_3851);
+        ((data.CHCT2_INV_01_SPD_AI || 0) / Fixed_Value) * 100;
+      data.TIC_51_81_sp = (data.CHCT2_TEMP_RTD_02_AI)-(data.CHCT2_RANGE);
       data.TIC_01_47_percent =
-        ((data.r_Inverter1_Speed_4101_E05_Q01_Scaled || 0) / 1350) * 100;
-      data.TIC_01_47_sp = (data.r_Cooling_Water_Supply_Header_4101_TI_44_Scaled)-(data.range1_4101);
+        ((data.CT1_INV_01_SPD_AI || 0) / Fixed_Value) * 100;
+      data.TIC_01_47_sp = (data.CT1_TEMP_RTD_02_AI)-(data.CT1_RANGE);
       data.TIC_01_57_percent =
-        ((data.r_Inverter2_Speed_4101_E06_Q01_Scaled || 0) / 1350) * 100;
-      data.TIC_01_57_sp = (data.r_Cooling_Water_Supply_Header_4101_TI_54_Scaled)-(data.range2_4101);
+        ((data.CT2_INV_01_SPD_AI || 0) / Fixed_Value) * 100;
+      data.TIC_01_57_sp = (data.CT2_TEMP_RTD_02_AI)-(data.CT2_RANGE);
 
       return data;
     } catch (error) {

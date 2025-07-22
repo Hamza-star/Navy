@@ -12,12 +12,12 @@ export class meter_dataService {
   private getMeterPrefixes(area: string, U_selections: string): string[] {
     const mapping: Record<string, Record<string, string[]>> = {
       Chillers: {
-        U_7: ['U_7'],
-        U_8: ['U_8'],
+        CHCT1: ['CHCT1_'],
+        CHCT2: ['CHCT2_'],
       },
       Process: {
-        U_5: ['U_5'],
-        U_6: ['U_6'],
+        CT1: ['CT1'],
+        CT2: ['CT2'],
       },
     };
 

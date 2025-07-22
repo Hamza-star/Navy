@@ -11,38 +11,51 @@ export class MongoDateFilterService {
       case 'today': {
         from = new Date(now);
         from.setHours(0, 0, 0, 0);
+
+        to = new Date(now);
         to.setHours(23, 59, 59, 999);
         break;
       }
+
       case 'yesterday': {
         from = new Date(now);
-        from.setDate(now.getDate() - 1);
+        from.setDate(from.getDate() - 1);
         from.setHours(0, 0, 0, 0);
+
         to = new Date(from);
         to.setHours(23, 59, 59, 999);
         break;
       }
+
       case 'week': {
+        const day = now.getDay(); // Sunday = 0, Monday = 1, ..., Saturday = 6
+        const diffToMonday = day === 0 ? 6 : day - 1; // days to subtract to get Monday
+
         from = new Date(now);
-        from.setDate(now.getDate() - 6);
+        from.setDate(now.getDate() - diffToMonday);
         from.setHours(0, 0, 0, 0);
+
+        to = new Date(from);
+        to.setDate(from.getDate() + 6);
         to.setHours(23, 59, 59, 999);
         break;
       }
+
       case 'lastWeek': {
-        const day = now.getDay();
-        const startOffset = -7 - (day === 0 ? 6 : day - 1);
-        const endOffset = startOffset + 6;
+        const day = now.getDay(); // Sunday = 0
+        const diffToLastMonday = (day === 0 ? 7 : day - 1) + 7; // go back 7 + diff to Monday
+        const diffToLastSunday = diffToLastMonday - 1; // then +6 days
 
         from = new Date(now);
-        from.setDate(now.getDate() + startOffset);
+        from.setDate(now.getDate() - diffToLastMonday);
         from.setHours(0, 0, 0, 0);
 
-        to = new Date(now);
-        to.setDate(now.getDate() + endOffset);
+        to = new Date(from);
+        to.setDate(from.getDate() + 6);
         to.setHours(23, 59, 59, 999);
         break;
       }
+
       case 'month': {
         from = new Date(now);
         from.setMonth(now.getMonth());
@@ -54,11 +67,16 @@ export class MongoDateFilterService {
         break;
       }
       case 'lastMonth': {
+        // First day of last month
         from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        to = new Date(now.getFullYear(), now.getMonth(), 0);
+        from.setHours(0, 0, 0, 0);
+
+        // Last day of last month
+        to = new Date(now.getFullYear(), now.getMonth(), 0); // 0th = last day of previous month
         to.setHours(23, 59, 59, 999);
         break;
       }
+
       case 'year': {
         from = new Date(now.getFullYear(), 0, 1);
         from.setHours(0, 0, 0, 0);
@@ -154,4 +172,5 @@ export class MongoDateFilterService {
       },
     };
   }
+  
 }

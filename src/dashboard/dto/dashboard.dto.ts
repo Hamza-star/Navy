@@ -24,9 +24,4 @@ export class DashboardDto {
   @IsOptional()
   @IsString()
   endTime?: string; // Format: 'HH:MM:SS'
-
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  tags?: string[]; // Tags to filter the data
 }

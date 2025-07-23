@@ -4,15 +4,11 @@ import { IsIn, IsNotEmpty, IsString } from 'class-validator';
 export class RealtimeDto {
   @IsNotEmpty()
   @IsString()
-  @IsIn(['Unit_4', 'Unit_5'])
+  @IsIn(['Chillers', 'Process'])
   area: string;
 
   @IsNotEmpty()
   @IsString()
-  @IsIn(['LT_1', 'LT_2', 'LT_3', 'LT_4'])
+  @IsIn(['CHCT1', 'CHCT2', 'CT1', 'CT2'])
   U_selections: string;
-
-  @IsNotEmpty()
-  @IsString()
-  meterId: string;
 }

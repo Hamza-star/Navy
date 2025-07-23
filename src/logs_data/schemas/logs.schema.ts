@@ -4,7 +4,7 @@ import { Document } from 'mongoose';
 @Schema({ strict: false, collection: 'historical' }) // Flexible for dynamic fields
 export class LogEntry extends Document {
   @Prop()
-  timestamp: Date;
+  timestamp: string;
 }
 
 export const LogEntrySchema = SchemaFactory.createForClass(LogEntry);

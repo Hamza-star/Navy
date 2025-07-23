@@ -44,35 +44,29 @@ export class LogsDataService {
     const { type, meters, start_date, end_date } = query;
 
     const baseTags = this.tagGroups[type];
-     console.log(baseTags)
     if (!baseTags) {
       return { success: false, message: 'Invalid type specified.' };
     }
-console.log(meters)
+
     const meterIds = meters.split(',').map((m) => m.trim());
-console.log(meterIds)
-    const startUTC = moment
-      .tz(start_date, 'Asia/Karachi')
+
+    // Format start and end date as strings matching your DB format with milliseconds and Z
+    const startStr = moment(start_date)
       .startOf('day')
-      .utc()
-      .toDate();
-
-    const endUTC = moment
-      .tz(end_date, 'Asia/Karachi')
+      .format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
+    const endStr = moment(end_date)
       .endOf('day')
-      .utc()
-      .toDate();
+      .format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
 
+    // Query for string timestamps
     const dbQuery = {
       timestamp: {
-        $gte: startUTC,
-        $lte: endUTC,
+        $gte: startStr,
+        $lte: endStr,
       },
     };
 
     const data = await this.logEntryModel.find(dbQuery).lean().exec();
-    if (data.length > 0) {
-    }
 
     const results: any[] = [];
 
@@ -99,7 +93,7 @@ console.log(meterIds)
         }
       }
     }
-console.log(results)
+
     return { success: true, data: results };
   }
 }

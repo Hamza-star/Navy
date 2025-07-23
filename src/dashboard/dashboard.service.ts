@@ -103,12 +103,28 @@ export class DashboardService {
       endDate,
       wetBulb,
     );
+    const fanSpeedProcessed = TowerDataProcessor.calculateFanSpeed(
+      data,
+      dto.towerType || 'all',
+      groupBy,
+      startDate,
+      endDate,
+    );
+    const driftLossRate = TowerDataProcessor.calculateDriftLossRate(
+      data,
+      dto.towerType || 'all',
+      groupBy,
+      startDate,
+      endDate,
+    );
     return {
       message: 'Dashboard Data',
       data: {
-        range: rangeProcessed,
-        approach: approachProcessed,
-        coolingefficiency: efficiencyProcessed,
+        //range: rangeProcessed,
+        //approach: approachProcessed,
+        //coolingefficiency: efficiencyProcessed,
+        //fanSpeed: fanSpeedProcessed,
+        driftLossRate: driftLossRate,
       },
     };
   }

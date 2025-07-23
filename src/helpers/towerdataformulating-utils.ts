@@ -409,6 +409,238 @@ export class TowerDataProcessor {
     return { grouped, overallAverage };
   }
 
+  static calculateFanSpeed(
+    data: any[],
+    towerType: 'CHCT' | 'CT' | 'all',
+    groupBy: 'hour' | 'day' | 'week' | 'month',
+    startDate: Date,
+    endDate: Date,
+  ): { grouped: { label: string; value: number }[]; overallAverage: number } {
+    const emptyBuckets = this.generateEmptyBuckets(
+      startDate,
+      endDate,
+      groupBy,
+    ).map((bucket) => ({
+      label: bucket.timestamp,
+      value: 0,
+    }));
+
+    if (data.length === 0) {
+      return {
+        grouped: emptyBuckets,
+        overallAverage: 0,
+      };
+    }
+
+    const getDocumentDate = (doc: any): Date => {
+      if (doc.timestamp?.$date) return new Date(doc.timestamp.$date);
+      if (typeof doc.timestamp === 'string') return new Date(doc.timestamp);
+      if (doc.Time) return new Date(doc.Time);
+      if (doc.UNIXtimestamp) return new Date(doc.UNIXtimestamp * 1000);
+      if (doc.PLC_Date_Time) {
+        const dateString = doc.PLC_Date_Time.replace('DT#', '').replace(
+          /-/g,
+          '/',
+        );
+        return new Date(dateString);
+      }
+      return new Date();
+    };
+
+    const calculateDocumentFanSpeed = (doc: any): number | null => {
+      const speeds: number[] = [];
+
+      if (towerType === 'CHCT' || towerType === 'all') {
+        if (typeof doc.CHCT1_INV_01_SPD_AI === 'number') {
+          speeds.push(doc.CHCT1_INV_01_SPD_AI);
+        }
+        if (typeof doc.CHCT2_INV_01_SPD_AI === 'number') {
+          speeds.push(doc.CHCT2_INV_01_SPD_AI);
+        }
+      }
+
+      if (towerType === 'CT' || towerType === 'all') {
+        if (typeof doc.CT1_INV_01_SPD_AI === 'number') {
+          speeds.push(doc.CT1_INV_01_SPD_AI);
+        }
+        if (typeof doc.CT2_INV_01_SPD_AI === 'number') {
+          speeds.push(doc.CT2_INV_01_SPD_AI);
+        }
+      }
+
+      return speeds.length > 0
+        ? speeds.reduce((a, b) => a + b, 0) / speeds.length
+        : null;
+    };
+
+    const groupMap = new Map<string, { sum: number; count: number }>();
+    let totalSum = 0;
+    let totalCount = 0;
+
+    for (const doc of data) {
+      const docSpeed = calculateDocumentFanSpeed(doc);
+      if (docSpeed === null) continue;
+
+      const docDate = getDocumentDate(doc);
+      totalSum += docSpeed;
+      totalCount++;
+
+      let groupKey = '';
+      switch (groupBy) {
+        case 'hour':
+          groupKey = format(docDate, 'yyyy-MM-dd HH:00');
+          break;
+        case 'day':
+          groupKey = format(docDate, 'yyyy-MM-dd');
+          break;
+        case 'week':
+          groupKey = `${getYear(docDate)}-W${String(getWeek(docDate)).padStart(2, '0')}`;
+          break;
+        case 'month':
+          groupKey = format(docDate, 'yyyy-MM');
+          break;
+      }
+
+      if (!groupMap.has(groupKey)) {
+        groupMap.set(groupKey, { sum: 0, count: 0 });
+      }
+
+      const group = groupMap.get(groupKey)!;
+      group.sum += docSpeed;
+      group.count++;
+    }
+
+    const grouped = emptyBuckets.map((bucket) => {
+      if (groupMap.has(bucket.label)) {
+        const group = groupMap.get(bucket.label)!;
+        return {
+          label: bucket.label,
+          value: group.sum / group.count,
+        };
+      }
+      return bucket;
+    });
+
+    const overallAverage = totalCount > 0 ? totalSum / totalCount : 0;
+
+    return { grouped, overallAverage };
+  }
+  // In TowerDataProcessor class
+
+  static calculateDriftLossRate(
+    data: any[],
+    towerType: 'CHCT' | 'CT' | 'all',
+    groupBy: 'hour' | 'day' | 'week' | 'month',
+    startDate: Date,
+    endDate: Date,
+  ): { grouped: { label: string; value: number }[]; overallAverage: number } {
+    const emptyBuckets = this.generateEmptyBuckets(
+      startDate,
+      endDate,
+      groupBy,
+    ).map((bucket) => ({ label: bucket.timestamp, value: 0 }));
+
+    if (data.length === 0) {
+      return {
+        grouped: emptyBuckets,
+        overallAverage: 0,
+      };
+    }
+
+    const getDocumentDate = (doc: any): Date => {
+      if (doc.timestamp?.$date) return new Date(doc.timestamp.$date);
+      if (typeof doc.timestamp === 'string') return new Date(doc.timestamp);
+      if (doc.Time) return new Date(doc.Time);
+      if (doc.UNIXtimestamp) return new Date(doc.UNIXtimestamp * 1000);
+      if (doc.PLC_Date_Time) {
+        const dateString = doc.PLC_Date_Time.replace('DT#', '').replace(
+          /-/g,
+          '/',
+        );
+        return new Date(dateString);
+      }
+      return new Date();
+    };
+
+    const calculateDocumentDriftLoss = (doc: any): number | null => {
+      const losses: number[] = [];
+
+      if (towerType === 'CHCT' || towerType === 'all') {
+        if (typeof doc.CHCT1_FM_02_FR === 'number') {
+          losses.push((0.05 * doc.CHCT1_FM_02_FR) / 100);
+        }
+        if (typeof doc.CHCT2_FM_02_FR === 'number') {
+          losses.push((0.05 * doc.CHCT2_FM_02_FR) / 100);
+        }
+      }
+
+      if (towerType === 'CT' || towerType === 'all') {
+        if (typeof doc.CT1_FM_02_FR === 'number') {
+          losses.push((0.05 * doc.CT1_FM_02_FR) / 100);
+        }
+        if (typeof doc.CT2_FM_02_FR === 'number') {
+          losses.push((0.05 * doc.CT2_FM_02_FR) / 100);
+        }
+      }
+
+      return losses.length > 0
+        ? losses.reduce((a, b) => a + b, 0) / losses.length
+        : null;
+    };
+
+    const groupMap = new Map<string, { sum: number; count: number }>();
+    let totalSum = 0;
+    let totalCount = 0;
+
+    for (const doc of data) {
+      const docLoss = calculateDocumentDriftLoss(doc);
+      if (docLoss === null) continue;
+
+      const docDate = getDocumentDate(doc);
+      totalSum += docLoss;
+      totalCount++;
+
+      let groupKey = '';
+      switch (groupBy) {
+        case 'hour':
+          groupKey = format(docDate, 'yyyy-MM-dd HH:00');
+          break;
+        case 'day':
+          groupKey = format(docDate, 'yyyy-MM-dd');
+          break;
+        case 'week':
+          groupKey = `${getYear(docDate)}-W${String(getWeek(docDate)).padStart(2, '0')}`;
+          break;
+        case 'month':
+          groupKey = format(docDate, 'yyyy-MM');
+          break;
+      }
+
+      if (!groupMap.has(groupKey)) {
+        groupMap.set(groupKey, { sum: 0, count: 0 });
+      }
+
+      const group = groupMap.get(groupKey)!;
+      group.sum += docLoss;
+      group.count++;
+    }
+
+    const grouped = emptyBuckets.map((bucket) => {
+      if (groupMap.has(bucket.label)) {
+        const group = groupMap.get(bucket.label)!;
+        return {
+          label: bucket.label,
+          value: group.sum / group.count,
+        };
+      }
+      return bucket;
+    });
+
+    const overallAverage = totalCount > 0 ? totalSum / totalCount : 0;
+
+    return { grouped, overallAverage };
+  }
+
   static generateEmptyBuckets(
     start: Date,
     end: Date,

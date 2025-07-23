@@ -1,35 +1,79 @@
+// towerdataformulating-utils.ts
+import {
+  addDays,
+  addHours,
+  addMonths,
+  addWeeks,
+  differenceInDays,
+  differenceInHours,
+  differenceInMonths,
+  endOfDay,
+  endOfMonth,
+  format,
+  getDay,
+  getHours,
+  getMonth,
+  getWeek,
+  getYear,
+  isSameDay,
+  isSameHour,
+  isSameMonth,
+  startOfDay,
+  startOfHour,
+  startOfMonth,
+  startOfWeek,
+  startOfYear,
+  subDays,
+} from 'date-fns';
+
 export class TowerDataProcessor {
   static calculateRange(
     data: any[],
     towerType: 'CHCT' | 'CT' | 'all',
     groupBy: 'hour' | 'day' | 'week' | 'month',
+    startDate: Date,
+    endDate: Date,
   ): { grouped: { label: string; value: number }[]; overallAverage: number } {
-    // Helper to parse document date
+    // Generate empty buckets for the entire range
+    const emptyBuckets = this.generateEmptyBuckets(
+      startDate,
+      endDate,
+      groupBy,
+    ).map((bucket) => ({ label: bucket.timestamp, value: 0 }));
+
+    // If no data, return empty buckets
+    if (data.length === 0) {
+      return {
+        grouped: emptyBuckets,
+        overallAverage: 0,
+      };
+    }
+
+    // Helper to extract date from document
     const getDocumentDate = (doc: any): Date => {
-      if (typeof doc.timestamp === 'object' && doc.timestamp.$date) {
+      if (doc.timestamp?.$date) {
         return new Date(doc.timestamp.$date);
-      } else if (typeof doc.timestamp === 'string') {
+      }
+      if (typeof doc.timestamp === 'string') {
         return new Date(doc.timestamp);
-      } else if (doc.Time) {
+      }
+      if (doc.Time) {
         return new Date(doc.Time);
       }
-      return new Date(); // Fallback
-    };
-
-    // Helper to get ISO week number
-    const getWeekNumber = (d: Date): string => {
-      const date = new Date(d);
-      date.setHours(0, 0, 0, 0);
-      date.setDate(date.getDate() + 3 - ((date.getDay() + 6) % 7));
-      const week1 = new Date(date.getFullYear(), 0, 4);
-      const weekNum =
-        `0${1 + Math.round((date.getTime() - week1.getTime()) / 604800000)}`.slice(
-          -2,
+      if (doc.UNIXtimestamp) {
+        return new Date(doc.UNIXtimestamp * 1000);
+      }
+      if (doc.PLC_Date_Time) {
+        const dateString = doc.PLC_Date_Time.replace('DT#', '').replace(
+          /-/g,
+          '/',
         );
-      return `${date.getFullYear()}-W${weekNum}`;
+        return new Date(dateString);
+      }
+      return new Date();
     };
 
-    // Calculate range for a single document
+    // Calculate range value for a document
     const calculateDocumentRange = (doc: any): number | null => {
       const ranges: number[] = [];
 
@@ -68,7 +112,7 @@ export class TowerDataProcessor {
         : null;
     };
 
-    // Process all documents
+    // Group data by time period
     const groupMap = new Map<string, { sum: number; count: number }>();
     let totalSum = 0;
     let totalCount = 0;
@@ -81,35 +125,19 @@ export class TowerDataProcessor {
       totalSum += docRange;
       totalCount++;
 
-      // Determine group key based on grouping type
       let groupKey = '';
       switch (groupBy) {
         case 'hour':
-          groupKey = `${docDate.getFullYear()}-${(docDate.getMonth() + 1)
-            .toString()
-            .padStart(
-              2,
-              '0',
-            )}-${docDate.getDate().toString().padStart(2, '0')} ${docDate
-            .getHours()
-            .toString()
-            .padStart(2, '0')}:00`;
+          groupKey = format(docDate, 'yyyy-MM-dd HH:00');
           break;
         case 'day':
-          groupKey = `${docDate.getFullYear()}-${(docDate.getMonth() + 1)
-            .toString()
-            .padStart(
-              2,
-              '0',
-            )}-${docDate.getDate().toString().padStart(2, '0')}`;
+          groupKey = format(docDate, 'yyyy-MM-dd');
           break;
         case 'week':
-          groupKey = getWeekNumber(docDate);
+          groupKey = `${getYear(docDate)}-W${String(getWeek(docDate)).padStart(2, '0')}`;
           break;
         case 'month':
-          groupKey = `${docDate.getFullYear()}-${(docDate.getMonth() + 1)
-            .toString()
-            .padStart(2, '0')}`;
+          groupKey = format(docDate, 'yyyy-MM');
           break;
       }
 
@@ -121,17 +149,79 @@ export class TowerDataProcessor {
       group.count++;
     }
 
-    // Prepare grouped results
-    const grouped = Array.from(groupMap.entries()).map(
-      ([label, { sum, count }]) => ({
-        label,
-        value: sum / count,
-      }),
-    );
+    // Fill buckets with actual data
+    const grouped = emptyBuckets.map((bucket) => {
+      if (groupMap.has(bucket.label)) {
+        const group = groupMap.get(bucket.label)!;
+        return {
+          label: bucket.label,
+          value: group.sum / group.count,
+        };
+      }
+      return bucket;
+    });
 
-    // Calculate overall average
     const overallAverage = totalCount > 0 ? totalSum / totalCount : 0;
 
     return { grouped, overallAverage };
+  }
+
+  static generateEmptyBuckets(
+    start: Date,
+    end: Date,
+    groupBy: 'hour' | 'day' | 'week' | 'month',
+  ): { timestamp: string; value: number }[] {
+    const buckets: { timestamp: string; value: number }[] = [];
+    let current = new Date(start);
+    const endTime = end.getTime();
+
+    switch (groupBy) {
+      case 'hour':
+        current = startOfHour(start);
+        while (current <= end) {
+          buckets.push({
+            timestamp: format(current, 'yyyy-MM-dd HH:00'),
+            value: 0,
+          });
+          current = addHours(current, 1);
+        }
+        break;
+
+      case 'day':
+        current = startOfDay(start);
+        while (current <= end) {
+          buckets.push({
+            timestamp: format(current, 'yyyy-MM-dd'),
+            value: 0,
+          });
+          current = addDays(current, 1);
+        }
+        break;
+
+      case 'week':
+        const weekCount = Math.ceil(differenceInDays(end, start) / 7);
+        for (let i = 0; i <= weekCount; i++) {
+          const weekStart = addWeeks(start, i);
+          const weekNum = getWeek(weekStart);
+          buckets.push({
+            timestamp: `${getYear(weekStart)}-W${String(weekNum).padStart(2, '0')}`,
+            value: 0,
+          });
+        }
+        break;
+
+      case 'month':
+        const monthCount = differenceInMonths(end, start) + 1;
+        for (let i = 0; i < monthCount; i++) {
+          const month = addMonths(start, i);
+          buckets.push({
+            timestamp: format(month, 'yyyy-MM'),
+            value: 0,
+          });
+        }
+        break;
+    }
+
+    return buckets;
   }
 }

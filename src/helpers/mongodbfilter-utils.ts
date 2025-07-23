@@ -1,8 +1,21 @@
+// mongo-date-filter.service.ts
 import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class MongoDateFilterService {
-  getDateRangeFilter(range: string): { $gte: Date; $lte: Date } {
+  private toISOStringStart(date: Date): string {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString();
+  }
+
+  private toISOStringEnd(date: Date): string {
+    const d = new Date(date);
+    d.setHours(23, 59, 59, 999);
+    return d.toISOString();
+  }
+
+  getDateRangeFilter(range: string): { $gte: string; $lte: string } {
     const now = new Date();
     let from: Date;
     let to: Date = new Date(now);
@@ -10,84 +23,50 @@ export class MongoDateFilterService {
     switch (range) {
       case 'today': {
         from = new Date(now);
-        from.setHours(0, 0, 0, 0);
-
-        to = new Date(now);
-        to.setHours(23, 59, 59, 999);
         break;
       }
-
       case 'yesterday': {
         from = new Date(now);
         from.setDate(from.getDate() - 1);
-        from.setHours(0, 0, 0, 0);
-
         to = new Date(from);
-        to.setHours(23, 59, 59, 999);
         break;
       }
-
       case 'week': {
-        const day = now.getDay(); // Sunday = 0, Monday = 1, ..., Saturday = 6
-        const diffToMonday = day === 0 ? 6 : day - 1; // days to subtract to get Monday
-
+        const day = now.getDay();
+        const diffToMonday = day === 0 ? 6 : day - 1;
         from = new Date(now);
         from.setDate(now.getDate() - diffToMonday);
-        from.setHours(0, 0, 0, 0);
-
         to = new Date(from);
-        to.setDate(from.getDate() + 6);
-        to.setHours(23, 59, 59, 999);
+        to.setDate(to.getDate() + 6);
         break;
       }
-
       case 'lastWeek': {
-        const day = now.getDay(); // Sunday = 0
-        const diffToLastMonday = (day === 0 ? 7 : day - 1) + 7; // go back 7 + diff to Monday
-        const diffToLastSunday = diffToLastMonday - 1; // then +6 days
-
+        const day = now.getDay();
+        const diffToLastMonday = (day === 0 ? 7 : day - 1) + 7;
         from = new Date(now);
         from.setDate(now.getDate() - diffToLastMonday);
-        from.setHours(0, 0, 0, 0);
-
         to = new Date(from);
-        to.setDate(from.getDate() + 6);
-        to.setHours(23, 59, 59, 999);
+        to.setDate(to.getDate() + 6);
         break;
       }
-
       case 'month': {
-        from = new Date(now);
-        from.setMonth(now.getMonth());
-        from.setDate(1);
-        from.setHours(0, 0, 0, 0);
-
-        to = new Date(now);
-        to.setHours(23, 59, 59, 999);
+        from = new Date(now.getFullYear(), now.getMonth(), 1);
+        to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
         break;
       }
       case 'lastMonth': {
-        // First day of last month
         from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        from.setHours(0, 0, 0, 0);
-
-        // Last day of last month
-        to = new Date(now.getFullYear(), now.getMonth(), 0); // 0th = last day of previous month
-        to.setHours(23, 59, 59, 999);
+        to = new Date(now.getFullYear(), now.getMonth(), 0);
         break;
       }
-
       case 'year': {
         from = new Date(now.getFullYear(), 0, 1);
-        from.setHours(0, 0, 0, 0);
-        to = new Date(now);
-        to.setHours(23, 59, 59, 999);
+        to = new Date(now.getFullYear(), 11, 31);
         break;
       }
       case 'lastYear': {
         from = new Date(now.getFullYear() - 1, 0, 1);
         to = new Date(now.getFullYear() - 1, 11, 31);
-        to.setHours(23, 59, 59, 999);
         break;
       }
       default: {
@@ -96,40 +75,31 @@ export class MongoDateFilterService {
     }
 
     return {
-      $gte: from,
-      $lte: to,
+      $gte: this.toISOStringStart(from),
+      $lte: this.toISOStringEnd(to),
     };
   }
 
-  getCustomDateRange(from: Date, to: Date): { $gte: Date; $lte: Date } {
-    const start = new Date(from);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(to);
-    end.setHours(23, 59, 59, 999);
-    return { $gte: start, $lte: end };
+  getCustomDateRange(from: Date, to: Date): { $gte: string; $lte: string } {
+    return {
+      $gte: this.toISOStringStart(from),
+      $lte: this.toISOStringEnd(to),
+    };
   }
 
-  getSingleDateFilter(date: string | Date): { $gte: Date; $lte: Date } {
+  getSingleDateFilter(date: string | Date): { $gte: string; $lte: string } {
     let parsedDate: Date;
 
     if (typeof date === 'string') {
-      const parts = date.split('-');
-      if (parts.length === 3) {
-        const [year, month, day] = parts.map(Number);
-        parsedDate = new Date(year, month - 1, day);
-      } else {
-        parsedDate = new Date(date); // fallback
-      }
-    } else {
       parsedDate = new Date(date);
+    } else {
+      parsedDate = date;
     }
 
-    const start = new Date(parsedDate);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(parsedDate);
-    end.setHours(23, 59, 59, 999);
-
-    return { $gte: start, $lte: end };
+    return {
+      $gte: this.toISOStringStart(parsedDate),
+      $lte: this.toISOStringEnd(parsedDate),
+    };
   }
 
   getCustomTimeRange(startTime: string, endTime: string): { $expr: object } {
@@ -172,5 +142,4 @@ export class MongoDateFilterService {
       },
     };
   }
-  
 }

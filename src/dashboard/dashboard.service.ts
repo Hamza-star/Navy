@@ -1,3 +1,4 @@
+// dashboard.service.ts
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -22,76 +23,74 @@ export class DashboardService {
     endTime?: string;
     towerType?: 'CHCT' | 'CT' | 'all';
   }) {
-    console.log('Received DashboardDto:', dto);
+    console.log('\n===== STARTING PROCESS =====');
+    console.log('Received DashboardDto:', JSON.stringify(dto, null, 2));
+    console.log('Current time:', new Date());
 
     const query: any = {};
+    let startDate: Date = new Date();
+    let endDate: Date = new Date();
+
     if (dto.date) {
       query.timestamp = this.mongoDateFilter.getSingleDateFilter(dto.date);
-      console.log('Single date filter:', query.timestamp);
-    }
-    if (dto.range) {
+      startDate = new Date(dto.date);
+      endDate = new Date(dto.date);
+    } else if (dto.range) {
       try {
-        query.timestamp = this.mongoDateFilter.getDateRangeFilter(dto.range);
-        console.log('Range filter:', query.timestamp);
+        const rangeFilter = this.mongoDateFilter.getDateRangeFilter(dto.range);
+        query.timestamp = rangeFilter;
+        startDate = new Date(rangeFilter.$gte);
+        endDate = new Date(rangeFilter.$lte);
       } catch (err) {
-        console.error('Date range filter error:', err.message);
+        console.error('\n[ERROR] Date range filter error:', err.message);
       }
     } else if (dto.fromDate && dto.toDate) {
+      startDate = new Date(dto.fromDate);
+      endDate = new Date(dto.toDate);
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
-        new Date(dto.fromDate),
-        new Date(dto.toDate),
+        startDate,
+        endDate,
       );
-      console.log('Custom date range filter:', query.timestamp);
     }
+
     if (dto.startTime && dto.endTime) {
       const timeFilter = this.mongoDateFilter.getCustomTimeRange(
         dto.startTime,
         dto.endTime,
       );
       Object.assign(query, timeFilter);
-      console.log('Custom time filter:', timeFilter);
     }
 
     const groupBy =
-      dto.range === 'today'
+      dto.range === 'today' || dto.range === 'yesterday'
         ? 'hour'
-        : dto.range === 'week'
+        : dto.range === 'week' || dto.range === 'lastWeek'
           ? 'day'
-          : dto.range === 'month'
-            ? 'week'
-            : dto.range === 'year'
+          : dto.range === 'month' || dto.range === 'lastMonth'
+            ? 'day'
+            : dto.range === 'year' || dto.range === 'lastYear'
               ? 'month'
               : 'day';
 
-    console.log(`Grouping by: ${groupBy}, Tower type: ${dto.towerType}`);
-    console.log('Final MongoDB Query:', JSON.stringify(query, null, 2));
+    console.log('\n[CONFIG] Grouping strategy:', groupBy);
+    console.log('[CONFIG] Tower type:', dto.towerType || 'all');
+    console.log('[QUERY] Final MongoDB Query:', JSON.stringify(query, null, 2));
+
     const data = await this.DashboardModel.find(query).lean();
-    console.log('Fetched documents count:', data.length);
-    if (data.length > 0) {
-      console.log('Sample document:', data[0]);
-    } else {
-      console.warn('No documents found for query.');
-    }
-
-
-
-
+    console.log('\n[DATA] Fetched documents count:', data.length);
 
     const rangeProcessed = TowerDataProcessor.calculateRange(
       data,
       dto.towerType || 'all',
       groupBy,
+      startDate,
+      endDate,
     );
 
-    // Example: log the processed range
-    console.log('Processed Range:', JSON.stringify(rangeProcessed, null, 2));
-
-    // Sample response format
     return {
       message: 'Dashboard Data',
       data: {
         range: rangeProcessed,
-        // Add other metrics here as needed
       },
     };
   }

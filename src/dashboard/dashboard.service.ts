@@ -86,11 +86,29 @@ export class DashboardService {
       startDate,
       endDate,
     );
-
+    const wetBulb = 25; // Static value for wet bulb temperature
+    const approachProcessed = TowerDataProcessor.calculateApproach(
+      data,
+      dto.towerType || 'all',
+      groupBy,
+      startDate,
+      endDate,
+      wetBulb,
+    );
+    const efficiencyProcessed = TowerDataProcessor.calculateCoolingEfficiency(
+      data,
+      dto.towerType || 'all',
+      groupBy,
+      startDate,
+      endDate,
+      wetBulb,
+    );
     return {
       message: 'Dashboard Data',
       data: {
         range: rangeProcessed,
+        approach: approachProcessed,
+        coolingefficiency: efficiencyProcessed,
       },
     };
   }

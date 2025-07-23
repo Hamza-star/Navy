@@ -117,14 +117,30 @@ export class DashboardService {
       startDate,
       endDate,
     );
+    const evaporationLossRate = TowerDataProcessor.calculateEvaporationLossRate(
+      data,
+      dto.towerType || 'all',
+      groupBy,
+      startDate,
+      endDate,
+    );
+    const blowdownData = TowerDataProcessor.calculateBlowdownRate(
+      data,
+      dto.towerType || 'all',
+      groupBy,
+      startDate,
+      endDate,
+    );
     return {
       message: 'Dashboard Data',
       data: {
-        //range: rangeProcessed,
-        //approach: approachProcessed,
-        //coolingefficiency: efficiencyProcessed,
-        //fanSpeed: fanSpeedProcessed,
+        range: rangeProcessed,
+        approach: approachProcessed,
+        coolingefficiency: efficiencyProcessed,
+        fanSpeed: fanSpeedProcessed,
         driftLossRate: driftLossRate,
+        evaporationLossRate: evaporationLossRate,
+        blowDownRate: blowdownData,
       },
     };
   }

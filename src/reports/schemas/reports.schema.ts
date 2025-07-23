@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
-@Schema({ collection: 'prime_historical_data' })
+@Schema({ collection: 'historical' })
 export class Reports extends Document {
   @Prop()
   timestamp: string;

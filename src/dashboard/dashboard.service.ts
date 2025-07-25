@@ -103,41 +103,6 @@ export class DashboardService {
       endDate,
       wetBulb,
     );
-    const fanSpeedProcessed = TowerDataProcessor.calculateFanSpeed(
-      data,
-      dto.towerType || 'all',
-      groupBy,
-      startDate,
-      endDate,
-    );
-    const driftLossRate = TowerDataProcessor.calculateDriftLossRate(
-      data,
-      dto.towerType || 'all',
-      groupBy,
-      startDate,
-      endDate,
-    );
-    const evaporationLossRate = TowerDataProcessor.calculateEvaporationLossRate(
-      data,
-      dto.towerType || 'all',
-      groupBy,
-      startDate,
-      endDate,
-    );
-    const blowdownData = TowerDataProcessor.calculateBlowdownRate(
-      data,
-      dto.towerType || 'all',
-      groupBy,
-      startDate,
-      endDate,
-    );
-    const makeupWaterData = TowerDataProcessor.calculateMakeupWater(
-      data,
-      dto.towerType || 'all',
-      groupBy,
-      startDate,
-      endDate,
-    );
     const coolingCapacity = TowerDataProcessor.calculateCoolingCapacity(
       data,
       dto.towerType || 'all',
@@ -152,20 +117,31 @@ export class DashboardService {
       startDate,
       endDate,
     );
+    const waterConsumption = TowerDataProcessor.calculateWaterConsumption(
+      data,
+      dto.towerType || 'all',
+      groupBy,
+      startDate,
+      endDate,
+    );
+    const avgEnergyUsage = TowerDataProcessor.calculateAverageEnergyUsage(
+      data,
+      dto.towerType || 'all',
+      groupBy,
+      startDate,
+      endDate,
+    );
 
     return {
       message: 'Dashboard Data',
       data: {
-        //range: rangeProcessed,
-        //approach: approachProcessed,
-        //coolingefficiency: efficiencyProcessed,
-        //fanSpeed: fanSpeedProcessed,
-        //driftLossRate: driftLossRate,
-        //evaporationLossRate: evaporationLossRate,
-        //blowDownRate: blowdownData,
-        makeupWater: makeupWaterData,
+        range: rangeProcessed,
+        approach: approachProcessed,
+        coolingefficiency: efficiencyProcessed,
         coolingCapacity: coolingCapacity,
         waterEfficiency: waterEfficiency,
+        waterConsumption: waterConsumption,
+        energyUsage: avgEnergyUsage,
       },
     };
   }
@@ -611,11 +587,25 @@ export class DashboardService {
     const data = await this.DashboardModel.find(query).lean();
     console.log('\n[DATA] Fetched documents count:', data.length);
 
+    const fanPowerConsumption = TowerDataProcessor.calculateFanPowerConsumption(
+      data,
+      dto.towerType || 'all',
+      groupBy,
+      startDate,
+      endDate,
+    );
+    const fanEfficiency = TowerDataProcessor.calculateFanEfficiencyIndex(
+      data,
+      dto.towerType || 'all',
+      groupBy,
+      startDate,
+      endDate,
+    );
     return {
       message: 'Dashboard Data',
       data: {
-        FanPowerConsumption: 0,
-        FanPowerEfficiecny: 20,
+        fanPower: fanPowerConsumption,
+        fanEfficiencyIndex: fanEfficiency,
       },
     };
   }
@@ -1040,12 +1030,25 @@ export class DashboardService {
 
     const data = await this.DashboardModel.find(query).lean();
     console.log('\n[DATA] Fetched documents count:', data.length);
-
+    const fanPowerConsumption = TowerDataProcessor.calculateFanPowerConsumption(
+      data,
+      dto.towerType || 'all',
+      groupBy,
+      startDate,
+      endDate,
+    );
+    const fanEfficiency = TowerDataProcessor.calculateFanEfficiencyIndex(
+      data,
+      dto.towerType || 'all',
+      groupBy,
+      startDate,
+      endDate,
+    );
     return {
       message: 'Dashboard Data',
       data: {
-        FanPowerConsumption: 0,
-        FanPowerEfficiecny: 20,
+        fanPower: fanPowerConsumption,
+        fanEfficiencyIndex: fanEfficiency,
       },
     };
   }
@@ -1235,12 +1238,428 @@ export class DashboardService {
 
     const data = await this.DashboardModel.find(query).lean();
     console.log('\n[DATA] Fetched documents count:', data.length);
-
+    const DriftToEvaporationRatio =
+      TowerDataProcessor.calculateDriftToEvapRatio(
+        data,
+        dto.towerType || 'all',
+        groupBy,
+        startDate,
+        endDate,
+      );
     return {
       message: 'Dashboard Data',
       data: {
         NormalisedWaterUsage: 0,
-        DriftToEvaporationRatio: 20,
+        DriftToEvaporationRatio: DriftToEvaporationRatio,
+      },
+    };
+  }
+  async getDashboardDataChart14(dto: {
+    date?: string;
+    range?: string;
+    fromDate?: string;
+    toDate?: string;
+    startTime?: string;
+    endTime?: string;
+    towerType?: 'CHCT' | 'CT' | 'all';
+  }) {
+    console.log('\n===== STARTING PROCESS =====');
+    console.log('Received DashboardDto:', JSON.stringify(dto, null, 2));
+    console.log('Current time:', new Date());
+
+    const query: any = {};
+    let startDate: Date = new Date();
+    let endDate: Date = new Date();
+
+    if (dto.date) {
+      query.timestamp = this.mongoDateFilter.getSingleDateFilter(dto.date);
+      startDate = new Date(dto.date);
+      endDate = new Date(dto.date);
+    } else if (dto.range) {
+      try {
+        const rangeFilter = this.mongoDateFilter.getDateRangeFilter(dto.range);
+        query.timestamp = rangeFilter;
+        startDate = new Date(rangeFilter.$gte);
+        endDate = new Date(rangeFilter.$lte);
+      } catch (err) {
+        console.error('\n[ERROR] Date range filter error:', err.message);
+      }
+    } else if (dto.fromDate && dto.toDate) {
+      startDate = new Date(dto.fromDate);
+      endDate = new Date(dto.toDate);
+      query.timestamp = this.mongoDateFilter.getCustomDateRange(
+        startDate,
+        endDate,
+      );
+    }
+
+    if (dto.startTime && dto.endTime) {
+      const timeFilter = this.mongoDateFilter.getCustomTimeRange(
+        dto.startTime,
+        dto.endTime,
+      );
+      Object.assign(query, timeFilter);
+    }
+
+    const data = await this.DashboardModel.find(query).lean();
+    console.log('\n[DATA] Fetched documents count:', data.length);
+    const wetBulb = 25;
+    const coolingEfficiencyByTower =
+      TowerDataProcessor.calculateCoolingEfficiencyByTower(data, wetBulb);
+    return {
+      message: 'Dashboard Data',
+      data: {
+        CoolingEfficiecnyByTower: coolingEfficiencyByTower,
+      },
+    };
+  }
+  async getDashboardDataChart15(dto: {
+    date?: string;
+    range?: string;
+    fromDate?: string;
+    toDate?: string;
+    startTime?: string;
+    endTime?: string;
+    towerType?: 'CHCT' | 'CT' | 'all';
+  }) {
+    console.log('\n===== STARTING PROCESS =====');
+    console.log('Received DashboardDto:', JSON.stringify(dto, null, 2));
+    console.log('Current time:', new Date());
+
+    const query: any = {};
+    let startDate: Date = new Date();
+    let endDate: Date = new Date();
+
+    if (dto.date) {
+      query.timestamp = this.mongoDateFilter.getSingleDateFilter(dto.date);
+      startDate = new Date(dto.date);
+      endDate = new Date(dto.date);
+    } else if (dto.range) {
+      try {
+        const rangeFilter = this.mongoDateFilter.getDateRangeFilter(dto.range);
+        query.timestamp = rangeFilter;
+        startDate = new Date(rangeFilter.$gte);
+        endDate = new Date(rangeFilter.$lte);
+      } catch (err) {
+        console.error('\n[ERROR] Date range filter error:', err.message);
+      }
+    } else if (dto.fromDate && dto.toDate) {
+      startDate = new Date(dto.fromDate);
+      endDate = new Date(dto.toDate);
+      query.timestamp = this.mongoDateFilter.getCustomDateRange(
+        startDate,
+        endDate,
+      );
+    }
+
+    if (dto.startTime && dto.endTime) {
+      const timeFilter = this.mongoDateFilter.getCustomTimeRange(
+        dto.startTime,
+        dto.endTime,
+      );
+      Object.assign(query, timeFilter);
+    }
+
+    const data = await this.DashboardModel.find(query).lean();
+    console.log('\n[DATA] Fetched documents count:', data.length);
+    const rangeByTower = TowerDataProcessor.calculateRangeByTower(data);
+    return {
+      message: 'Dashboard Data',
+      data: {
+        rangeByTower: rangeByTower,
+      },
+    };
+  }
+  async getDashboardDataChart16(dto: {
+    date?: string;
+    range?: string;
+    fromDate?: string;
+    toDate?: string;
+    startTime?: string;
+    endTime?: string;
+    towerType?: 'CHCT' | 'CT' | 'all';
+  }) {
+    console.log('\n===== STARTING PROCESS =====');
+    console.log('Received DashboardDto:', JSON.stringify(dto, null, 2));
+    console.log('Current time:', new Date());
+
+    const query: any = {};
+    let startDate: Date = new Date();
+    let endDate: Date = new Date();
+
+    if (dto.date) {
+      query.timestamp = this.mongoDateFilter.getSingleDateFilter(dto.date);
+      startDate = new Date(dto.date);
+      endDate = new Date(dto.date);
+    } else if (dto.range) {
+      try {
+        const rangeFilter = this.mongoDateFilter.getDateRangeFilter(dto.range);
+        query.timestamp = rangeFilter;
+        startDate = new Date(rangeFilter.$gte);
+        endDate = new Date(rangeFilter.$lte);
+      } catch (err) {
+        console.error('\n[ERROR] Date range filter error:', err.message);
+      }
+    } else if (dto.fromDate && dto.toDate) {
+      startDate = new Date(dto.fromDate);
+      endDate = new Date(dto.toDate);
+      query.timestamp = this.mongoDateFilter.getCustomDateRange(
+        startDate,
+        endDate,
+      );
+    }
+
+    if (dto.startTime && dto.endTime) {
+      const timeFilter = this.mongoDateFilter.getCustomTimeRange(
+        dto.startTime,
+        dto.endTime,
+      );
+      Object.assign(query, timeFilter);
+    }
+
+    const groupBy =
+      dto.range === 'today' || dto.range === 'yesterday'
+        ? 'hour'
+        : dto.range === 'week' || dto.range === 'lastWeek'
+          ? 'day'
+          : dto.range === 'month' || dto.range === 'lastMonth'
+            ? 'day'
+            : dto.range === 'year' || dto.range === 'lastYear'
+              ? 'month'
+              : 'day';
+
+    console.log('\n[CONFIG] Grouping strategy:', groupBy);
+    console.log('[CONFIG] Tower type:', dto.towerType || 'all');
+    console.log('[QUERY] Final MongoDB Query:', JSON.stringify(query, null, 2));
+
+    const data = await this.DashboardModel.find(query).lean();
+    console.log('\n[DATA] Fetched documents count:', data.length);
+    const wetBulb = 25;
+    const approachByTower = TowerDataProcessor.calculateApproachByTower(
+      data,
+      wetBulb,
+    );
+    return {
+      message: 'Dashboard Data',
+      data: {
+        approachByTower: approachByTower,
+      },
+    };
+  }
+  async getDashboardDataChart17(dto: {
+    date?: string;
+    range?: string;
+    fromDate?: string;
+    toDate?: string;
+    startTime?: string;
+    endTime?: string;
+    towerType?: 'CHCT' | 'CT' | 'all';
+  }) {
+    console.log('\n===== STARTING PROCESS =====');
+    console.log('Received DashboardDto:', JSON.stringify(dto, null, 2));
+    console.log('Current time:', new Date());
+
+    const query: any = {};
+    let startDate: Date = new Date();
+    let endDate: Date = new Date();
+
+    if (dto.date) {
+      query.timestamp = this.mongoDateFilter.getSingleDateFilter(dto.date);
+      startDate = new Date(dto.date);
+      endDate = new Date(dto.date);
+    } else if (dto.range) {
+      try {
+        const rangeFilter = this.mongoDateFilter.getDateRangeFilter(dto.range);
+        query.timestamp = rangeFilter;
+        startDate = new Date(rangeFilter.$gte);
+        endDate = new Date(rangeFilter.$lte);
+      } catch (err) {
+        console.error('\n[ERROR] Date range filter error:', err.message);
+      }
+    } else if (dto.fromDate && dto.toDate) {
+      startDate = new Date(dto.fromDate);
+      endDate = new Date(dto.toDate);
+      query.timestamp = this.mongoDateFilter.getCustomDateRange(
+        startDate,
+        endDate,
+      );
+    }
+
+    if (dto.startTime && dto.endTime) {
+      const timeFilter = this.mongoDateFilter.getCustomTimeRange(
+        dto.startTime,
+        dto.endTime,
+      );
+      Object.assign(query, timeFilter);
+    }
+
+    const groupBy =
+      dto.range === 'today' || dto.range === 'yesterday'
+        ? 'hour'
+        : dto.range === 'week' || dto.range === 'lastWeek'
+          ? 'day'
+          : dto.range === 'month' || dto.range === 'lastMonth'
+            ? 'day'
+            : dto.range === 'year' || dto.range === 'lastYear'
+              ? 'month'
+              : 'day';
+
+    console.log('\n[CONFIG] Grouping strategy:', groupBy);
+    console.log('[CONFIG] Tower type:', dto.towerType || 'all');
+    console.log('[QUERY] Final MongoDB Query:', JSON.stringify(query, null, 2));
+
+    const data = await this.DashboardModel.find(query).lean();
+    console.log('\n[DATA] Fetched documents count:', data.length);
+    const waterMetrics = TowerDataProcessor.calculateWaterMetricsByTower(data);
+    return {
+      message: 'Dashboard Data',
+      data: {
+        waterMetrics: waterMetrics,
+      },
+    };
+  }
+  async getDashboardDataChart18(dto: {
+    date?: string;
+    range?: string;
+    fromDate?: string;
+    toDate?: string;
+    startTime?: string;
+    endTime?: string;
+    towerType?: 'CHCT' | 'CT' | 'all';
+  }) {
+    console.log('\n===== STARTING PROCESS =====');
+    console.log('Received DashboardDto:', JSON.stringify(dto, null, 2));
+    console.log('Current time:', new Date());
+
+    const query: any = {};
+    let startDate: Date = new Date();
+    let endDate: Date = new Date();
+
+    if (dto.date) {
+      query.timestamp = this.mongoDateFilter.getSingleDateFilter(dto.date);
+      startDate = new Date(dto.date);
+      endDate = new Date(dto.date);
+    } else if (dto.range) {
+      try {
+        const rangeFilter = this.mongoDateFilter.getDateRangeFilter(dto.range);
+        query.timestamp = rangeFilter;
+        startDate = new Date(rangeFilter.$gte);
+        endDate = new Date(rangeFilter.$lte);
+      } catch (err) {
+        console.error('\n[ERROR] Date range filter error:', err.message);
+      }
+    } else if (dto.fromDate && dto.toDate) {
+      startDate = new Date(dto.fromDate);
+      endDate = new Date(dto.toDate);
+      query.timestamp = this.mongoDateFilter.getCustomDateRange(
+        startDate,
+        endDate,
+      );
+    }
+
+    if (dto.startTime && dto.endTime) {
+      const timeFilter = this.mongoDateFilter.getCustomTimeRange(
+        dto.startTime,
+        dto.endTime,
+      );
+      Object.assign(query, timeFilter);
+    }
+
+    const groupBy =
+      dto.range === 'today' || dto.range === 'yesterday'
+        ? 'hour'
+        : dto.range === 'week' || dto.range === 'lastWeek'
+          ? 'day'
+          : dto.range === 'month' || dto.range === 'lastMonth'
+            ? 'day'
+            : dto.range === 'year' || dto.range === 'lastYear'
+              ? 'month'
+              : 'day';
+
+    console.log('\n[CONFIG] Grouping strategy:', groupBy);
+    console.log('[CONFIG] Tower type:', dto.towerType || 'all');
+    console.log('[QUERY] Final MongoDB Query:', JSON.stringify(query, null, 2));
+
+    const data = await this.DashboardModel.find(query).lean();
+    console.log('\n[DATA] Fetched documents count:', data.length);
+    const coolingCapacityByTower =
+      TowerDataProcessor.calculateCoolingCapacityByTower(data);
+    return {
+      message: 'Dashboard Data',
+      data: {
+        coolingCapacityByTower: coolingCapacityByTower,
+      },
+    };
+  }
+  async getDashboardDataChart19(dto: {
+    date?: string;
+    range?: string;
+    fromDate?: string;
+    toDate?: string;
+    startTime?: string;
+    endTime?: string;
+    towerType?: 'CHCT' | 'CT' | 'all';
+  }) {
+    console.log('\n===== STARTING PROCESS =====');
+    console.log('Received DashboardDto:', JSON.stringify(dto, null, 2));
+    console.log('Current time:', new Date());
+
+    const query: any = {};
+    let startDate: Date = new Date();
+    let endDate: Date = new Date();
+
+    if (dto.date) {
+      query.timestamp = this.mongoDateFilter.getSingleDateFilter(dto.date);
+      startDate = new Date(dto.date);
+      endDate = new Date(dto.date);
+    } else if (dto.range) {
+      try {
+        const rangeFilter = this.mongoDateFilter.getDateRangeFilter(dto.range);
+        query.timestamp = rangeFilter;
+        startDate = new Date(rangeFilter.$gte);
+        endDate = new Date(rangeFilter.$lte);
+      } catch (err) {
+        console.error('\n[ERROR] Date range filter error:', err.message);
+      }
+    } else if (dto.fromDate && dto.toDate) {
+      startDate = new Date(dto.fromDate);
+      endDate = new Date(dto.toDate);
+      query.timestamp = this.mongoDateFilter.getCustomDateRange(
+        startDate,
+        endDate,
+      );
+    }
+
+    if (dto.startTime && dto.endTime) {
+      const timeFilter = this.mongoDateFilter.getCustomTimeRange(
+        dto.startTime,
+        dto.endTime,
+      );
+      Object.assign(query, timeFilter);
+    }
+
+    const groupBy =
+      dto.range === 'today' || dto.range === 'yesterday'
+        ? 'hour'
+        : dto.range === 'week' || dto.range === 'lastWeek'
+          ? 'day'
+          : dto.range === 'month' || dto.range === 'lastMonth'
+            ? 'day'
+            : dto.range === 'year' || dto.range === 'lastYear'
+              ? 'month'
+              : 'day';
+
+    console.log('\n[CONFIG] Grouping strategy:', groupBy);
+    console.log('[CONFIG] Tower type:', dto.towerType || 'all');
+    console.log('[QUERY] Final MongoDB Query:', JSON.stringify(query, null, 2));
+
+    const data = await this.DashboardModel.find(query).lean();
+    console.log('\n[DATA] Fetched documents count:', data.length);
+    const fanSpeedByTower = TowerDataProcessor.calculateFanSpeedByTower(data);
+    return {
+      message: 'Dashboard Data',
+      data: {
+        fanSpeedByTower: fanSpeedByTower,
       },
     };
   }

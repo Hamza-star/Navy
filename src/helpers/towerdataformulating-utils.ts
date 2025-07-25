@@ -152,7 +152,6 @@ export class TowerDataProcessor {
 
     return { grouped, overallAverage };
   }
-
   static calculateApproach(
     data: any[],
     towerType: 'CHCT' | 'CT' | 'all',
@@ -269,7 +268,6 @@ export class TowerDataProcessor {
 
     return { grouped, overallAverage };
   }
-
   static calculateCoolingEfficiency(
     data: any[],
     towerType: 'CHCT' | 'CT' | 'all',
@@ -395,7 +393,6 @@ export class TowerDataProcessor {
 
     return { grouped, overallAverage };
   }
-
   static calculateFanSpeed(
     data: any[],
     towerType: 'CHCT' | 'CT' | 'all',
@@ -512,7 +509,6 @@ export class TowerDataProcessor {
 
     return { grouped, overallAverage };
   }
-
   static calculateDriftLossRate(
     data: any[],
     towerType: 'CHCT' | 'CT' | 'all',
@@ -626,7 +622,6 @@ export class TowerDataProcessor {
 
     return { grouped, overallAverage };
   }
-
   static calculateEvaporationLossRate(
     data: any[],
     towerType: 'CHCT' | 'CT' | 'all',
@@ -1463,7 +1458,765 @@ export class TowerDataProcessor {
 
     return { grouped, overallAverage };
   }
+  static calculateFanPowerConsumption(
+    data: any[],
+    towerType: 'CHCT' | 'CT' | 'all',
+    groupBy: 'hour' | 'day' | 'week' | 'month',
+    startDate: Date,
+    endDate: Date,
+  ): { grouped: { label: string; value: number }[]; overallAverage: number } {
+    const emptyBuckets = this.generateEmptyBuckets(
+      startDate,
+      endDate,
+      groupBy,
+    ).map((bucket) => ({
+      label: bucket.timestamp,
+      value: 0,
+    }));
 
+    if (data.length === 0) {
+      return {
+        grouped: emptyBuckets,
+        overallAverage: 0,
+      };
+    }
+
+    const getDocumentDate = (doc: any): Date => {
+      if (doc.timestamp?.$date) return new Date(doc.timestamp.$date);
+      if (typeof doc.timestamp === 'string') return new Date(doc.timestamp);
+      if (doc.Time) return new Date(doc.Time);
+      if (doc.UNIXtimestamp) return new Date(doc.UNIXtimestamp * 1000);
+      if (doc.PLC_Date_Time) {
+        const dateString = doc.PLC_Date_Time.replace('DT#', '').replace(
+          /-/g,
+          '/',
+        );
+        return new Date(dateString);
+      }
+      return new Date();
+    };
+
+    const calculateDocumentPower = (doc: any): number | null => {
+      const powers: number[] = [];
+
+      // Helper to check and sum power values
+      const getTowerPower = (
+        phaseA: number | undefined,
+        phaseB: number | undefined,
+        phaseC: number | undefined,
+      ): number | null => {
+        if (
+          typeof phaseA === 'number' &&
+          typeof phaseB === 'number' &&
+          typeof phaseC === 'number'
+        ) {
+          return phaseA + phaseB + phaseC;
+        }
+        return null;
+      };
+
+      if (towerType === 'CHCT' || towerType === 'all') {
+        const chct1Power = getTowerPower(
+          doc.CHCT1_EM01_ActivePower_A_kW,
+          doc.CHCT1_EM01_ActivePower_B_kW,
+          doc.CHCT1_EM01_ActivePower_C_kW,
+        );
+        if (chct1Power !== null) powers.push(chct1Power);
+
+        const chct2Power = getTowerPower(
+          doc.CHCT2_EM01_ActivePower_A_kW,
+          doc.CHCT2_EM01_ActivePower_B_kW,
+          doc.CHCT2_EM01_ActivePower_C_kW,
+        );
+        if (chct2Power !== null) powers.push(chct2Power);
+      }
+
+      if (towerType === 'CT' || towerType === 'all') {
+        const ct1Power = getTowerPower(
+          doc.CT1_EM01_ActivePower_A_kW,
+          doc.CT1_EM01_ActivePower_B_kW,
+          doc.CT1_EM01_ActivePower_C_kW,
+        );
+        if (ct1Power !== null) powers.push(ct1Power);
+
+        const ct2Power = getTowerPower(
+          doc.CT2_EM01_ActivePower_A_kW,
+          doc.CT2_EM01_ActivePower_B_kW,
+          doc.CT2_EM01_ActivePower_C_kW,
+        );
+        if (ct2Power !== null) powers.push(ct2Power);
+      }
+
+      return powers.length > 0
+        ? powers.reduce((a, b) => a + b, 0) / powers.length
+        : null;
+    };
+
+    const groupMap = new Map<string, { sum: number; count: number }>();
+    let totalSum = 0;
+    let totalCount = 0;
+
+    for (const doc of data) {
+      const docPower = calculateDocumentPower(doc);
+      if (docPower === null) continue;
+
+      const docDate = getDocumentDate(doc);
+      totalSum += docPower;
+      totalCount++;
+
+      let groupKey = '';
+      switch (groupBy) {
+        case 'hour':
+          groupKey = format(docDate, 'yyyy-MM-dd HH:00');
+          break;
+        case 'day':
+          groupKey = format(docDate, 'yyyy-MM-dd');
+          break;
+        case 'week':
+          groupKey = `${getYear(docDate)}-W${String(getWeek(docDate)).padStart(2, '0')}`;
+          break;
+        case 'month':
+          groupKey = format(docDate, 'yyyy-MM');
+          break;
+      }
+
+      if (!groupMap.has(groupKey)) {
+        groupMap.set(groupKey, { sum: 0, count: 0 });
+      }
+      const group = groupMap.get(groupKey)!;
+      group.sum += docPower;
+      group.count++;
+    }
+
+    const grouped = emptyBuckets.map((bucket) => {
+      if (groupMap.has(bucket.label)) {
+        const group = groupMap.get(bucket.label)!;
+        return {
+          label: bucket.label,
+          value: group.sum / group.count,
+        };
+      }
+      return bucket;
+    });
+
+    const overallAverage = totalCount > 0 ? totalSum / totalCount : 0;
+
+    return { grouped, overallAverage };
+  }
+  static calculateFanEfficiencyIndex(
+    data: any[],
+    towerType: 'CHCT' | 'CT' | 'all',
+    groupBy: 'hour' | 'day' | 'week' | 'month',
+    startDate: Date,
+    endDate: Date,
+  ): { grouped: { label: string; value: number }[]; overallAverage: number } {
+    const emptyBuckets = this.generateEmptyBuckets(
+      startDate,
+      endDate,
+      groupBy,
+    ).map((bucket) => ({
+      label: bucket.timestamp,
+      value: 0,
+    }));
+
+    if (data.length === 0) {
+      return {
+        grouped: emptyBuckets,
+        overallAverage: 0,
+      };
+    }
+
+    const getDocumentDate = (doc: any): Date => {
+      if (doc.timestamp?.$date) return new Date(doc.timestamp.$date);
+      if (typeof doc.timestamp === 'string') return new Date(doc.timestamp);
+      if (doc.Time) return new Date(doc.Time);
+      if (doc.UNIXtimestamp) return new Date(doc.UNIXtimestamp * 1000);
+      if (doc.PLC_Date_Time) {
+        const dateString = doc.PLC_Date_Time.replace('DT#', '').replace(
+          /-/g,
+          '/',
+        );
+        return new Date(dateString);
+      }
+      return new Date();
+    };
+
+    const Cp = 4.186; // kJ/kg°C for cooling capacity calculation
+
+    const calculateDocumentEfficiency = (doc: any): number | null => {
+      const efficiencies: number[] = [];
+
+      // Helper to calculate cooling capacity for a tower
+      const calculateCapacity = (flow: number, hot: number, cold: number) => {
+        return Cp * flow * (hot - cold); // kJ/s = kW
+      };
+
+      // Helper to calculate power consumption for a tower
+      const calculatePower = (
+        phaseA: number,
+        phaseB: number,
+        phaseC: number,
+      ) => {
+        return phaseA + phaseB + phaseC;
+      };
+
+      if (towerType === 'CHCT' || towerType === 'all') {
+        // Process CHCT1
+        if (
+          typeof doc.CHCT1_FM_02_FR === 'number' &&
+          typeof doc.CHCT1_TEMP_RTD_02_AI === 'number' &&
+          typeof doc.CHCT1_TEMP_RTD_01_AI === 'number' &&
+          typeof doc.CHCT1_EM01_ActivePower_A_kW === 'number' &&
+          typeof doc.CHCT1_EM01_ActivePower_B_kW === 'number' &&
+          typeof doc.CHCT1_EM01_ActivePower_C_kW === 'number'
+        ) {
+          const capacity = calculateCapacity(
+            doc.CHCT1_FM_02_FR,
+            doc.CHCT1_TEMP_RTD_02_AI,
+            doc.CHCT1_TEMP_RTD_01_AI,
+          );
+          const power = calculatePower(
+            doc.CHCT1_EM01_ActivePower_A_kW,
+            doc.CHCT1_EM01_ActivePower_B_kW,
+            doc.CHCT1_EM01_ActivePower_C_kW,
+          );
+
+          if (power !== 0) {
+            efficiencies.push(capacity / power);
+          }
+        }
+
+        // Process CHCT2
+        if (
+          typeof doc.CHCT2_FM_02_FR === 'number' &&
+          typeof doc.CHCT2_TEMP_RTD_02_AI === 'number' &&
+          typeof doc.CHCT2_TEMP_RTD_01_AI === 'number' &&
+          typeof doc.CHCT2_EM01_ActivePower_A_kW === 'number' &&
+          typeof doc.CHCT2_EM01_ActivePower_B_kW === 'number' &&
+          typeof doc.CHCT2_EM01_ActivePower_C_kW === 'number'
+        ) {
+          const capacity = calculateCapacity(
+            doc.CHCT2_FM_02_FR,
+            doc.CHCT2_TEMP_RTD_02_AI,
+            doc.CHCT2_TEMP_RTD_01_AI,
+          );
+          const power = calculatePower(
+            doc.CHCT2_EM01_ActivePower_A_kW,
+            doc.CHCT2_EM01_ActivePower_B_kW,
+            doc.CHCT2_EM01_ActivePower_C_kW,
+          );
+
+          if (power !== 0) {
+            efficiencies.push(capacity / power);
+          }
+        }
+      }
+
+      if (towerType === 'CT' || towerType === 'all') {
+        // Process CT1
+        if (
+          typeof doc.CT1_FM_02_FR === 'number' &&
+          typeof doc.CT1_TEMP_RTD_02_AI === 'number' &&
+          typeof doc.CT1_TEMP_RTD_01_AI === 'number' &&
+          typeof doc.CT1_EM01_ActivePower_A_kW === 'number' &&
+          typeof doc.CT1_EM01_ActivePower_B_kW === 'number' &&
+          typeof doc.CT1_EM01_ActivePower_C_kW === 'number'
+        ) {
+          const capacity = calculateCapacity(
+            doc.CT1_FM_02_FR,
+            doc.CT1_TEMP_RTD_02_AI,
+            doc.CT1_TEMP_RTD_01_AI,
+          );
+          const power = calculatePower(
+            doc.CT1_EM01_ActivePower_A_kW,
+            doc.CT1_EM01_ActivePower_B_kW,
+            doc.CT1_EM01_ActivePower_C_kW,
+          );
+
+          if (power !== 0) {
+            efficiencies.push(capacity / power);
+          }
+        }
+
+        // Process CT2
+        if (
+          typeof doc.CT2_FM_02_FR === 'number' &&
+          typeof doc.CT2_TEMP_RTD_02_AI === 'number' &&
+          typeof doc.CT2_TEMP_RTD_01_AI === 'number' &&
+          typeof doc.CT2_EM01_ActivePower_A_kW === 'number' &&
+          typeof doc.CT2_EM01_ActivePower_B_kW === 'number' &&
+          typeof doc.CT2_EM01_ActivePower_C_kW === 'number'
+        ) {
+          const capacity = calculateCapacity(
+            doc.CT2_FM_02_FR,
+            doc.CT2_TEMP_RTD_02_AI,
+            doc.CT2_TEMP_RTD_01_AI,
+          );
+          const power = calculatePower(
+            doc.CT2_EM01_ActivePower_A_kW,
+            doc.CT2_EM01_ActivePower_B_kW,
+            doc.CT2_EM01_ActivePower_C_kW,
+          );
+
+          if (power !== 0) {
+            efficiencies.push(capacity / power);
+          }
+        }
+      }
+
+      return efficiencies.length > 0
+        ? efficiencies.reduce((a, b) => a + b, 0) / efficiencies.length
+        : null;
+    };
+
+    const groupMap = new Map<string, { sum: number; count: number }>();
+    let totalSum = 0;
+    let totalCount = 0;
+
+    for (const doc of data) {
+      const efficiency = calculateDocumentEfficiency(doc);
+      if (efficiency === null) continue;
+
+      const docDate = getDocumentDate(doc);
+      totalSum += efficiency;
+      totalCount++;
+
+      let groupKey = '';
+      switch (groupBy) {
+        case 'hour':
+          groupKey = format(docDate, 'yyyy-MM-dd HH:00');
+          break;
+        case 'day':
+          groupKey = format(docDate, 'yyyy-MM-dd');
+          break;
+        case 'week':
+          groupKey = `${getYear(docDate)}-W${String(getWeek(docDate)).padStart(2, '0')}`;
+          break;
+        case 'month':
+          groupKey = format(docDate, 'yyyy-MM');
+          break;
+      }
+
+      if (!groupMap.has(groupKey)) {
+        groupMap.set(groupKey, { sum: 0, count: 0 });
+      }
+      const group = groupMap.get(groupKey)!;
+      group.sum += efficiency;
+      group.count++;
+    }
+
+    const grouped = emptyBuckets.map((bucket) => {
+      if (groupMap.has(bucket.label)) {
+        const group = groupMap.get(bucket.label)!;
+        return {
+          label: bucket.label,
+          value: group.sum / group.count,
+        };
+      }
+      return bucket;
+    });
+
+    const overallAverage = totalCount > 0 ? totalSum / totalCount : 0;
+
+    return { grouped, overallAverage };
+  }
+  static calculateWaterConsumption(
+    data: any[],
+    towerType: 'CHCT' | 'CT' | 'all',
+    groupBy: 'hour' | 'day' | 'week' | 'month',
+    startDate: Date,
+    endDate: Date,
+  ): { grouped: { label: string; value: number }[]; overallAverage: number } {
+    const emptyBuckets = this.generateEmptyBuckets(
+      startDate,
+      endDate,
+      groupBy,
+    ).map((bucket) => ({
+      label: bucket.timestamp,
+      value: 0,
+    }));
+
+    if (data.length === 0) {
+      return {
+        grouped: emptyBuckets,
+        overallAverage: 0,
+      };
+    }
+
+    const getDocumentDate = (doc: any): Date => {
+      if (doc.timestamp?.$date) return new Date(doc.timestamp.$date);
+      if (typeof doc.timestamp === 'string') return new Date(doc.timestamp);
+      if (doc.Time) return new Date(doc.Time);
+      if (doc.UNIXtimestamp) return new Date(doc.UNIXtimestamp * 1000);
+      if (doc.PLC_Date_Time) {
+        const dateString = doc.PLC_Date_Time.replace('DT#', '').replace(
+          /-/g,
+          '/',
+        );
+        return new Date(dateString);
+      }
+      return new Date();
+    };
+
+    const calculateDocumentConsumption = (doc: any): number | null => {
+      const consumptions: number[] = [];
+
+      if (towerType === 'CHCT' || towerType === 'all') {
+        if (typeof doc.CHCT1_FM_01_TOT === 'number') {
+          consumptions.push(doc.CHCT1_FM_01_TOT);
+        }
+        if (typeof doc.CHCT2_FM_01_TOT === 'number') {
+          consumptions.push(doc.CHCT2_FM_01_TOT);
+        }
+      }
+
+      if (towerType === 'CT' || towerType === 'all') {
+        if (typeof doc.CT1_FM_01_TOT === 'number') {
+          consumptions.push(doc.CT1_FM_01_TOT);
+        }
+        if (typeof doc.CT2_FM_01_TOT === 'number') {
+          consumptions.push(doc.CT2_FM_01_TOT);
+        }
+      }
+
+      return consumptions.length > 0
+        ? consumptions.reduce((a, b) => a + b, 0) / consumptions.length
+        : null;
+    };
+
+    const groupMap = new Map<string, { sum: number; count: number }>();
+    let totalSum = 0;
+    let totalCount = 0;
+
+    for (const doc of data) {
+      const docConsumption = calculateDocumentConsumption(doc);
+      if (docConsumption === null) continue;
+
+      const docDate = getDocumentDate(doc);
+      totalSum += docConsumption;
+      totalCount++;
+
+      let groupKey = '';
+      switch (groupBy) {
+        case 'hour':
+          groupKey = format(docDate, 'yyyy-MM-dd HH:00');
+          break;
+        case 'day':
+          groupKey = format(docDate, 'yyyy-MM-dd');
+          break;
+        case 'week':
+          groupKey = `${getYear(docDate)}-W${String(getWeek(docDate)).padStart(2, '0')}`;
+          break;
+        case 'month':
+          groupKey = format(docDate, 'yyyy-MM');
+          break;
+      }
+
+      if (!groupMap.has(groupKey)) {
+        groupMap.set(groupKey, { sum: 0, count: 0 });
+      }
+      const group = groupMap.get(groupKey)!;
+      group.sum += docConsumption;
+      group.count++;
+    }
+
+    const grouped = emptyBuckets.map((bucket) => {
+      if (groupMap.has(bucket.label)) {
+        const group = groupMap.get(bucket.label)!;
+        return {
+          label: bucket.label,
+          value: group.sum / group.count,
+        };
+      }
+      return bucket;
+    });
+
+    const overallAverage = totalCount > 0 ? totalSum / totalCount : 0;
+
+    return { grouped, overallAverage };
+  }
+  static calculateAverageEnergyUsage(
+    data: any[],
+    towerType: 'CHCT' | 'CT' | 'all',
+    groupBy: 'hour' | 'day' | 'week' | 'month',
+    startDate: Date,
+    endDate: Date,
+  ): { grouped: { label: string; value: number }[]; overallAverage: number } {
+    const emptyBuckets = this.generateEmptyBuckets(
+      startDate,
+      endDate,
+      groupBy,
+    ).map((bucket) => ({
+      label: bucket.timestamp,
+      value: 0,
+    }));
+
+    if (data.length === 0) {
+      return {
+        grouped: emptyBuckets,
+        overallAverage: 0,
+      };
+    }
+
+    const getDocumentDate = (doc: any): Date => {
+      if (doc.timestamp?.$date) return new Date(doc.timestamp.$date);
+      if (typeof doc.timestamp === 'string') return new Date(doc.timestamp);
+      if (doc.Time) return new Date(doc.Time);
+      if (doc.UNIXtimestamp) return new Date(doc.UNIXtimestamp * 1000);
+      if (doc.PLC_Date_Time) {
+        const dateString = doc.PLC_Date_Time.replace('DT#', '').replace(
+          /-/g,
+          '/',
+        );
+        return new Date(dateString);
+      }
+      return new Date();
+    };
+
+    const calculateDocumentEnergy = (doc: any): number | null => {
+      const energyValues: number[] = [];
+
+      if (towerType === 'CHCT' || towerType === 'all') {
+        if (typeof doc.CHCT1_EM01_ActiveEnergy_Total_kWhh === 'number') {
+          energyValues.push(doc.CHCT1_EM01_ActiveEnergy_Total_kWhh);
+        }
+        if (typeof doc.CHCT2_EM01_ActiveEnergy_Total_kWhh === 'number') {
+          energyValues.push(doc.CHCT2_EM01_ActiveEnergy_Total_kWhh);
+        }
+      }
+
+      if (towerType === 'CT' || towerType === 'all') {
+        if (typeof doc.CT1_EM01_ActiveEnergy_Total_kWhh === 'number') {
+          energyValues.push(doc.CT1_EM01_ActiveEnergy_Total_kWhh);
+        }
+        if (typeof doc.CT2_EM01_ActiveEnergy_Total_kWhh === 'number') {
+          energyValues.push(doc.CT2_EM01_ActiveEnergy_Total_kWhh);
+        }
+      }
+
+      return energyValues.length > 0
+        ? energyValues.reduce((a, b) => a + b, 0) / energyValues.length
+        : null;
+    };
+
+    const groupMap = new Map<string, { sum: number; count: number }>();
+    let totalSum = 0;
+    let totalCount = 0;
+
+    for (const doc of data) {
+      const docEnergy = calculateDocumentEnergy(doc);
+      if (docEnergy === null) continue;
+
+      const docDate = getDocumentDate(doc);
+      totalSum += docEnergy;
+      totalCount++;
+
+      let groupKey = '';
+      switch (groupBy) {
+        case 'hour':
+          groupKey = format(docDate, 'yyyy-MM-dd HH:00');
+          break;
+        case 'day':
+          groupKey = format(docDate, 'yyyy-MM-dd');
+          break;
+        case 'week':
+          groupKey = `${getYear(docDate)}-W${String(getWeek(docDate)).padStart(2, '0')}`;
+          break;
+        case 'month':
+          groupKey = format(docDate, 'yyyy-MM');
+          break;
+      }
+
+      if (!groupMap.has(groupKey)) {
+        groupMap.set(groupKey, { sum: 0, count: 0 });
+      }
+      const group = groupMap.get(groupKey)!;
+      group.sum += docEnergy;
+      group.count++;
+    }
+
+    const grouped = emptyBuckets.map((bucket) => {
+      if (groupMap.has(bucket.label)) {
+        const group = groupMap.get(bucket.label)!;
+        return {
+          label: bucket.label,
+          value: group.sum / group.count,
+        };
+      }
+      return bucket;
+    });
+
+    const overallAverage = totalCount > 0 ? totalSum / totalCount : 0;
+
+    return { grouped, overallAverage };
+  }
+  static calculateDriftToEvapRatio(
+    data: any[],
+    towerType: 'CHCT' | 'CT' | 'all',
+    groupBy: 'hour' | 'day' | 'week' | 'month',
+    startDate: Date,
+    endDate: Date,
+  ): { grouped: { label: string; value: number }[]; overallAverage: number } {
+    // Generate empty buckets
+    const emptyBuckets = this.generateEmptyBuckets(
+      startDate,
+      endDate,
+      groupBy,
+    ).map((bucket) => ({ label: bucket.timestamp, value: 0 }));
+
+    if (data.length === 0) {
+      return { grouped: emptyBuckets, overallAverage: 0 };
+    }
+    const getDocumentDate = (doc: any): Date => {
+      if (doc.timestamp?.$date) return new Date(doc.timestamp.$date);
+      if (typeof doc.timestamp === 'string') return new Date(doc.timestamp);
+      if (doc.Time) return new Date(doc.Time);
+      if (doc.UNIXtimestamp) return new Date(doc.UNIXtimestamp * 1000);
+      if (doc.PLC_Date_Time) {
+        const dateString = doc.PLC_Date_Time.replace('DT#', '').replace(
+          /-/g,
+          '/',
+        );
+        return new Date(dateString);
+      }
+      return new Date();
+    };
+
+    // Constants
+    const driftConstant = 0.0005; // 0.05%
+    const evapConstant = 0.00085 * 1.8;
+
+    const calculateDocumentRatio = (doc: any): number | null => {
+      const ratios: number[] = [];
+
+      // Helper function for calculation
+      const calculateTowerRatio = (
+        flow: number,
+        hotTemp: number,
+        coldTemp: number,
+      ) => {
+        const drift = driftConstant * flow;
+        const evap = evapConstant * flow * (hotTemp - coldTemp);
+        return evap > 0 ? drift / evap : null;
+      };
+
+      // Process CHCT towers
+      if (towerType === 'CHCT' || towerType === 'all') {
+        if (
+          typeof doc.CHCT1_FM_02_FR === 'number' &&
+          typeof doc.CHCT1_TEMP_RTD_02_AI === 'number' &&
+          typeof doc.CHCT1_TEMP_RTD_01_AI === 'number'
+        ) {
+          const ratio = calculateTowerRatio(
+            doc.CHCT1_FM_02_FR,
+            doc.CHCT1_TEMP_RTD_02_AI,
+            doc.CHCT1_TEMP_RTD_01_AI,
+          );
+          if (ratio !== null) ratios.push(ratio);
+        }
+        if (
+          typeof doc.CHCT2_FM_02_FR === 'number' &&
+          typeof doc.CHCT2_TEMP_RTD_02_AI === 'number' &&
+          typeof doc.CHCT2_TEMP_RTD_01_AI === 'number'
+        ) {
+          const ratio = calculateTowerRatio(
+            doc.CHCT2_FM_02_FR,
+            doc.CHCT2_TEMP_RTD_02_AI,
+            doc.CHCT2_TEMP_RTD_01_AI,
+          );
+          if (ratio !== null) ratios.push(ratio);
+        }
+        // Repeat for CHCT2...
+      }
+
+      // Process CT towers
+      if (towerType === 'CT' || towerType === 'all') {
+        if (
+          typeof doc.CT1_FM_02_FR === 'number' &&
+          typeof doc.CT1_TEMP_RTD_02_AI === 'number' &&
+          typeof doc.CT1_TEMP_RTD_01_AI === 'number'
+        ) {
+          const ratio = calculateTowerRatio(
+            doc.CT1_FM_02_FR,
+            doc.CT1_TEMP_RTD_02_AI,
+            doc.CT1_TEMP_RTD_01_AI,
+          );
+          if (ratio !== null) ratios.push(ratio);
+        }
+        if (
+          typeof doc.CT2_FM_02_FR === 'number' &&
+          typeof doc.CT2_TEMP_RTD_02_AI === 'number' &&
+          typeof doc.CT2_TEMP_RTD_01_AI === 'number'
+        ) {
+          const ratio = calculateTowerRatio(
+            doc.CT2_FM_02_FR,
+            doc.CT2_TEMP_RTD_02_AI,
+            doc.CT2_TEMP_RTD_01_AI,
+          );
+          if (ratio !== null) ratios.push(ratio);
+        }
+        // Repeat for CT2...
+      }
+
+      return ratios.length > 0
+        ? ratios.reduce((a, b) => a + b, 0) / ratios.length
+        : null;
+    };
+
+    // Grouping logic
+    const groupMap = new Map<string, { sum: number; count: number }>();
+    let totalSum = 0;
+    let totalCount = 0;
+
+    for (const doc of data) {
+      const ratio = calculateDocumentRatio(doc);
+      if (ratio === null) continue;
+
+      const docDate = getDocumentDate(doc);
+      totalSum += ratio;
+      totalCount++;
+
+      // Generate group key based on period
+      let groupKey = '';
+      switch (groupBy) {
+        case 'hour':
+          groupKey = format(docDate, 'yyyy-MM-dd HH:00');
+          break;
+        case 'day':
+          groupKey = format(docDate, 'yyyy-MM-dd');
+          break;
+        case 'week':
+          groupKey = `${getYear(docDate)}-W${String(getWeek(docDate)).padStart(2, '0')}`;
+          break;
+        case 'month':
+          groupKey = format(docDate, 'yyyy-MM');
+          break;
+      }
+
+      if (!groupMap.has(groupKey)) {
+        groupMap.set(groupKey, { sum: 0, count: 0 });
+      }
+      const group = groupMap.get(groupKey)!;
+      group.sum += ratio;
+      group.count++;
+    }
+
+    // Fill buckets with calculated ratios
+    const grouped = emptyBuckets.map((bucket) => {
+      if (groupMap.has(bucket.label)) {
+        const group = groupMap.get(bucket.label)!;
+        return {
+          label: bucket.label,
+          value: group.sum / group.count,
+        };
+      }
+      return bucket;
+    });
+
+    const overallAverage = totalCount > 0 ? totalSum / totalCount : 0;
+
+    return { grouped, overallAverage };
+  }
   static generateEmptyBuckets(
     start: Date,
     end: Date,
@@ -1521,5 +2274,474 @@ export class TowerDataProcessor {
     }
 
     return buckets;
+  }
+
+  static calculateCoolingEfficiencyByTower(
+    data: any[],
+    wetBulb: number,
+  ): { [towerId: string]: number } {
+    const results: { [key: string]: { sum: number; count: number } } = {
+      CHCT1: { sum: 0, count: 0 },
+      CHCT2: { sum: 0, count: 0 },
+      CT1: { sum: 0, count: 0 },
+      CT2: { sum: 0, count: 0 },
+    };
+
+    for (const doc of data) {
+      const calcEfficiency = (hot: number, cold: number): number | null => {
+        const denom = hot - wetBulb;
+        return denom !== 0 ? ((hot - cold) / denom) * 100 : null;
+      };
+
+      // CHCT1
+      if (
+        typeof doc.CHCT1_TEMP_RTD_02_AI === 'number' &&
+        typeof doc.CHCT1_TEMP_RTD_01_AI === 'number'
+      ) {
+        const eff = calcEfficiency(
+          doc.CHCT1_TEMP_RTD_02_AI,
+          doc.CHCT1_TEMP_RTD_01_AI,
+        );
+        if (eff !== null) {
+          results.CHCT1.sum += eff;
+          results.CHCT1.count++;
+        }
+      }
+
+      // CHCT2
+      if (
+        typeof doc.CHCT2_TEMP_RTD_02_AI === 'number' &&
+        typeof doc.CHCT2_TEMP_RTD_01_AI === 'number'
+      ) {
+        const eff = calcEfficiency(
+          doc.CHCT2_TEMP_RTD_02_AI,
+          doc.CHCT2_TEMP_RTD_01_AI,
+        );
+        if (eff !== null) {
+          results.CHCT2.sum += eff;
+          results.CHCT2.count++;
+        }
+      }
+
+      // CT1
+      if (
+        typeof doc.CT1_TEMP_RTD_02_AI === 'number' &&
+        typeof doc.CT1_TEMP_RTD_01_AI === 'number'
+      ) {
+        const eff = calcEfficiency(
+          doc.CT1_TEMP_RTD_02_AI,
+          doc.CT1_TEMP_RTD_01_AI,
+        );
+        if (eff !== null) {
+          results.CT1.sum += eff;
+          results.CT1.count++;
+        }
+      }
+
+      // CT2
+      if (
+        typeof doc.CT2_TEMP_RTD_02_AI === 'number' &&
+        typeof doc.CT2_TEMP_RTD_01_AI === 'number'
+      ) {
+        const eff = calcEfficiency(
+          doc.CT2_TEMP_RTD_02_AI,
+          doc.CT2_TEMP_RTD_01_AI,
+        );
+        if (eff !== null) {
+          results.CT2.sum += eff;
+          results.CT2.count++;
+        }
+      }
+    }
+
+    return {
+      CHCT1:
+        results.CHCT1.count > 0 ? results.CHCT1.sum / results.CHCT1.count : 0,
+      CHCT2:
+        results.CHCT2.count > 0 ? results.CHCT2.sum / results.CHCT2.count : 0,
+      CT1: results.CT1.count > 0 ? results.CT1.sum / results.CT1.count : 0,
+      CT2: results.CT2.count > 0 ? results.CT2.sum / results.CT2.count : 0,
+    };
+  }
+
+  static calculateRangeByTower(data: any[]): { [towerId: string]: number } {
+    const results: { [key: string]: { sum: number; count: number } } = {
+      CHCT1: { sum: 0, count: 0 },
+      CHCT2: { sum: 0, count: 0 },
+      CT1: { sum: 0, count: 0 },
+      CT2: { sum: 0, count: 0 },
+    };
+
+    for (const doc of data) {
+      // CHCT1
+      if (
+        typeof doc.CHCT1_TEMP_RTD_02_AI === 'number' &&
+        typeof doc.CHCT1_TEMP_RTD_01_AI === 'number'
+      ) {
+        results.CHCT1.sum +=
+          doc.CHCT1_TEMP_RTD_02_AI - doc.CHCT1_TEMP_RTD_01_AI;
+        results.CHCT1.count++;
+      }
+
+      // CHCT2
+      if (
+        typeof doc.CHCT2_TEMP_RTD_02_AI === 'number' &&
+        typeof doc.CHCT2_TEMP_RTD_01_AI === 'number'
+      ) {
+        results.CHCT2.sum +=
+          doc.CHCT2_TEMP_RTD_02_AI - doc.CHCT2_TEMP_RTD_01_AI;
+        results.CHCT2.count++;
+      }
+
+      // CT1
+      if (
+        typeof doc.CT1_TEMP_RTD_02_AI === 'number' &&
+        typeof doc.CT1_TEMP_RTD_01_AI === 'number'
+      ) {
+        results.CT1.sum += doc.CT1_TEMP_RTD_02_AI - doc.CT1_TEMP_RTD_01_AI;
+        results.CT1.count++;
+      }
+
+      // CT2
+      if (
+        typeof doc.CT2_TEMP_RTD_02_AI === 'number' &&
+        typeof doc.CT2_TEMP_RTD_01_AI === 'number'
+      ) {
+        results.CT2.sum += doc.CT2_TEMP_RTD_02_AI - doc.CT2_TEMP_RTD_01_AI;
+        results.CT2.count++;
+      }
+    }
+
+    return {
+      CHCT1:
+        results.CHCT1.count > 0 ? results.CHCT1.sum / results.CHCT1.count : 0,
+      CHCT2:
+        results.CHCT2.count > 0 ? results.CHCT2.sum / results.CHCT2.count : 0,
+      CT1: results.CT1.count > 0 ? results.CT1.sum / results.CT1.count : 0,
+      CT2: results.CT2.count > 0 ? results.CT2.sum / results.CT2.count : 0,
+    };
+  }
+
+  static calculateApproachByTower(
+    data: any[],
+    wetBulb: number,
+  ): { [towerId: string]: number } {
+    const results: { [key: string]: { sum: number; count: number } } = {
+      CHCT1: { sum: 0, count: 0 },
+      CHCT2: { sum: 0, count: 0 },
+      CT1: { sum: 0, count: 0 },
+      CT2: { sum: 0, count: 0 },
+    };
+
+    for (const doc of data) {
+      // CHCT1
+      if (typeof doc.CHCT1_TEMP_RTD_01_AI === 'number') {
+        results.CHCT1.sum += doc.CHCT1_TEMP_RTD_01_AI - wetBulb;
+        results.CHCT1.count++;
+      }
+
+      // CHCT2
+      if (typeof doc.CHCT2_TEMP_RTD_01_AI === 'number') {
+        results.CHCT2.sum += doc.CHCT2_TEMP_RTD_01_AI - wetBulb;
+        results.CHCT2.count++;
+      }
+
+      // CT1
+      if (typeof doc.CT1_TEMP_RTD_01_AI === 'number') {
+        results.CT1.sum += doc.CT1_TEMP_RTD_01_AI - wetBulb;
+        results.CT1.count++;
+      }
+
+      // CT2
+      if (typeof doc.CT2_TEMP_RTD_01_AI === 'number') {
+        results.CT2.sum += doc.CT2_TEMP_RTD_01_AI - wetBulb;
+        results.CT2.count++;
+      }
+    }
+
+    return {
+      CHCT1:
+        results.CHCT1.count > 0 ? results.CHCT1.sum / results.CHCT1.count : 0,
+      CHCT2:
+        results.CHCT2.count > 0 ? results.CHCT2.sum / results.CHCT2.count : 0,
+      CT1: results.CT1.count > 0 ? results.CT1.sum / results.CT1.count : 0,
+      CT2: results.CT2.count > 0 ? results.CT2.sum / results.CT2.count : 0,
+    };
+  }
+
+  static calculateWaterMetricsByTower(data: any[]): {
+    [towerId: string]: {
+      driftLoss: number;
+      evaporationLoss: number;
+      blowdownRate: number;
+      makeupWater: number;
+    };
+  } {
+    const constant = 0.00085 * 1.8;
+    const results: any = {
+      CHCT1: {
+        driftLoss: { sum: 0, count: 0 },
+        evaporationLoss: { sum: 0, count: 0 },
+        blowdownRate: { sum: 0, count: 0 },
+        makeupWater: { sum: 0, count: 0 },
+      },
+      CHCT2: {
+        driftLoss: { sum: 0, count: 0 },
+        evaporationLoss: { sum: 0, count: 0 },
+        blowdownRate: { sum: 0, count: 0 },
+        makeupWater: { sum: 0, count: 0 },
+      },
+      CT1: {
+        driftLoss: { sum: 0, count: 0 },
+        evaporationLoss: { sum: 0, count: 0 },
+        blowdownRate: { sum: 0, count: 0 },
+        makeupWater: { sum: 0, count: 0 },
+      },
+      CT2: {
+        driftLoss: { sum: 0, count: 0 },
+        evaporationLoss: { sum: 0, count: 0 },
+        blowdownRate: { sum: 0, count: 0 },
+        makeupWater: { sum: 0, count: 0 },
+      },
+    };
+
+    for (const doc of data) {
+      const calculateLosses = (flow: number, hot: number, cold: number) => {
+        const drift = 0.0005 * flow;
+        const evap = constant * flow * (hot - cold);
+        const blowdown = evap / 6;
+        const makeup = drift + evap + blowdown;
+        return { drift, evap, blowdown, makeup };
+      };
+
+      // CHCT1
+      if (
+        typeof doc.CHCT1_FM_02_FR === 'number' &&
+        typeof doc.CHCT1_TEMP_RTD_02_AI === 'number' &&
+        typeof doc.CHCT1_TEMP_RTD_01_AI === 'number'
+      ) {
+        const { drift, evap, blowdown, makeup } = calculateLosses(
+          doc.CHCT1_FM_02_FR,
+          doc.CHCT1_TEMP_RTD_02_AI,
+          doc.CHCT1_TEMP_RTD_01_AI,
+        );
+        results.CHCT1.driftLoss.sum += drift;
+        results.CHCT1.driftLoss.count++;
+        results.CHCT1.evaporationLoss.sum += evap;
+        results.CHCT1.evaporationLoss.count++;
+        results.CHCT1.blowdownRate.sum += blowdown;
+        results.CHCT1.blowdownRate.count++;
+        results.CHCT1.makeupWater.sum += makeup;
+        results.CHCT1.makeupWater.count++;
+      }
+
+      // CHCT2
+      if (
+        typeof doc.CHCT2_FM_02_FR === 'number' &&
+        typeof doc.CHCT2_TEMP_RTD_02_AI === 'number' &&
+        typeof doc.CHCT2_TEMP_RTD_01_AI === 'number'
+      ) {
+        const { drift, evap, blowdown, makeup } = calculateLosses(
+          doc.CHCT2_FM_02_FR,
+          doc.CHCT2_TEMP_RTD_02_AI,
+          doc.CHCT2_TEMP_RTD_01_AI,
+        );
+        results.CHCT2.driftLoss.sum += drift;
+        results.CHCT2.driftLoss.count++;
+        results.CHCT2.evaporationLoss.sum += evap;
+        results.CHCT2.evaporationLoss.count++;
+        results.CHCT2.blowdownRate.sum += blowdown;
+        results.CHCT2.blowdownRate.count++;
+        results.CHCT2.makeupWater.sum += makeup;
+        results.CHCT2.makeupWater.count++;
+      }
+
+      // CT1
+      if (
+        typeof doc.CT1_FM_02_FR === 'number' &&
+        typeof doc.CT1_TEMP_RTD_02_AI === 'number' &&
+        typeof doc.CT1_TEMP_RTD_01_AI === 'number'
+      ) {
+        const { drift, evap, blowdown, makeup } = calculateLosses(
+          doc.CT1_FM_02_FR,
+          doc.CT1_TEMP_RTD_02_AI,
+          doc.CT1_TEMP_RTD_01_AI,
+        );
+        results.CT1.driftLoss.sum += drift;
+        results.CT1.driftLoss.count++;
+        results.CT1.evaporationLoss.sum += evap;
+        results.CT1.evaporationLoss.count++;
+        results.CT1.blowdownRate.sum += blowdown;
+        results.CT1.blowdownRate.count++;
+        results.CT1.makeupWater.sum += makeup;
+        results.CT1.makeupWater.count++;
+      }
+
+      // CT2
+      if (
+        typeof doc.CT2_FM_02_FR === 'number' &&
+        typeof doc.CT2_TEMP_RTD_02_AI === 'number' &&
+        typeof doc.CT2_TEMP_RTD_01_AI === 'number'
+      ) {
+        const { drift, evap, blowdown, makeup } = calculateLosses(
+          doc.CT2_FM_02_FR,
+          doc.CT2_TEMP_RTD_02_AI,
+          doc.CT2_TEMP_RTD_01_AI,
+        );
+        results.CT2.driftLoss.sum += drift;
+        results.CT2.driftLoss.count++;
+        results.CT2.evaporationLoss.sum += evap;
+        results.CT2.evaporationLoss.count++;
+        results.CT2.blowdownRate.sum += blowdown;
+        results.CT2.blowdownRate.count++;
+        results.CT2.makeupWater.sum += makeup;
+        results.CT2.makeupWater.count++;
+      }
+    }
+
+    const finalResults: any = {};
+    for (const tower of ['CHCT1', 'CHCT2', 'CT1', 'CT2']) {
+      finalResults[tower] = {
+        driftLoss:
+          results[tower].driftLoss.count > 0
+            ? results[tower].driftLoss.sum / results[tower].driftLoss.count
+            : 0,
+        evaporationLoss:
+          results[tower].evaporationLoss.count > 0
+            ? results[tower].evaporationLoss.sum /
+              results[tower].evaporationLoss.count
+            : 0,
+        blowdownRate:
+          results[tower].blowdownRate.count > 0
+            ? results[tower].blowdownRate.sum /
+              results[tower].blowdownRate.count
+            : 0,
+        makeupWater:
+          results[tower].makeupWater.count > 0
+            ? results[tower].makeupWater.sum / results[tower].makeupWater.count
+            : 0,
+      };
+    }
+
+    return finalResults;
+  }
+
+  static calculateCoolingCapacityByTower(data: any[]): {
+    [towerId: string]: number;
+  } {
+    const Cp = 4.186; // kJ/kg°C
+    const results: { [key: string]: { sum: number; count: number } } = {
+      CHCT1: { sum: 0, count: 0 },
+      CHCT2: { sum: 0, count: 0 },
+      CT1: { sum: 0, count: 0 },
+      CT2: { sum: 0, count: 0 },
+    };
+
+    for (const doc of data) {
+      // CHCT1
+      if (
+        typeof doc.CHCT1_FM_02_FR === 'number' &&
+        typeof doc.CHCT1_TEMP_RTD_02_AI === 'number' &&
+        typeof doc.CHCT1_TEMP_RTD_01_AI === 'number'
+      ) {
+        results.CHCT1.sum +=
+          Cp *
+          doc.CHCT1_FM_02_FR *
+          (doc.CHCT1_TEMP_RTD_02_AI - doc.CHCT1_TEMP_RTD_01_AI);
+        results.CHCT1.count++;
+      }
+
+      // CHCT2
+      if (
+        typeof doc.CHCT2_FM_02_FR === 'number' &&
+        typeof doc.CHCT2_TEMP_RTD_02_AI === 'number' &&
+        typeof doc.CHCT2_TEMP_RTD_01_AI === 'number'
+      ) {
+        results.CHCT2.sum +=
+          Cp *
+          doc.CHCT2_FM_02_FR *
+          (doc.CHCT2_TEMP_RTD_02_AI - doc.CHCT2_TEMP_RTD_01_AI);
+        results.CHCT2.count++;
+      }
+
+      // CT1
+      if (
+        typeof doc.CT1_FM_02_FR === 'number' &&
+        typeof doc.CT1_TEMP_RTD_02_AI === 'number' &&
+        typeof doc.CT1_TEMP_RTD_01_AI === 'number'
+      ) {
+        results.CT1.sum +=
+          Cp *
+          doc.CT1_FM_02_FR *
+          (doc.CT1_TEMP_RTD_02_AI - doc.CT1_TEMP_RTD_01_AI);
+        results.CT1.count++;
+      }
+
+      // CT2
+      if (
+        typeof doc.CT2_FM_02_FR === 'number' &&
+        typeof doc.CT2_TEMP_RTD_02_AI === 'number' &&
+        typeof doc.CT2_TEMP_RTD_01_AI === 'number'
+      ) {
+        results.CT2.sum +=
+          Cp *
+          doc.CT2_FM_02_FR *
+          (doc.CT2_TEMP_RTD_02_AI - doc.CT2_TEMP_RTD_01_AI);
+        results.CT2.count++;
+      }
+    }
+
+    return {
+      CHCT1:
+        results.CHCT1.count > 0 ? results.CHCT1.sum / results.CHCT1.count : 0,
+      CHCT2:
+        results.CHCT2.count > 0 ? results.CHCT2.sum / results.CHCT2.count : 0,
+      CT1: results.CT1.count > 0 ? results.CT1.sum / results.CT1.count : 0,
+      CT2: results.CT2.count > 0 ? results.CT2.sum / results.CT2.count : 0,
+    };
+  }
+
+  static calculateFanSpeedByTower(data: any[]): { [towerId: string]: number } {
+    const results: { [key: string]: { sum: number; count: number } } = {
+      CHCT1: { sum: 0, count: 0 },
+      CHCT2: { sum: 0, count: 0 },
+      CT1: { sum: 0, count: 0 },
+      CT2: { sum: 0, count: 0 },
+    };
+
+    for (const doc of data) {
+      // CHCT1
+      if (typeof doc.CHCT1_INV_01_SPD_AI === 'number') {
+        results.CHCT1.sum += doc.CHCT1_INV_01_SPD_AI;
+        results.CHCT1.count++;
+      }
+
+      // CHCT2
+      if (typeof doc.CHCT2_INV_01_SPD_AI === 'number') {
+        results.CHCT2.sum += doc.CHCT2_INV_01_SPD_AI;
+        results.CHCT2.count++;
+      }
+
+      // CT1
+      if (typeof doc.CT1_INV_01_SPD_AI === 'number') {
+        results.CT1.sum += doc.CT1_INV_01_SPD_AI;
+        results.CT1.count++;
+      }
+
+      // CT2
+      if (typeof doc.CT2_INV_01_SPD_AI === 'number') {
+        results.CT2.sum += doc.CT2_INV_01_SPD_AI;
+        results.CT2.count++;
+      }
+    }
+
+    return {
+      CHCT1:
+        results.CHCT1.count > 0 ? results.CHCT1.sum / results.CHCT1.count : 0,
+      CHCT2:
+        results.CHCT2.count > 0 ? results.CHCT2.sum / results.CHCT2.count : 0,
+      CT1: results.CT1.count > 0 ? results.CT1.sum / results.CT1.count : 0,
+      CT2: results.CT2.count > 0 ? results.CT2.sum / results.CT2.count : 0,
+    };
   }
 }

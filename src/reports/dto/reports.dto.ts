@@ -1,23 +1,27 @@
-import {  IsString, IsDateString, IsOptional } from 'class-validator';
+import { IsOptional, IsString, IsDateString } from 'class-validator';
 
 export class ReportsDto {
-  @IsDateString()
-  start_date: string;
-
-  @IsDateString()
-  end_date: string;
+  @IsOptional()
+  @IsString()
+  date?: string;
 
   @IsOptional()
   @IsString()
-  start_time?: string; // e.g., "00:00" or "13:30"
+  range?: string; // 'today', 'week', 'lastMonth', etc.
+
+  @IsOptional()
+  @IsDateString()
+  fromDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  toDate?: string;
 
   @IsOptional()
   @IsString()
-  end_time?: string; // e.g., "23:59:59.999"
+  startTime?: string; // Format: 'HH:MM:SS'
 
+  @IsOptional()
   @IsString()
-  CoolingTower: string[];
-
-  @IsString()
-  reportType: string[];
+  endTime?: string; // Format: 'HH:MM:SS'
 }

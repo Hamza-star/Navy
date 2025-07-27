@@ -117,11 +117,27 @@ export class MongoDateFilterService {
           {
             $gte: [
               {
-                $add: [
-                  { $multiply: [{ $hour: '$timestamp' }, 3600] },
-                  { $multiply: [{ $minute: '$timestamp' }, 60] },
-                  { $second: '$timestamp' },
-                ],
+                $let: {
+                  vars: {
+                    timeStr: { $substr: ['$timestamp', 11, 8] }, // "HH:MM:SS"
+                    parts: {
+                      $map: {
+                        input: {
+                          $split: [{ $substr: ['$timestamp', 11, 8] }, ':'],
+                        },
+                        as: 'part',
+                        in: { $toInt: '$$part' },
+                      },
+                    },
+                  },
+                  in: {
+                    $add: [
+                      { $multiply: [{ $arrayElemAt: ['$$parts', 0] }, 3600] },
+                      { $multiply: [{ $arrayElemAt: ['$$parts', 1] }, 60] },
+                      { $arrayElemAt: ['$$parts', 2] },
+                    ],
+                  },
+                },
               },
               startSec,
             ],
@@ -129,11 +145,27 @@ export class MongoDateFilterService {
           {
             $lte: [
               {
-                $add: [
-                  { $multiply: [{ $hour: '$timestamp' }, 3600] },
-                  { $multiply: [{ $minute: '$timestamp' }, 60] },
-                  { $second: '$timestamp' },
-                ],
+                $let: {
+                  vars: {
+                    timeStr: { $substr: ['$timestamp', 11, 8] },
+                    parts: {
+                      $map: {
+                        input: {
+                          $split: [{ $substr: ['$timestamp', 11, 8] }, ':'],
+                        },
+                        as: 'part',
+                        in: { $toInt: '$$part' },
+                      },
+                    },
+                  },
+                  in: {
+                    $add: [
+                      { $multiply: [{ $arrayElemAt: ['$$parts', 0] }, 3600] },
+                      { $multiply: [{ $arrayElemAt: ['$$parts', 1] }, 60] },
+                      { $arrayElemAt: ['$$parts', 2] },
+                    ],
+                  },
+                },
               },
               endSec,
             ],

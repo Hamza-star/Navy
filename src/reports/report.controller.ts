@@ -2,12 +2,13 @@ import { Body, Controller, Post } from '@nestjs/common';
 import { ReportsService } from './report.service';
 import { ReportsDto } from './dto/reports.dto';
 
-@Controller('energy_usage')
+@Controller('reports')
 export class ReportsController {
   constructor(private readonly ReportsService: ReportsService) {}
 
-  // @Post()
-  // async getReports(@Body() dto: ReportsDto): Promise<ReportsDto[]> {
-  //   return this.ReportsService.getReports(dto);
-  // }
+  @Post()
+  async getReport(@Body() dto: ReportsDto) {
+    const data = await this.ReportsService.getReport(dto);
+    return { message: 'Realtime Data', data };
+  }
 }

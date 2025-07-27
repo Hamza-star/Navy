@@ -9,7 +9,6 @@ export class DashboardController {
 
   @Post('dashboard-data')
   async getDashoardDataChart1(@Body() dto: DashboardDto) {
-    console.log('Received DashboardDto:', dto);
     const data = await this.dashboardService.getDashboardDataChart1(dto);
     return { message: 'Dashoard Data', data };
   }
@@ -85,37 +84,37 @@ export class DashboardController {
     const data = await this.dashboardService.getDashboardDataChart13(dto);
     return { message: 'Dashoard Data', data };
   }
-   @Post('dashboard-data14')
+  @Post('dashboard-data14')
   async getDashoardDataChart14(@Body() dto: DashboardDto) {
     console.log('Received DashboardDto:', dto);
     const data = await this.dashboardService.getDashboardDataChart14(dto);
     return { message: 'Dashoard Data', data };
   }
-   @Post('dashboard-data15')
+  @Post('dashboard-data15')
   async getDashoardDataChart15(@Body() dto: DashboardDto) {
     console.log('Received DashboardDto:', dto);
     const data = await this.dashboardService.getDashboardDataChart15(dto);
     return { message: 'Dashoard Data', data };
   }
-   @Post('dashboard-data16')
+  @Post('dashboard-data16')
   async getDashoardDataChart16(@Body() dto: DashboardDto) {
     console.log('Received DashboardDto:', dto);
     const data = await this.dashboardService.getDashboardDataChart16(dto);
     return { message: 'Dashoard Data', data };
   }
-   @Post('dashboard-data17')
+  @Post('dashboard-data17')
   async getDashoardDataChart17(@Body() dto: DashboardDto) {
     console.log('Received DashboardDto:', dto);
     const data = await this.dashboardService.getDashboardDataChart17(dto);
     return { message: 'Dashoard Data', data };
   }
-   @Post('dashboard-data18')
+  @Post('dashboard-data18')
   async getDashoardDataChart18(@Body() dto: DashboardDto) {
     console.log('Received DashboardDto:', dto);
     const data = await this.dashboardService.getDashboardDataChart18(dto);
     return { message: 'Dashoard Data', data };
   }
-   @Post('dashboard-data19')
+  @Post('dashboard-data19')
   async getDashoardDataChart19(@Body() dto: DashboardDto) {
     console.log('Received DashboardDto:', dto);
     const data = await this.dashboardService.getDashboardDataChart19(dto);

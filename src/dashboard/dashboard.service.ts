@@ -23,10 +23,6 @@ export class DashboardService {
     endTime?: string;
     towerType?: 'CHCT' | 'CT' | 'all';
   }) {
-    console.log('\n===== STARTING PROCESS =====');
-    console.log('Received DashboardDto:', JSON.stringify(dto, null, 2));
-    console.log('Current time:', new Date());
-
     const query: any = {};
     let startDate: Date = new Date();
     let endDate: Date = new Date();
@@ -72,12 +68,7 @@ export class DashboardService {
               ? 'month'
               : 'day';
 
-    console.log('\n[CONFIG] Grouping strategy:', groupBy);
-    console.log('[CONFIG] Tower type:', dto.towerType || 'all');
-    console.log('[QUERY] Final MongoDB Query:', JSON.stringify(query, null, 2));
-
     const data = await this.DashboardModel.find(query).lean();
-    console.log('\n[DATA] Fetched documents count:', data.length);
 
     const rangeProcessed = TowerDataProcessor.calculateRange(
       data,
@@ -155,10 +146,6 @@ export class DashboardService {
     endTime?: string;
     towerType?: 'CHCT' | 'CT' | 'all';
   }) {
-    console.log('\n===== STARTING PROCESS =====');
-    console.log('Received DashboardDto:', JSON.stringify(dto, null, 2));
-    console.log('Current time:', new Date());
-
     const query: any = {};
     let startDate: Date = new Date();
     let endDate: Date = new Date();
@@ -204,12 +191,7 @@ export class DashboardService {
               ? 'month'
               : 'day';
 
-    console.log('\n[CONFIG] Grouping strategy:', groupBy);
-    console.log('[CONFIG] Tower type:', dto.towerType || 'all');
-    console.log('[QUERY] Final MongoDB Query:', JSON.stringify(query, null, 2));
-
     const data = await this.DashboardModel.find(query).lean();
-    console.log('\n[DATA] Fetched documents count:', data.length);
 
     const wetBulb = 25; // Static value for wet bulb temperature
     const approachProcessed = TowerDataProcessor.calculateApproach(
@@ -247,10 +229,6 @@ export class DashboardService {
     endTime?: string;
     towerType?: 'CHCT' | 'CT' | 'all';
   }) {
-    console.log('\n===== STARTING PROCESS =====');
-    console.log('Received DashboardDto:', JSON.stringify(dto, null, 2));
-    console.log('Current time:', new Date());
-
     const query: any = {};
     let startDate: Date = new Date();
     let endDate: Date = new Date();
@@ -296,12 +274,7 @@ export class DashboardService {
               ? 'month'
               : 'day';
 
-    console.log('\n[CONFIG] Grouping strategy:', groupBy);
-    console.log('[CONFIG] Tower type:', dto.towerType || 'all');
-    console.log('[QUERY] Final MongoDB Query:', JSON.stringify(query, null, 2));
-
     const data = await this.DashboardModel.find(query).lean();
-    console.log('\n[DATA] Fetched documents count:', data.length);
 
     const rangeProcessed = TowerDataProcessor.calculateRange(
       data,
@@ -336,10 +309,6 @@ export class DashboardService {
     endTime?: string;
     towerType?: 'CHCT' | 'CT' | 'all';
   }) {
-    console.log('\n===== STARTING PROCESS =====');
-    console.log('Received DashboardDto:', JSON.stringify(dto, null, 2));
-    console.log('Current time:', new Date());
-
     const query: any = {};
     let startDate: Date = new Date();
     let endDate: Date = new Date();
@@ -385,12 +354,7 @@ export class DashboardService {
               ? 'month'
               : 'day';
 
-    console.log('\n[CONFIG] Grouping strategy:', groupBy);
-    console.log('[CONFIG] Tower type:', dto.towerType || 'all');
-    console.log('[QUERY] Final MongoDB Query:', JSON.stringify(query, null, 2));
-
     const data = await this.DashboardModel.find(query).lean();
-    console.log('\n[DATA] Fetched documents count:', data.length);
 
     const driftLossRate = TowerDataProcessor.calculateDriftLossRate(
       data,
@@ -457,10 +421,6 @@ export class DashboardService {
     endTime?: string;
     towerType?: 'CHCT' | 'CT' | 'all';
   }) {
-    console.log('\n===== STARTING PROCESS =====');
-    console.log('Received DashboardDto:', JSON.stringify(dto, null, 2));
-    console.log('Current time:', new Date());
-
     const query: any = {};
     let startDate: Date = new Date();
     let endDate: Date = new Date();
@@ -506,12 +466,7 @@ export class DashboardService {
               ? 'month'
               : 'day';
 
-    console.log('\n[CONFIG] Grouping strategy:', groupBy);
-    console.log('[CONFIG] Tower type:', dto.towerType || 'all');
-    console.log('[QUERY] Final MongoDB Query:', JSON.stringify(query, null, 2));
-
     const data = await this.DashboardModel.find(query).lean();
-    console.log('\n[DATA] Fetched documents count:', data.length);
 
     return {
       message: 'Dashboard Data',
@@ -531,10 +486,6 @@ export class DashboardService {
     endTime?: string;
     towerType?: 'CHCT' | 'CT' | 'all';
   }) {
-    console.log('\n===== STARTING PROCESS =====');
-    console.log('Received DashboardDto:', JSON.stringify(dto, null, 2));
-    console.log('Current time:', new Date());
-
     const query: any = {};
     let startDate: Date = new Date();
     let endDate: Date = new Date();
@@ -580,12 +531,7 @@ export class DashboardService {
               ? 'month'
               : 'day';
 
-    console.log('\n[CONFIG] Grouping strategy:', groupBy);
-    console.log('[CONFIG] Tower type:', dto.towerType || 'all');
-    console.log('[QUERY] Final MongoDB Query:', JSON.stringify(query, null, 2));
-
     const data = await this.DashboardModel.find(query).lean();
-    console.log('\n[DATA] Fetched documents count:', data.length);
 
     const fanPowerConsumption = TowerDataProcessor.calculateFanPowerConsumption(
       data,
@@ -619,10 +565,6 @@ export class DashboardService {
     endTime?: string;
     towerType?: 'CHCT' | 'CT' | 'all';
   }) {
-    console.log('\n===== STARTING PROCESS =====');
-    console.log('Received DashboardDto:', JSON.stringify(dto, null, 2));
-    console.log('Current time:', new Date());
-
     const query: any = {};
     let startDate: Date = new Date();
     let endDate: Date = new Date();
@@ -668,12 +610,7 @@ export class DashboardService {
               ? 'month'
               : 'day';
 
-    console.log('\n[CONFIG] Grouping strategy:', groupBy);
-    console.log('[CONFIG] Tower type:', dto.towerType || 'all');
-    console.log('[QUERY] Final MongoDB Query:', JSON.stringify(query, null, 2));
-
     const data = await this.DashboardModel.find(query).lean();
-    console.log('\n[DATA] Fetched documents count:', data.length);
 
     const rangeProcessed = TowerDataProcessor.calculateRange(
       data,
@@ -719,10 +656,6 @@ export class DashboardService {
     endTime?: string;
     towerType?: 'CHCT' | 'CT' | 'all';
   }) {
-    console.log('\n===== STARTING PROCESS =====');
-    console.log('Received DashboardDto:', JSON.stringify(dto, null, 2));
-    console.log('Current time:', new Date());
-
     const query: any = {};
     let startDate: Date = new Date();
     let endDate: Date = new Date();
@@ -768,12 +701,7 @@ export class DashboardService {
               ? 'month'
               : 'day';
 
-    console.log('\n[CONFIG] Grouping strategy:', groupBy);
-    console.log('[CONFIG] Tower type:', dto.towerType || 'all');
-    console.log('[QUERY] Final MongoDB Query:', JSON.stringify(query, null, 2));
-
     const data = await this.DashboardModel.find(query).lean();
-    console.log('\n[DATA] Fetched documents count:', data.length);
 
     return {
       message: 'Dashboard Data',
@@ -793,10 +721,6 @@ export class DashboardService {
     endTime?: string;
     towerType?: 'CHCT' | 'CT' | 'all';
   }) {
-    console.log('\n===== STARTING PROCESS =====');
-    console.log('Received DashboardDto:', JSON.stringify(dto, null, 2));
-    console.log('Current time:', new Date());
-
     const query: any = {};
     let startDate: Date = new Date();
     let endDate: Date = new Date();
@@ -842,12 +766,7 @@ export class DashboardService {
               ? 'month'
               : 'day';
 
-    console.log('\n[CONFIG] Grouping strategy:', groupBy);
-    console.log('[CONFIG] Tower type:', dto.towerType || 'all');
-    console.log('[QUERY] Final MongoDB Query:', JSON.stringify(query, null, 2));
-
     const data = await this.DashboardModel.find(query).lean();
-    console.log('\n[DATA] Fetched documents count:', data.length);
 
     const rangeProcessed = TowerDataProcessor.calculateRange(
       data,
@@ -883,10 +802,6 @@ export class DashboardService {
     endTime?: string;
     towerType?: 'CHCT' | 'CT' | 'all';
   }) {
-    console.log('\n===== STARTING PROCESS =====');
-    console.log('Received DashboardDto:', JSON.stringify(dto, null, 2));
-    console.log('Current time:', new Date());
-
     const query: any = {};
     let startDate: Date = new Date();
     let endDate: Date = new Date();
@@ -932,12 +847,7 @@ export class DashboardService {
               ? 'month'
               : 'day';
 
-    console.log('\n[CONFIG] Grouping strategy:', groupBy);
-    console.log('[CONFIG] Tower type:', dto.towerType || 'all');
-    console.log('[QUERY] Final MongoDB Query:', JSON.stringify(query, null, 2));
-
     const data = await this.DashboardModel.find(query).lean();
-    console.log('\n[DATA] Fetched documents count:', data.length);
 
     const wetBulb = 25; // Static value for wet bulb temperature
     const approachProcessed = TowerDataProcessor.calculateApproach(
@@ -975,10 +885,6 @@ export class DashboardService {
     endTime?: string;
     towerType?: 'CHCT' | 'CT' | 'all';
   }) {
-    console.log('\n===== STARTING PROCESS =====');
-    console.log('Received DashboardDto:', JSON.stringify(dto, null, 2));
-    console.log('Current time:', new Date());
-
     const query: any = {};
     let startDate: Date = new Date();
     let endDate: Date = new Date();
@@ -1024,12 +930,8 @@ export class DashboardService {
               ? 'month'
               : 'day';
 
-    console.log('\n[CONFIG] Grouping strategy:', groupBy);
-    console.log('[CONFIG] Tower type:', dto.towerType || 'all');
-    console.log('[QUERY] Final MongoDB Query:', JSON.stringify(query, null, 2));
-
     const data = await this.DashboardModel.find(query).lean();
-    console.log('\n[DATA] Fetched documents count:', data.length);
+
     const fanPowerConsumption = TowerDataProcessor.calculateFanPowerConsumption(
       data,
       dto.towerType || 'all',
@@ -1062,10 +964,6 @@ export class DashboardService {
     endTime?: string;
     towerType?: 'CHCT' | 'CT' | 'all';
   }) {
-    console.log('\n===== STARTING PROCESS =====');
-    console.log('Received DashboardDto:', JSON.stringify(dto, null, 2));
-    console.log('Current time:', new Date());
-
     const query: any = {};
     let startDate: Date = new Date();
     let endDate: Date = new Date();
@@ -1111,12 +1009,7 @@ export class DashboardService {
               ? 'month'
               : 'day';
 
-    console.log('\n[CONFIG] Grouping strategy:', groupBy);
-    console.log('[CONFIG] Tower type:', dto.towerType || 'all');
-    console.log('[QUERY] Final MongoDB Query:', JSON.stringify(query, null, 2));
-
     const data = await this.DashboardModel.find(query).lean();
-    console.log('\n[DATA] Fetched documents count:', data.length);
 
     const driftLossRate = TowerDataProcessor.calculateDriftLossRate(
       data,
@@ -1183,10 +1076,6 @@ export class DashboardService {
     endTime?: string;
     towerType?: 'CHCT' | 'CT' | 'all';
   }) {
-    console.log('\n===== STARTING PROCESS =====');
-    console.log('Received DashboardDto:', JSON.stringify(dto, null, 2));
-    console.log('Current time:', new Date());
-
     const query: any = {};
     let startDate: Date = new Date();
     let endDate: Date = new Date();
@@ -1232,12 +1121,8 @@ export class DashboardService {
               ? 'month'
               : 'day';
 
-    console.log('\n[CONFIG] Grouping strategy:', groupBy);
-    console.log('[CONFIG] Tower type:', dto.towerType || 'all');
-    console.log('[QUERY] Final MongoDB Query:', JSON.stringify(query, null, 2));
-
     const data = await this.DashboardModel.find(query).lean();
-    console.log('\n[DATA] Fetched documents count:', data.length);
+
     const DriftToEvaporationRatio =
       TowerDataProcessor.calculateDriftToEvapRatio(
         data,
@@ -1263,10 +1148,6 @@ export class DashboardService {
     endTime?: string;
     towerType?: 'CHCT' | 'CT' | 'all';
   }) {
-    console.log('\n===== STARTING PROCESS =====');
-    console.log('Received DashboardDto:', JSON.stringify(dto, null, 2));
-    console.log('Current time:', new Date());
-
     const query: any = {};
     let startDate: Date = new Date();
     let endDate: Date = new Date();
@@ -1302,7 +1183,7 @@ export class DashboardService {
     }
 
     const data = await this.DashboardModel.find(query).lean();
-    console.log('\n[DATA] Fetched documents count:', data.length);
+
     const wetBulb = 25;
     const coolingEfficiencyByTower =
       TowerDataProcessor.calculateCoolingEfficiencyByTower(data, wetBulb);
@@ -1320,12 +1201,7 @@ export class DashboardService {
     toDate?: string;
     startTime?: string;
     endTime?: string;
-    towerType?: 'CHCT' | 'CT' | 'all';
   }) {
-    console.log('\n===== STARTING PROCESS =====');
-    console.log('Received DashboardDto:', JSON.stringify(dto, null, 2));
-    console.log('Current time:', new Date());
-
     const query: any = {};
     let startDate: Date = new Date();
     let endDate: Date = new Date();
@@ -1361,12 +1237,33 @@ export class DashboardService {
     }
 
     const data = await this.DashboardModel.find(query).lean();
-    console.log('\n[DATA] Fetched documents count:', data.length);
-    const rangeByTower = TowerDataProcessor.calculateRangeByTower(data);
+
+    // Determine breakdown type based on range
+    let breakdownType: 'hour' | 'day' | 'month' | 'none' = 'none';
+
+    if (dto.range) {
+      if (dto.range === 'today') breakdownType = 'hour';
+      else if (dto.range === 'week' || dto.range === 'month')
+        breakdownType = 'day';
+      else if (dto.range === 'year') breakdownType = 'month';
+    } else if (dto.fromDate && dto.toDate) {
+      const diffDays =
+        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+      if (diffDays <= 1) breakdownType = 'hour';
+      else if (diffDays <= 60) breakdownType = 'day';
+      else breakdownType = 'month';
+    }
+
+    const { overall, breakdown } = TowerDataProcessor.calculateRangeByTower(
+      data,
+      breakdownType,
+    );
+
     return {
       message: 'Dashboard Data',
       data: {
-        rangeByTower: rangeByTower,
+        overall,
+        breakdown,
       },
     };
   }
@@ -1377,12 +1274,7 @@ export class DashboardService {
     toDate?: string;
     startTime?: string;
     endTime?: string;
-    towerType?: 'CHCT' | 'CT' | 'all';
   }) {
-    console.log('\n===== STARTING PROCESS =====');
-    console.log('Received DashboardDto:', JSON.stringify(dto, null, 2));
-    console.log('Current time:', new Date());
-
     const query: any = {};
     let startDate: Date = new Date();
     let endDate: Date = new Date();
@@ -1417,32 +1309,36 @@ export class DashboardService {
       Object.assign(query, timeFilter);
     }
 
-    const groupBy =
-      dto.range === 'today' || dto.range === 'yesterday'
-        ? 'hour'
-        : dto.range === 'week' || dto.range === 'lastWeek'
-          ? 'day'
-          : dto.range === 'month' || dto.range === 'lastMonth'
-            ? 'day'
-            : dto.range === 'year' || dto.range === 'lastYear'
-              ? 'month'
-              : 'day';
-
-    console.log('\n[CONFIG] Grouping strategy:', groupBy);
-    console.log('[CONFIG] Tower type:', dto.towerType || 'all');
-    console.log('[QUERY] Final MongoDB Query:', JSON.stringify(query, null, 2));
-
     const data = await this.DashboardModel.find(query).lean();
-    console.log('\n[DATA] Fetched documents count:', data.length);
-    const wetBulb = 25;
-    const approachByTower = TowerDataProcessor.calculateApproachByTower(
+
+    // Determine breakdown type based on range
+    let breakdownType: 'hour' | 'day' | 'month' | 'none' = 'none';
+
+    if (dto.range) {
+      if (dto.range === 'today') breakdownType = 'hour';
+      else if (dto.range === 'week' || dto.range === 'month')
+        breakdownType = 'day';
+      else if (dto.range === 'year') breakdownType = 'month';
+    } else if (dto.fromDate && dto.toDate) {
+      const diffDays =
+        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+      if (diffDays <= 1) breakdownType = 'hour';
+      else if (diffDays <= 60) breakdownType = 'day';
+      else breakdownType = 'month';
+    }
+
+    const wetBulb = 25; // Could be made configurable if needed
+    const { overall, breakdown } = TowerDataProcessor.calculateApproachByTower(
       data,
       wetBulb,
+      breakdownType,
     );
+
     return {
       message: 'Dashboard Data',
       data: {
-        approachByTower: approachByTower,
+        overall,
+        breakdown,
       },
     };
   }
@@ -1455,10 +1351,6 @@ export class DashboardService {
     endTime?: string;
     towerType?: 'CHCT' | 'CT' | 'all';
   }) {
-    console.log('\n===== STARTING PROCESS =====');
-    console.log('Received DashboardDto:', JSON.stringify(dto, null, 2));
-    console.log('Current time:', new Date());
-
     const query: any = {};
     let startDate: Date = new Date();
     let endDate: Date = new Date();
@@ -1493,29 +1385,32 @@ export class DashboardService {
       Object.assign(query, timeFilter);
     }
 
-    const groupBy =
-      dto.range === 'today' || dto.range === 'yesterday'
-        ? 'hour'
-        : dto.range === 'week' || dto.range === 'lastWeek'
-          ? 'day'
-          : dto.range === 'month' || dto.range === 'lastMonth'
-            ? 'day'
-            : dto.range === 'year' || dto.range === 'lastYear'
-              ? 'month'
-              : 'day';
-
-    console.log('\n[CONFIG] Grouping strategy:', groupBy);
-    console.log('[CONFIG] Tower type:', dto.towerType || 'all');
-    console.log('[QUERY] Final MongoDB Query:', JSON.stringify(query, null, 2));
-
     const data = await this.DashboardModel.find(query).lean();
-    console.log('\n[DATA] Fetched documents count:', data.length);
-    const waterMetrics = TowerDataProcessor.calculateWaterMetricsByTower(data);
+
+    // Determine breakdown type based on range
+    let breakdownType: 'hour' | 'day' | 'month' | 'none' = 'none';
+
+    if (dto.range) {
+      if (dto.range === 'today') breakdownType = 'hour';
+      else if (dto.range === 'week' || dto.range === 'month')
+        breakdownType = 'day';
+      else if (dto.range === 'year') breakdownType = 'month';
+    } else if (dto.fromDate && dto.toDate) {
+      const diffDays =
+        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+      if (diffDays <= 1) breakdownType = 'hour';
+      else if (diffDays <= 60) breakdownType = 'day';
+      else breakdownType = 'month';
+    }
+
+    const waterMetrics = TowerDataProcessor.calculateWaterMetricsByTower(
+      data,
+      breakdownType,
+    );
+
     return {
       message: 'Dashboard Data',
-      data: {
-        waterMetrics: waterMetrics,
-      },
+      data: waterMetrics,
     };
   }
   async getDashboardDataChart18(dto: {
@@ -1527,10 +1422,6 @@ export class DashboardService {
     endTime?: string;
     towerType?: 'CHCT' | 'CT' | 'all';
   }) {
-    console.log('\n===== STARTING PROCESS =====');
-    console.log('Received DashboardDto:', JSON.stringify(dto, null, 2));
-    console.log('Current time:', new Date());
-
     const query: any = {};
     let startDate: Date = new Date();
     let endDate: Date = new Date();
@@ -1565,30 +1456,30 @@ export class DashboardService {
       Object.assign(query, timeFilter);
     }
 
-    const groupBy =
-      dto.range === 'today' || dto.range === 'yesterday'
-        ? 'hour'
-        : dto.range === 'week' || dto.range === 'lastWeek'
-          ? 'day'
-          : dto.range === 'month' || dto.range === 'lastMonth'
-            ? 'day'
-            : dto.range === 'year' || dto.range === 'lastYear'
-              ? 'month'
-              : 'day';
-
-    console.log('\n[CONFIG] Grouping strategy:', groupBy);
-    console.log('[CONFIG] Tower type:', dto.towerType || 'all');
-    console.log('[QUERY] Final MongoDB Query:', JSON.stringify(query, null, 2));
-
     const data = await this.DashboardModel.find(query).lean();
-    console.log('\n[DATA] Fetched documents count:', data.length);
+
+    // Determine breakdown type based on range
+    let breakdownType: 'hour' | 'day' | 'month' | 'none' = 'none';
+
+    if (dto.range) {
+      if (dto.range === 'today') breakdownType = 'hour';
+      else if (dto.range === 'week' || dto.range === 'month')
+        breakdownType = 'day';
+      else if (dto.range === 'year') breakdownType = 'month';
+    } else if (dto.fromDate && dto.toDate) {
+      const diffDays =
+        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+      if (diffDays <= 1) breakdownType = 'hour';
+      else if (diffDays <= 60) breakdownType = 'day';
+      else breakdownType = 'month';
+    }
+
     const coolingCapacityByTower =
-      TowerDataProcessor.calculateCoolingCapacityByTower(data);
+      TowerDataProcessor.calculateCoolingCapacityByTower(data, breakdownType);
+
     return {
       message: 'Dashboard Data',
-      data: {
-        coolingCapacityByTower: coolingCapacityByTower,
-      },
+      data: coolingCapacityByTower,
     };
   }
   async getDashboardDataChart19(dto: {
@@ -1600,10 +1491,6 @@ export class DashboardService {
     endTime?: string;
     towerType?: 'CHCT' | 'CT' | 'all';
   }) {
-    console.log('\n===== STARTING PROCESS =====');
-    console.log('Received DashboardDto:', JSON.stringify(dto, null, 2));
-    console.log('Current time:', new Date());
-
     const query: any = {};
     let startDate: Date = new Date();
     let endDate: Date = new Date();
@@ -1638,29 +1525,32 @@ export class DashboardService {
       Object.assign(query, timeFilter);
     }
 
-    const groupBy =
-      dto.range === 'today' || dto.range === 'yesterday'
-        ? 'hour'
-        : dto.range === 'week' || dto.range === 'lastWeek'
-          ? 'day'
-          : dto.range === 'month' || dto.range === 'lastMonth'
-            ? 'day'
-            : dto.range === 'year' || dto.range === 'lastYear'
-              ? 'month'
-              : 'day';
-
-    console.log('\n[CONFIG] Grouping strategy:', groupBy);
-    console.log('[CONFIG] Tower type:', dto.towerType || 'all');
-    console.log('[QUERY] Final MongoDB Query:', JSON.stringify(query, null, 2));
-
     const data = await this.DashboardModel.find(query).lean();
-    console.log('\n[DATA] Fetched documents count:', data.length);
-    const fanSpeedByTower = TowerDataProcessor.calculateFanSpeedByTower(data);
+
+    // Determine breakdown type based on range
+    let breakdownType: 'hour' | 'day' | 'month' | 'none' = 'none';
+
+    if (dto.range) {
+      if (dto.range === 'today') breakdownType = 'hour';
+      else if (dto.range === 'week' || dto.range === 'month')
+        breakdownType = 'day';
+      else if (dto.range === 'year') breakdownType = 'month';
+    } else if (dto.fromDate && dto.toDate) {
+      const diffDays =
+        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+      if (diffDays <= 1) breakdownType = 'hour';
+      else if (diffDays <= 60) breakdownType = 'day';
+      else breakdownType = 'month';
+    }
+
+    const fanSpeedByTower = TowerDataProcessor.calculateFanSpeedByTower(
+      data,
+      breakdownType,
+    );
+
     return {
       message: 'Dashboard Data',
-      data: {
-        fanSpeedByTower: fanSpeedByTower,
-      },
+      data: fanSpeedByTower,
     };
   }
 }

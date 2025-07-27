@@ -2364,384 +2364,685 @@ export class TowerDataProcessor {
     };
   }
 
-  static calculateRangeByTower(data: any[]): { [towerId: string]: number } {
-    const results: { [key: string]: { sum: number; count: number } } = {
+  static calculateRangeByTower(
+    data: any[],
+    breakdownType: 'hour' | 'day' | 'month' | 'none' = 'none',
+  ): {
+    overall: { [towerId: string]: number };
+    breakdown?: Array<{
+      interval: string;
+      values: { [towerId: string]: number };
+    }>;
+  } {
+    // Initialize accumulators
+    const overallAccumulator = {
       CHCT1: { sum: 0, count: 0 },
       CHCT2: { sum: 0, count: 0 },
       CT1: { sum: 0, count: 0 },
       CT2: { sum: 0, count: 0 },
     };
 
-    for (const doc of data) {
+    const breakdownAccumulator: Record<string, typeof overallAccumulator> = {};
+
+    // Helper to update accumulators
+    const updateAccumulator = (acc: any, doc: any) => {
       // CHCT1
       if (
         typeof doc.CHCT1_TEMP_RTD_02_AI === 'number' &&
         typeof doc.CHCT1_TEMP_RTD_01_AI === 'number'
       ) {
-        results.CHCT1.sum +=
-          doc.CHCT1_TEMP_RTD_02_AI - doc.CHCT1_TEMP_RTD_01_AI;
-        results.CHCT1.count++;
+        const diff = doc.CHCT1_TEMP_RTD_02_AI - doc.CHCT1_TEMP_RTD_01_AI;
+        acc.CHCT1.sum += diff;
+        acc.CHCT1.count++;
       }
-
       // CHCT2
       if (
         typeof doc.CHCT2_TEMP_RTD_02_AI === 'number' &&
         typeof doc.CHCT2_TEMP_RTD_01_AI === 'number'
       ) {
-        results.CHCT2.sum +=
-          doc.CHCT2_TEMP_RTD_02_AI - doc.CHCT2_TEMP_RTD_01_AI;
-        results.CHCT2.count++;
+        const diff = doc.CHCT2_TEMP_RTD_02_AI - doc.CHCT2_TEMP_RTD_01_AI;
+        acc.CHCT2.sum += diff;
+        acc.CHCT2.count++;
       }
-
       // CT1
       if (
         typeof doc.CT1_TEMP_RTD_02_AI === 'number' &&
         typeof doc.CT1_TEMP_RTD_01_AI === 'number'
       ) {
-        results.CT1.sum += doc.CT1_TEMP_RTD_02_AI - doc.CT1_TEMP_RTD_01_AI;
-        results.CT1.count++;
+        const diff = doc.CT1_TEMP_RTD_02_AI - doc.CT1_TEMP_RTD_01_AI;
+        acc.CT1.sum += diff;
+        acc.CT1.count++;
       }
-
       // CT2
       if (
         typeof doc.CT2_TEMP_RTD_02_AI === 'number' &&
         typeof doc.CT2_TEMP_RTD_01_AI === 'number'
       ) {
-        results.CT2.sum += doc.CT2_TEMP_RTD_02_AI - doc.CT2_TEMP_RTD_01_AI;
-        results.CT2.count++;
+        const diff = doc.CT2_TEMP_RTD_02_AI - doc.CT2_TEMP_RTD_01_AI;
+        acc.CT2.sum += diff;
+        acc.CT2.count++;
+      }
+    };
+
+    // Process each document
+    for (const doc of data) {
+      // Update overall accumulator
+      updateAccumulator(overallAccumulator, doc);
+
+      // Process breakdown if needed
+      if (breakdownType !== 'none' && doc.timestamp) {
+        const date = new Date(doc.timestamp);
+        let intervalKey: string;
+
+        switch (breakdownType) {
+          case 'hour':
+            intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}`;
+            break;
+          case 'day':
+            intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+            break;
+          case 'month':
+            intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+            break;
+          default:
+            intervalKey = '';
+        }
+
+        if (!breakdownAccumulator[intervalKey]) {
+          breakdownAccumulator[intervalKey] = {
+            CHCT1: { sum: 0, count: 0 },
+            CHCT2: { sum: 0, count: 0 },
+            CT1: { sum: 0, count: 0 },
+            CT2: { sum: 0, count: 0 },
+          };
+        }
+
+        updateAccumulator(breakdownAccumulator[intervalKey], doc);
       }
     }
 
-    return {
+    // Calculate overall averages
+    const overallResult = {
       CHCT1:
-        results.CHCT1.count > 0 ? results.CHCT1.sum / results.CHCT1.count : 0,
+        overallAccumulator.CHCT1.count > 0
+          ? overallAccumulator.CHCT1.sum / overallAccumulator.CHCT1.count
+          : 0,
       CHCT2:
-        results.CHCT2.count > 0 ? results.CHCT2.sum / results.CHCT2.count : 0,
-      CT1: results.CT1.count > 0 ? results.CT1.sum / results.CT1.count : 0,
-      CT2: results.CT2.count > 0 ? results.CT2.sum / results.CT2.count : 0,
+        overallAccumulator.CHCT2.count > 0
+          ? overallAccumulator.CHCT2.sum / overallAccumulator.CHCT2.count
+          : 0,
+      CT1:
+        overallAccumulator.CT1.count > 0
+          ? overallAccumulator.CT1.sum / overallAccumulator.CT1.count
+          : 0,
+      CT2:
+        overallAccumulator.CT2.count > 0
+          ? overallAccumulator.CT2.sum / overallAccumulator.CT2.count
+          : 0,
+    };
+
+    // Process breakdown if exists
+    let breakdownResult:
+      | Array<{ interval: string; values: { [towerId: string]: number } }>
+      | undefined;
+
+    if (breakdownType !== 'none') {
+      breakdownResult = Object.entries(breakdownAccumulator).map(
+        ([interval, acc]) => ({
+          interval,
+          values: {
+            CHCT1: acc.CHCT1.count > 0 ? acc.CHCT1.sum / acc.CHCT1.count : 0,
+            CHCT2: acc.CHCT2.count > 0 ? acc.CHCT2.sum / acc.CHCT2.count : 0,
+            CT1: acc.CT1.count > 0 ? acc.CT1.sum / acc.CT1.count : 0,
+            CT2: acc.CT2.count > 0 ? acc.CT2.sum / acc.CT2.count : 0,
+          },
+        }),
+      );
+
+      // Sort chronologically
+      breakdownResult.sort((a, b) => a.interval.localeCompare(b.interval));
+    }
+
+    return {
+      overall: overallResult,
+      breakdown: breakdownResult,
     };
   }
 
   static calculateApproachByTower(
     data: any[],
     wetBulb: number,
-  ): { [towerId: string]: number } {
-    const results: { [key: string]: { sum: number; count: number } } = {
+    breakdownType: 'hour' | 'day' | 'month' | 'none' = 'none',
+  ): {
+    overall: { [towerId: string]: number };
+    breakdown?: Array<{
+      interval: string;
+      values: { [towerId: string]: number };
+    }>;
+  } {
+    // Initialize accumulators
+    const overallAccumulator = {
       CHCT1: { sum: 0, count: 0 },
       CHCT2: { sum: 0, count: 0 },
       CT1: { sum: 0, count: 0 },
       CT2: { sum: 0, count: 0 },
     };
 
-    for (const doc of data) {
+    const breakdownAccumulator: Record<string, typeof overallAccumulator> = {};
+
+    // Helper to update accumulators
+    const updateAccumulator = (acc: any, doc: any) => {
       // CHCT1
       if (typeof doc.CHCT1_TEMP_RTD_01_AI === 'number') {
-        results.CHCT1.sum += doc.CHCT1_TEMP_RTD_01_AI - wetBulb;
-        results.CHCT1.count++;
+        const approach = doc.CHCT1_TEMP_RTD_01_AI - wetBulb;
+        acc.CHCT1.sum += approach;
+        acc.CHCT1.count++;
       }
 
       // CHCT2
       if (typeof doc.CHCT2_TEMP_RTD_01_AI === 'number') {
-        results.CHCT2.sum += doc.CHCT2_TEMP_RTD_01_AI - wetBulb;
-        results.CHCT2.count++;
+        const approach = doc.CHCT2_TEMP_RTD_01_AI - wetBulb;
+        acc.CHCT2.sum += approach;
+        acc.CHCT2.count++;
       }
 
       // CT1
       if (typeof doc.CT1_TEMP_RTD_01_AI === 'number') {
-        results.CT1.sum += doc.CT1_TEMP_RTD_01_AI - wetBulb;
-        results.CT1.count++;
+        const approach = doc.CT1_TEMP_RTD_01_AI - wetBulb;
+        acc.CT1.sum += approach;
+        acc.CT1.count++;
       }
 
       // CT2
       if (typeof doc.CT2_TEMP_RTD_01_AI === 'number') {
-        results.CT2.sum += doc.CT2_TEMP_RTD_01_AI - wetBulb;
-        results.CT2.count++;
+        const approach = doc.CT2_TEMP_RTD_01_AI - wetBulb;
+        acc.CT2.sum += approach;
+        acc.CT2.count++;
+      }
+    };
+
+    // Process each document
+    for (const doc of data) {
+      // Update overall accumulator
+      updateAccumulator(overallAccumulator, doc);
+
+      // Process breakdown if needed
+      if (breakdownType !== 'none' && doc.timestamp) {
+        const date = new Date(doc.timestamp);
+        let intervalKey: string;
+
+        switch (breakdownType) {
+          case 'hour':
+            intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}`;
+            break;
+          case 'day':
+            intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+            break;
+          case 'month':
+            intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+            break;
+          default:
+            intervalKey = '';
+        }
+
+        if (!breakdownAccumulator[intervalKey]) {
+          breakdownAccumulator[intervalKey] = {
+            CHCT1: { sum: 0, count: 0 },
+            CHCT2: { sum: 0, count: 0 },
+            CT1: { sum: 0, count: 0 },
+            CT2: { sum: 0, count: 0 },
+          };
+        }
+
+        updateAccumulator(breakdownAccumulator[intervalKey], doc);
       }
     }
 
-    return {
+    // Calculate overall averages
+    const overallResult = {
       CHCT1:
-        results.CHCT1.count > 0 ? results.CHCT1.sum / results.CHCT1.count : 0,
+        overallAccumulator.CHCT1.count > 0
+          ? overallAccumulator.CHCT1.sum / overallAccumulator.CHCT1.count
+          : 0,
       CHCT2:
-        results.CHCT2.count > 0 ? results.CHCT2.sum / results.CHCT2.count : 0,
-      CT1: results.CT1.count > 0 ? results.CT1.sum / results.CT1.count : 0,
-      CT2: results.CT2.count > 0 ? results.CT2.sum / results.CT2.count : 0,
+        overallAccumulator.CHCT2.count > 0
+          ? overallAccumulator.CHCT2.sum / overallAccumulator.CHCT2.count
+          : 0,
+      CT1:
+        overallAccumulator.CT1.count > 0
+          ? overallAccumulator.CT1.sum / overallAccumulator.CT1.count
+          : 0,
+      CT2:
+        overallAccumulator.CT2.count > 0
+          ? overallAccumulator.CT2.sum / overallAccumulator.CT2.count
+          : 0,
+    };
+
+    // Process breakdown if exists
+    let breakdownResult:
+      | Array<{ interval: string; values: { [towerId: string]: number } }>
+      | undefined;
+
+    if (breakdownType !== 'none') {
+      breakdownResult = Object.entries(breakdownAccumulator).map(
+        ([interval, acc]) => ({
+          interval,
+          values: {
+            CHCT1: acc.CHCT1.count > 0 ? acc.CHCT1.sum / acc.CHCT1.count : 0,
+            CHCT2: acc.CHCT2.count > 0 ? acc.CHCT2.sum / acc.CHCT2.count : 0,
+            CT1: acc.CT1.count > 0 ? acc.CT1.sum / acc.CT1.count : 0,
+            CT2: acc.CT2.count > 0 ? acc.CT2.sum / acc.CT2.count : 0,
+          },
+        }),
+      );
+
+      // Sort chronologically
+      breakdownResult.sort((a, b) => a.interval.localeCompare(b.interval));
+    }
+
+    return {
+      overall: overallResult,
+      breakdown: breakdownResult,
     };
   }
 
-  static calculateWaterMetricsByTower(data: any[]): {
-    [towerId: string]: {
-      driftLoss: number;
-      evaporationLoss: number;
-      blowdownRate: number;
-      makeupWater: number;
+  static calculateWaterMetricsByTower(
+    data: any[],
+    breakdownType: 'hour' | 'day' | 'month' | 'none' = 'none',
+  ): {
+    overall: {
+      [towerId: string]: {
+        driftLoss: number;
+        evaporationLoss: number;
+        blowdownRate: number;
+        makeupWater: number;
+      };
     };
+    breakdown?: Array<{
+      interval: string;
+      values: {
+        [towerId: string]: {
+          driftLoss: number;
+          evaporationLoss: number;
+          blowdownRate: number;
+          makeupWater: number;
+        };
+      };
+    }>;
   } {
     const constant = 0.00085 * 1.8;
-    const results: any = {
-      CHCT1: {
+    const towers = ['CHCT1', 'CHCT2', 'CT1', 'CT2'];
+
+    // Initialize overall accumulator
+    const overallAccumulator: any = {};
+    towers.forEach((tower) => {
+      overallAccumulator[tower] = {
         driftLoss: { sum: 0, count: 0 },
         evaporationLoss: { sum: 0, count: 0 },
         blowdownRate: { sum: 0, count: 0 },
         makeupWater: { sum: 0, count: 0 },
-      },
-      CHCT2: {
-        driftLoss: { sum: 0, count: 0 },
-        evaporationLoss: { sum: 0, count: 0 },
-        blowdownRate: { sum: 0, count: 0 },
-        makeupWater: { sum: 0, count: 0 },
-      },
-      CT1: {
-        driftLoss: { sum: 0, count: 0 },
-        evaporationLoss: { sum: 0, count: 0 },
-        blowdownRate: { sum: 0, count: 0 },
-        makeupWater: { sum: 0, count: 0 },
-      },
-      CT2: {
-        driftLoss: { sum: 0, count: 0 },
-        evaporationLoss: { sum: 0, count: 0 },
-        blowdownRate: { sum: 0, count: 0 },
-        makeupWater: { sum: 0, count: 0 },
-      },
+      };
+    });
+
+    // Initialize breakdown accumulator
+    const breakdownAccumulator: Record<string, typeof overallAccumulator> = {};
+
+    // Helper to calculate metrics
+    const calculateLosses = (flow: number, hot: number, cold: number) => {
+      const drift = 0.0005 * flow;
+      const evap = constant * flow * (hot - cold);
+      const blowdown = evap / 6;
+      const makeup = drift + evap + blowdown;
+      return { drift, evap, blowdown, makeup };
     };
 
+    // Helper to update accumulator
+    const updateAccumulator = (acc: any, doc: any, tower: string) => {
+      const flowField = `${tower}_FM_02_FR`;
+      const hotField = `${tower}_TEMP_RTD_02_AI`;
+      const coldField = `${tower}_TEMP_RTD_01_AI`;
+
+      if (
+        typeof doc[flowField] === 'number' &&
+        typeof doc[hotField] === 'number' &&
+        typeof doc[coldField] === 'number'
+      ) {
+        const { drift, evap, blowdown, makeup } = calculateLosses(
+          doc[flowField],
+          doc[hotField],
+          doc[coldField],
+        );
+
+        acc[tower].driftLoss.sum += drift;
+        acc[tower].driftLoss.count++;
+        acc[tower].evaporationLoss.sum += evap;
+        acc[tower].evaporationLoss.count++;
+        acc[tower].blowdownRate.sum += blowdown;
+        acc[tower].blowdownRate.count++;
+        acc[tower].makeupWater.sum += makeup;
+        acc[tower].makeupWater.count++;
+      }
+    };
+
+    // Process each document
     for (const doc of data) {
-      const calculateLosses = (flow: number, hot: number, cold: number) => {
-        const drift = 0.0005 * flow;
-        const evap = constant * flow * (hot - cold);
-        const blowdown = evap / 6;
-        const makeup = drift + evap + blowdown;
-        return { drift, evap, blowdown, makeup };
-      };
+      // Update overall metrics
+      towers.forEach((tower) =>
+        updateAccumulator(overallAccumulator, doc, tower),
+      );
 
-      // CHCT1
-      if (
-        typeof doc.CHCT1_FM_02_FR === 'number' &&
-        typeof doc.CHCT1_TEMP_RTD_02_AI === 'number' &&
-        typeof doc.CHCT1_TEMP_RTD_01_AI === 'number'
-      ) {
-        const { drift, evap, blowdown, makeup } = calculateLosses(
-          doc.CHCT1_FM_02_FR,
-          doc.CHCT1_TEMP_RTD_02_AI,
-          doc.CHCT1_TEMP_RTD_01_AI,
-        );
-        results.CHCT1.driftLoss.sum += drift;
-        results.CHCT1.driftLoss.count++;
-        results.CHCT1.evaporationLoss.sum += evap;
-        results.CHCT1.evaporationLoss.count++;
-        results.CHCT1.blowdownRate.sum += blowdown;
-        results.CHCT1.blowdownRate.count++;
-        results.CHCT1.makeupWater.sum += makeup;
-        results.CHCT1.makeupWater.count++;
-      }
+      // Process breakdown if needed
+      if (breakdownType !== 'none' && doc.timestamp) {
+        const date = new Date(doc.timestamp);
+        let intervalKey: string;
 
-      // CHCT2
-      if (
-        typeof doc.CHCT2_FM_02_FR === 'number' &&
-        typeof doc.CHCT2_TEMP_RTD_02_AI === 'number' &&
-        typeof doc.CHCT2_TEMP_RTD_01_AI === 'number'
-      ) {
-        const { drift, evap, blowdown, makeup } = calculateLosses(
-          doc.CHCT2_FM_02_FR,
-          doc.CHCT2_TEMP_RTD_02_AI,
-          doc.CHCT2_TEMP_RTD_01_AI,
-        );
-        results.CHCT2.driftLoss.sum += drift;
-        results.CHCT2.driftLoss.count++;
-        results.CHCT2.evaporationLoss.sum += evap;
-        results.CHCT2.evaporationLoss.count++;
-        results.CHCT2.blowdownRate.sum += blowdown;
-        results.CHCT2.blowdownRate.count++;
-        results.CHCT2.makeupWater.sum += makeup;
-        results.CHCT2.makeupWater.count++;
-      }
+        switch (breakdownType) {
+          case 'hour':
+            intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}`;
+            break;
+          case 'day':
+            intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+            break;
+          case 'month':
+            intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+            break;
+          default:
+            intervalKey = '';
+        }
 
-      // CT1
-      if (
-        typeof doc.CT1_FM_02_FR === 'number' &&
-        typeof doc.CT1_TEMP_RTD_02_AI === 'number' &&
-        typeof doc.CT1_TEMP_RTD_01_AI === 'number'
-      ) {
-        const { drift, evap, blowdown, makeup } = calculateLosses(
-          doc.CT1_FM_02_FR,
-          doc.CT1_TEMP_RTD_02_AI,
-          doc.CT1_TEMP_RTD_01_AI,
-        );
-        results.CT1.driftLoss.sum += drift;
-        results.CT1.driftLoss.count++;
-        results.CT1.evaporationLoss.sum += evap;
-        results.CT1.evaporationLoss.count++;
-        results.CT1.blowdownRate.sum += blowdown;
-        results.CT1.blowdownRate.count++;
-        results.CT1.makeupWater.sum += makeup;
-        results.CT1.makeupWater.count++;
-      }
+        if (!breakdownAccumulator[intervalKey]) {
+          breakdownAccumulator[intervalKey] = {};
+          towers.forEach((tower) => {
+            breakdownAccumulator[intervalKey][tower] = {
+              driftLoss: { sum: 0, count: 0 },
+              evaporationLoss: { sum: 0, count: 0 },
+              blowdownRate: { sum: 0, count: 0 },
+              makeupWater: { sum: 0, count: 0 },
+            };
+          });
+        }
 
-      // CT2
-      if (
-        typeof doc.CT2_FM_02_FR === 'number' &&
-        typeof doc.CT2_TEMP_RTD_02_AI === 'number' &&
-        typeof doc.CT2_TEMP_RTD_01_AI === 'number'
-      ) {
-        const { drift, evap, blowdown, makeup } = calculateLosses(
-          doc.CT2_FM_02_FR,
-          doc.CT2_TEMP_RTD_02_AI,
-          doc.CT2_TEMP_RTD_01_AI,
+        towers.forEach((tower) =>
+          updateAccumulator(breakdownAccumulator[intervalKey], doc, tower),
         );
-        results.CT2.driftLoss.sum += drift;
-        results.CT2.driftLoss.count++;
-        results.CT2.evaporationLoss.sum += evap;
-        results.CT2.evaporationLoss.count++;
-        results.CT2.blowdownRate.sum += blowdown;
-        results.CT2.blowdownRate.count++;
-        results.CT2.makeupWater.sum += makeup;
-        results.CT2.makeupWater.count++;
       }
     }
 
-    const finalResults: any = {};
-    for (const tower of ['CHCT1', 'CHCT2', 'CT1', 'CT2']) {
-      finalResults[tower] = {
+    // Calculate overall averages
+    const overallResult: any = {};
+    towers.forEach((tower) => {
+      overallResult[tower] = {
         driftLoss:
-          results[tower].driftLoss.count > 0
-            ? results[tower].driftLoss.sum / results[tower].driftLoss.count
+          overallAccumulator[tower].driftLoss.count > 0
+            ? overallAccumulator[tower].driftLoss.sum /
+              overallAccumulator[tower].driftLoss.count
             : 0,
         evaporationLoss:
-          results[tower].evaporationLoss.count > 0
-            ? results[tower].evaporationLoss.sum /
-              results[tower].evaporationLoss.count
+          overallAccumulator[tower].evaporationLoss.count > 0
+            ? overallAccumulator[tower].evaporationLoss.sum /
+              overallAccumulator[tower].evaporationLoss.count
             : 0,
         blowdownRate:
-          results[tower].blowdownRate.count > 0
-            ? results[tower].blowdownRate.sum /
-              results[tower].blowdownRate.count
+          overallAccumulator[tower].blowdownRate.count > 0
+            ? overallAccumulator[tower].blowdownRate.sum /
+              overallAccumulator[tower].blowdownRate.count
             : 0,
         makeupWater:
-          results[tower].makeupWater.count > 0
-            ? results[tower].makeupWater.sum / results[tower].makeupWater.count
+          overallAccumulator[tower].makeupWater.count > 0
+            ? overallAccumulator[tower].makeupWater.sum /
+              overallAccumulator[tower].makeupWater.count
             : 0,
       };
+    });
+
+    // Process breakdown if exists
+    let breakdownResult: Array<{ interval: string; values: any }> | undefined;
+
+    if (breakdownType !== 'none') {
+      breakdownResult = Object.entries(breakdownAccumulator).map(
+        ([interval, acc]) => {
+          const values: any = {};
+          towers.forEach((tower) => {
+            values[tower] = {
+              driftLoss:
+                acc[tower].driftLoss.count > 0
+                  ? acc[tower].driftLoss.sum / acc[tower].driftLoss.count
+                  : 0,
+              evaporationLoss:
+                acc[tower].evaporationLoss.count > 0
+                  ? acc[tower].evaporationLoss.sum /
+                    acc[tower].evaporationLoss.count
+                  : 0,
+              blowdownRate:
+                acc[tower].blowdownRate.count > 0
+                  ? acc[tower].blowdownRate.sum / acc[tower].blowdownRate.count
+                  : 0,
+              makeupWater:
+                acc[tower].makeupWater.count > 0
+                  ? acc[tower].makeupWater.sum / acc[tower].makeupWater.count
+                  : 0,
+            };
+          });
+          return { interval, values };
+        },
+      );
+
+      // Sort chronologically
+      breakdownResult.sort((a, b) => a.interval.localeCompare(b.interval));
     }
 
-    return finalResults;
+    return {
+      overall: overallResult,
+      breakdown: breakdownResult,
+    };
   }
 
-  static calculateCoolingCapacityByTower(data: any[]): {
-    [towerId: string]: number;
+  static calculateCoolingCapacityByTower(
+    data: any[],
+    breakdownType: 'hour' | 'day' | 'month' | 'none' = 'none',
+  ): {
+    overall: { [towerId: string]: number };
+    breakdown?: Array<{
+      interval: string;
+      values: { [towerId: string]: number };
+    }>;
   } {
     const Cp = 4.186; // kJ/kg°C
-    const results: { [key: string]: { sum: number; count: number } } = {
-      CHCT1: { sum: 0, count: 0 },
-      CHCT2: { sum: 0, count: 0 },
-      CT1: { sum: 0, count: 0 },
-      CT2: { sum: 0, count: 0 },
+    const towers = ['CHCT1', 'CHCT2', 'CT1', 'CT2'];
+
+    // Initialize overall accumulator
+    const overallAccumulator: any = {};
+    towers.forEach((tower) => {
+      overallAccumulator[tower] = { sum: 0, count: 0 };
+    });
+
+    // Initialize breakdown accumulator
+    const breakdownAccumulator: Record<string, typeof overallAccumulator> = {};
+
+    // Helper to update accumulator
+    const updateAccumulator = (acc: any, doc: any, tower: string) => {
+      const flowField = `${tower}_FM_02_FR`;
+      const hotField = `${tower}_TEMP_RTD_02_AI`;
+      const coldField = `${tower}_TEMP_RTD_01_AI`;
+
+      if (
+        typeof doc[flowField] === 'number' &&
+        typeof doc[hotField] === 'number' &&
+        typeof doc[coldField] === 'number'
+      ) {
+        const capacity = Cp * doc[flowField] * (doc[hotField] - doc[coldField]);
+        acc[tower].sum += capacity;
+        acc[tower].count++;
+      }
     };
 
+    // Process each document
     for (const doc of data) {
-      // CHCT1
-      if (
-        typeof doc.CHCT1_FM_02_FR === 'number' &&
-        typeof doc.CHCT1_TEMP_RTD_02_AI === 'number' &&
-        typeof doc.CHCT1_TEMP_RTD_01_AI === 'number'
-      ) {
-        results.CHCT1.sum +=
-          Cp *
-          doc.CHCT1_FM_02_FR *
-          (doc.CHCT1_TEMP_RTD_02_AI - doc.CHCT1_TEMP_RTD_01_AI);
-        results.CHCT1.count++;
-      }
+      // Update overall metrics
+      towers.forEach((tower) =>
+        updateAccumulator(overallAccumulator, doc, tower),
+      );
 
-      // CHCT2
-      if (
-        typeof doc.CHCT2_FM_02_FR === 'number' &&
-        typeof doc.CHCT2_TEMP_RTD_02_AI === 'number' &&
-        typeof doc.CHCT2_TEMP_RTD_01_AI === 'number'
-      ) {
-        results.CHCT2.sum +=
-          Cp *
-          doc.CHCT2_FM_02_FR *
-          (doc.CHCT2_TEMP_RTD_02_AI - doc.CHCT2_TEMP_RTD_01_AI);
-        results.CHCT2.count++;
-      }
+      // Process breakdown if needed
+      if (breakdownType !== 'none' && doc.timestamp) {
+        const date = new Date(doc.timestamp);
+        let intervalKey: string;
 
-      // CT1
-      if (
-        typeof doc.CT1_FM_02_FR === 'number' &&
-        typeof doc.CT1_TEMP_RTD_02_AI === 'number' &&
-        typeof doc.CT1_TEMP_RTD_01_AI === 'number'
-      ) {
-        results.CT1.sum +=
-          Cp *
-          doc.CT1_FM_02_FR *
-          (doc.CT1_TEMP_RTD_02_AI - doc.CT1_TEMP_RTD_01_AI);
-        results.CT1.count++;
-      }
+        switch (breakdownType) {
+          case 'hour':
+            intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}`;
+            break;
+          case 'day':
+            intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+            break;
+          case 'month':
+            intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+            break;
+          default:
+            intervalKey = '';
+        }
 
-      // CT2
-      if (
-        typeof doc.CT2_FM_02_FR === 'number' &&
-        typeof doc.CT2_TEMP_RTD_02_AI === 'number' &&
-        typeof doc.CT2_TEMP_RTD_01_AI === 'number'
-      ) {
-        results.CT2.sum +=
-          Cp *
-          doc.CT2_FM_02_FR *
-          (doc.CT2_TEMP_RTD_02_AI - doc.CT2_TEMP_RTD_01_AI);
-        results.CT2.count++;
+        if (!breakdownAccumulator[intervalKey]) {
+          breakdownAccumulator[intervalKey] = {};
+          towers.forEach((tower) => {
+            breakdownAccumulator[intervalKey][tower] = { sum: 0, count: 0 };
+          });
+        }
+
+        towers.forEach((tower) =>
+          updateAccumulator(breakdownAccumulator[intervalKey], doc, tower),
+        );
       }
     }
 
-    return {
-      CHCT1:
-        results.CHCT1.count > 0 ? results.CHCT1.sum / results.CHCT1.count : 0,
-      CHCT2:
-        results.CHCT2.count > 0 ? results.CHCT2.sum / results.CHCT2.count : 0,
-      CT1: results.CT1.count > 0 ? results.CT1.sum / results.CT1.count : 0,
-      CT2: results.CT2.count > 0 ? results.CT2.sum / results.CT2.count : 0,
-    };
-  }
+    // Calculate overall averages
+    const overallResult: any = {};
+    towers.forEach((tower) => {
+      overallResult[tower] =
+        overallAccumulator[tower].count > 0
+          ? overallAccumulator[tower].sum / overallAccumulator[tower].count
+          : 0;
+    });
 
-  static calculateFanSpeedByTower(data: any[]): { [towerId: string]: number } {
-    const results: { [key: string]: { sum: number; count: number } } = {
-      CHCT1: { sum: 0, count: 0 },
-      CHCT2: { sum: 0, count: 0 },
-      CT1: { sum: 0, count: 0 },
-      CT2: { sum: 0, count: 0 },
-    };
+    // Process breakdown if exists
+    let breakdownResult: Array<{ interval: string; values: any }> | undefined;
 
-    for (const doc of data) {
-      // CHCT1
-      if (typeof doc.CHCT1_INV_01_SPD_AI === 'number') {
-        results.CHCT1.sum += doc.CHCT1_INV_01_SPD_AI;
-        results.CHCT1.count++;
-      }
+    if (breakdownType !== 'none') {
+      breakdownResult = Object.entries(breakdownAccumulator).map(
+        ([interval, acc]) => {
+          const values: any = {};
+          towers.forEach((tower) => {
+            values[tower] =
+              acc[tower].count > 0 ? acc[tower].sum / acc[tower].count : 0;
+          });
+          return { interval, values };
+        },
+      );
 
-      // CHCT2
-      if (typeof doc.CHCT2_INV_01_SPD_AI === 'number') {
-        results.CHCT2.sum += doc.CHCT2_INV_01_SPD_AI;
-        results.CHCT2.count++;
-      }
-
-      // CT1
-      if (typeof doc.CT1_INV_01_SPD_AI === 'number') {
-        results.CT1.sum += doc.CT1_INV_01_SPD_AI;
-        results.CT1.count++;
-      }
-
-      // CT2
-      if (typeof doc.CT2_INV_01_SPD_AI === 'number') {
-        results.CT2.sum += doc.CT2_INV_01_SPD_AI;
-        results.CT2.count++;
-      }
+      // Sort chronologically
+      breakdownResult.sort((a, b) => a.interval.localeCompare(b.interval));
     }
 
     return {
-      CHCT1:
-        results.CHCT1.count > 0 ? results.CHCT1.sum / results.CHCT1.count : 0,
-      CHCT2:
-        results.CHCT2.count > 0 ? results.CHCT2.sum / results.CHCT2.count : 0,
-      CT1: results.CT1.count > 0 ? results.CT1.sum / results.CT1.count : 0,
-      CT2: results.CT2.count > 0 ? results.CT2.sum / results.CT2.count : 0,
+      overall: overallResult,
+      breakdown: breakdownResult,
     };
   }
+
+  static calculateFanSpeedByTower(
+    data: any[],
+    breakdownType: 'hour' | 'day' | 'month' | 'none' = 'none'
+  ): {
+    overall: { [towerId: string]: number };
+    breakdown?: Array<{ interval: string; values: { [towerId: string]: number } }>;
+  } {
+    const towers = ['CHCT1', 'CHCT2', 'CT1', 'CT2'];
+    
+    // Initialize overall accumulator
+    const overallAccumulator: any = {};
+    towers.forEach(tower => {
+      overallAccumulator[tower] = { sum: 0, count: 0 };
+    });
+
+    // Initialize breakdown accumulator
+    const breakdownAccumulator: Record<string, typeof overallAccumulator> = {};
+
+    // Helper to update accumulator
+    const updateAccumulator = (acc: any, doc: any, tower: string) => {
+      const speedField = `${tower}_INV_01_SPD_AI`;
+      
+      if (typeof doc[speedField] === 'number') {
+        acc[tower].sum += doc[speedField];
+        acc[tower].count++;
+      }
+    };
+
+    // Process each document
+    for (const doc of data) {
+      // Update overall metrics
+      towers.forEach(tower => updateAccumulator(overallAccumulator, doc, tower));
+
+      // Process breakdown if needed
+      if (breakdownType !== 'none' && doc.timestamp) {
+        const date = new Date(doc.timestamp);
+        let intervalKey: string;
+
+        switch (breakdownType) {
+          case 'hour':
+            intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}`;
+            break;
+          case 'day':
+            intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+            break;
+          case 'month':
+            intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+            break;
+          default:
+            intervalKey = '';
+        }
+
+        if (!breakdownAccumulator[intervalKey]) {
+          breakdownAccumulator[intervalKey] = {};
+          towers.forEach(tower => {
+            breakdownAccumulator[intervalKey][tower] = { sum: 0, count: 0 };
+          });
+        }
+
+        towers.forEach(tower => updateAccumulator(breakdownAccumulator[intervalKey], doc, tower));
+      }
+    }
+
+    // Calculate overall averages
+    const overallResult: any = {};
+    towers.forEach(tower => {
+      overallResult[tower] = overallAccumulator[tower].count > 0 
+        ? overallAccumulator[tower].sum / overallAccumulator[tower].count 
+        : 0;
+    });
+
+    // Process breakdown if exists
+    let breakdownResult: Array<{ interval: string; values: any }> | undefined;
+    
+    if (breakdownType !== 'none') {
+      breakdownResult = Object.entries(breakdownAccumulator).map(([interval, acc]) => {
+        const values: any = {};
+        towers.forEach(tower => {
+          values[tower] = acc[tower].count > 0 
+            ? acc[tower].sum / acc[tower].count 
+            : 0;
+        });
+        return { interval, values };
+      });
+
+      // Sort chronologically
+      breakdownResult.sort((a, b) => a.interval.localeCompare(b.interval));
+    }
+
+    return {
+      overall: overallResult,
+      breakdown: breakdownResult
+    };
+  }
+
+
 }

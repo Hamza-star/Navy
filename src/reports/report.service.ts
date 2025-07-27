@@ -137,7 +137,6 @@ export class ReportsService {
     const ambientAirTemp = 30; // °C (example static value)
     const wetBulbTemp = 25; // °C
     const fanAmpere = 15; // A
-    const fanPower = 5.5; // kW
 
     let finalData = filteredData;
 

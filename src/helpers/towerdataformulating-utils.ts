@@ -2432,7 +2432,10 @@ export class TowerDataProcessor {
 
       if (breakdownType !== 'none' && doc.timestamp) {
         const date = new Date(doc.timestamp);
-        const intervalKey = TowerDataProcessor.getIntervalKey(date, breakdownType);
+        const intervalKey = TowerDataProcessor.getIntervalKey(
+          date,
+          breakdownType,
+        );
 
         if (!breakdownAccumulator[intervalKey]) {
           breakdownAccumulator[intervalKey] = {};
@@ -2991,7 +2994,10 @@ export class TowerDataProcessor {
 
       if (breakdownType !== 'none' && doc.timestamp) {
         const date = new Date(doc.timestamp);
-        const intervalKey = TowerDataProcessor.getIntervalKey(date, breakdownType);
+        const intervalKey = TowerDataProcessor.getIntervalKey(
+          date,
+          breakdownType,
+        );
 
         if (!breakdownAccumulator[intervalKey]) {
           breakdownAccumulator[intervalKey] = {};
@@ -3130,6 +3136,194 @@ export class TowerDataProcessor {
       );
 
       // Sort chronologically
+      breakdownResult.sort((a, b) => a.interval.localeCompare(b.interval));
+    }
+
+    return {
+      overall: overallResult,
+      breakdown: breakdownResult,
+    };
+  }
+  static calculateFanPowerByTower(
+    data: any[],
+    breakdownType: 'hour' | 'day' | 'month' | 'none' = 'none',
+    towerType: 'CHCT' | 'CT' | 'all' = 'all',
+  ): {
+    overall: { [towerId: string]: number };
+    breakdown?: Array<{
+      interval: string;
+      values: { [towerId: string]: number };
+    }>;
+  } {
+    const allTowers = ['CHCT1', 'CHCT2', 'CT1', 'CT2'];
+
+    const towers =
+      towerType === 'CHCT'
+        ? ['CHCT1', 'CHCT2']
+        : towerType === 'CT'
+          ? ['CT1', 'CT2']
+          : allTowers;
+
+    const overallAccumulator: any = {};
+    towers.forEach((tower) => {
+      overallAccumulator[tower] = 0;
+    });
+
+    const breakdownAccumulator: Record<string, { [towerId: string]: number }> =
+      {};
+
+    const updateAccumulator = (acc: any, doc: any, tower: string) => {
+      const powerField = `${tower}_EM01_ActivePower_Total_kW`;
+
+      if (typeof doc[powerField] === 'number') {
+        acc[tower] += doc[powerField];
+      }
+    };
+
+    for (const doc of data) {
+      towers.forEach((tower) =>
+        updateAccumulator(overallAccumulator, doc, tower),
+      );
+
+      if (breakdownType !== 'none' && doc.timestamp) {
+        const date = new Date(doc.timestamp);
+        const intervalKey = TowerDataProcessor.getIntervalKey(
+          date,
+          breakdownType,
+        );
+
+        if (!breakdownAccumulator[intervalKey]) {
+          breakdownAccumulator[intervalKey] = {};
+          towers.forEach((tower) => {
+            breakdownAccumulator[intervalKey][tower] = 0;
+          });
+        }
+
+        towers.forEach((tower) =>
+          updateAccumulator(breakdownAccumulator[intervalKey], doc, tower),
+        );
+      }
+    }
+
+    const breakdownResult =
+      breakdownType !== 'none'
+        ? Object.entries(breakdownAccumulator)
+            .map(([interval, values]) => ({ interval, values }))
+            .sort((a, b) => a.interval.localeCompare(b.interval))
+        : undefined;
+
+    return {
+      overall: overallAccumulator,
+      breakdown: breakdownResult,
+    };
+  }
+  static calculateFanEnergyEfficiencyIndex(
+    data: any[],
+    breakdownType: 'hour' | 'day' | 'month' | 'none' = 'none',
+    towerType: 'CHCT' | 'CT' | 'all' = 'all',
+  ): {
+    overall: { [towerId: string]: number };
+    breakdown?: Array<{
+      interval: string;
+      values: { [towerId: string]: number };
+    }>;
+  } {
+    const towers =
+      towerType === 'CHCT'
+        ? ['CHCT1', 'CHCT2']
+        : towerType === 'CT'
+          ? ['CT1', 'CT2']
+          : ['CHCT1', 'CHCT2', 'CT1', 'CT2'];
+
+    // Instead of sum of FEEI and count,
+    // keep track of total fan power and total cooling capacity for weighted avg
+    const overallAccumulator: any = {};
+    towers.forEach((tower) => {
+      overallAccumulator[tower] = { totalPower: 0, totalCoolingCapacity: 0 };
+    });
+
+    const breakdownAccumulator: Record<string, typeof overallAccumulator> = {};
+
+    const Cp = 4.186;
+
+    const updateAccumulator = (acc: any, doc: any, tower: string) => {
+      const flowField = `${tower}_FM_02_FR`;
+      const hotField = `${tower}_TEMP_RTD_02_AI`;
+      const coldField = `${tower}_TEMP_RTD_01_AI`;
+      const powerField = `${tower}_EM01_ActivePower_Total_kW`;
+
+      if (
+        typeof doc[flowField] === 'number' &&
+        typeof doc[hotField] === 'number' &&
+        typeof doc[coldField] === 'number' &&
+        typeof doc[powerField] === 'number'
+      ) {
+        const coolingCapacity =
+          Cp * doc[flowField] * (doc[hotField] - doc[coldField]);
+        const power = doc[powerField];
+
+        if (coolingCapacity > 0) {
+          // Instead of calculating FEEI here, accumulate totals for weighted avg later
+          acc[tower].totalPower += power;
+          acc[tower].totalCoolingCapacity += coolingCapacity;
+        }
+      }
+    };
+
+    for (const doc of data) {
+      towers.forEach((tower) =>
+        updateAccumulator(overallAccumulator, doc, tower),
+      );
+
+      if (breakdownType !== 'none' && doc.timestamp) {
+        const date = new Date(doc.timestamp);
+        const intervalKey = TowerDataProcessor.getIntervalKey(
+          date,
+          breakdownType,
+        );
+
+        if (!breakdownAccumulator[intervalKey]) {
+          breakdownAccumulator[intervalKey] = {};
+          towers.forEach((tower) => {
+            breakdownAccumulator[intervalKey][tower] = {
+              totalPower: 0,
+              totalCoolingCapacity: 0,
+            };
+          });
+        }
+
+        towers.forEach((tower) =>
+          updateAccumulator(breakdownAccumulator[intervalKey], doc, tower),
+        );
+      }
+    }
+
+    // Now calculate weighted FEEI: totalPower / totalCoolingCapacity * 100 (if you want percentage)
+    const overallResult: any = {};
+    towers.forEach((tower) => {
+      const acc = overallAccumulator[tower];
+      overallResult[tower] =
+        acc.totalCoolingCapacity > 0
+          ? (acc.totalPower / acc.totalCoolingCapacity) * 100
+          : 0;
+    });
+
+    let breakdownResult: Array<{ interval: string; values: any }> | undefined;
+    if (breakdownType !== 'none') {
+      breakdownResult = Object.entries(breakdownAccumulator).map(
+        ([interval, acc]) => {
+          const values: any = {};
+          towers.forEach((tower) => {
+            const towerAcc = acc[tower];
+            values[tower] =
+              towerAcc.totalCoolingCapacity > 0
+                ? (towerAcc.totalPower / towerAcc.totalCoolingCapacity) * 100
+                : 0;
+          });
+          return { interval, values };
+        },
+      );
+
       breakdownResult.sort((a, b) => a.interval.localeCompare(b.interval));
     }
 

@@ -1447,7 +1447,6 @@ export class DashboardService {
         endDate,
       );
     }
-
     if (dto.startTime && dto.endTime) {
       const timeFilter = this.mongoDateFilter.getCustomTimeRange(
         dto.startTime,
@@ -1566,14 +1565,21 @@ export class DashboardService {
       else breakdownType = 'month';
     }
 
-    const fanSpeedByTower = TowerDataProcessor.calculateFanSpeedByTower(
+    const fanPowerByTower = TowerDataProcessor.calculateFanPowerByTower(
       data,
       breakdownType,
+      dto.towerType || 'all',
     );
-
+    const fanEnergyEfficiencyIndex =
+      TowerDataProcessor.calculateFanEnergyEfficiencyIndex(
+        data,
+        breakdownType,
+        dto.towerType || 'all', // ['CHCT1', 'CHCT2'] | ['CT1', 'CT2'] | all
+      );
     return {
       message: 'Dashboard Data',
-      data: fanSpeedByTower,
+      fanPower: fanPowerByTower,
+      fanEnergyEfficiencyIndex: fanEnergyEfficiencyIndex,
     };
   }
 }

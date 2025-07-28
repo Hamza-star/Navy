@@ -36,7 +36,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     HelpersModule,
     DashboardModule,
   ],
-  controllers: [AppController, AnalysisController],
-  providers: [AppService, AnalysisService],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}

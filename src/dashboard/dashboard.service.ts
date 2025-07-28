@@ -1474,12 +1474,35 @@ export class DashboardService {
       else breakdownType = 'month';
     }
 
+    const wetBulb = 25; // or make it dynamic if needed
+    const towers =
+      dto.towerType === 'CHCT'
+        ? ['CHCT1', 'CHCT2']
+        : dto.towerType === 'CT'
+          ? ['CT1', 'CT2']
+          : ['CHCT1', 'CHCT2', 'CT1', 'CT2'];
+
     const coolingCapacityByTower =
-      TowerDataProcessor.calculateCoolingCapacityByTower(data, breakdownType);
+      TowerDataProcessor.calculateCoolingCapacityByTower(
+        data,
+        breakdownType,
+        towers,
+      );
+
+    const coolingEfficiencyByTower =
+      TowerDataProcessor.calculateCoolingEfficiencyByTowerInCoolingCapacity(
+        data,
+        wetBulb,
+        breakdownType,
+        towers,
+      );
 
     return {
       message: 'Dashboard Data',
-      data: coolingCapacityByTower,
+      data: {
+        coolingCapacity: coolingCapacityByTower,
+        coolingEfficiency: coolingEfficiencyByTower,
+      },
     };
   }
   async getDashboardDataChart19(dto: {

@@ -1,13 +1,18 @@
-// analysis.module.ts
 import { Module } from '@nestjs/common';
-import { HttpModule } from '@nestjs/axios';
-import { AnalysisController } from './analysis.controller';
+import { MongooseModule } from '@nestjs/mongoose';
+import { AnalysisData, AnalysisSchema } from './schemas/analysis.schema';
 import { AnalysisService } from './analysis.service';
-import { HelpersModule } from 'src/helpers/helpers.module'; 
+import { AnalysisController } from './analysis.controller'; // Move controller here
+import { MongoDateFilterService } from '../helpers/mongodbfilter-utils';
+
 @Module({
-  imports: [HttpModule.register({}), HelpersModule],
-  controllers: [AnalysisController],
-  providers: [AnalysisService],
-  exports: [HttpModule],
+  imports: [
+    MongooseModule.forFeature([
+      { name: AnalysisData.name, schema: AnalysisSchema },
+    ]),
+  ],
+  controllers: [AnalysisController], // Controller moved here
+  providers: [AnalysisService, MongoDateFilterService],
+  exports: [AnalysisService], // Optional: Only if other modules need it
 })
 export class AnalysisModule {}

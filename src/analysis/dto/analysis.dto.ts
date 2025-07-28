@@ -1,15 +1,27 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsOptional, IsString, IsDateString } from 'class-validator';
 
 export class AnalysisDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  Tower: string;
+  date?: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  start_date: string;
+  range?: string; // 'today', 'week', 'lastMonth', etc.
 
+  @IsOptional()
+  @IsDateString()
+  fromDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  toDate?: string;
+
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  end_date: string;
+  startTime?: string; // Format: 'HH:MM:SS'
+
+  @IsOptional()
+  @IsString()
+  endTime?: string; // Format: 'HH:MM:SS'
 }

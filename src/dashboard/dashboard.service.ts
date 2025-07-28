@@ -1201,6 +1201,7 @@ export class DashboardService {
     toDate?: string;
     startTime?: string;
     endTime?: string;
+    towerType?: 'CHCT' | 'CT' | 'all';
   }) {
     const query: any = {};
     let startDate: Date = new Date();
@@ -1274,6 +1275,7 @@ export class DashboardService {
     toDate?: string;
     startTime?: string;
     endTime?: string;
+    towerType?: 'CHCT' | 'CT' | 'all';
   }) {
     const query: any = {};
     let startDate: Date = new Date();
@@ -1328,17 +1330,26 @@ export class DashboardService {
     }
 
     const wetBulb = 25; // Could be made configurable if needed
-    const { overall, breakdown } = TowerDataProcessor.calculateApproachByTower(
-      data,
-      wetBulb,
-      breakdownType,
-    );
+    const intervalApproach =
+      TowerDataProcessor.calculateAverageApproachByInterval(
+        data,
+        wetBulb,
+        breakdownType,
+        dto.towerType || 'all',
+      );
 
+    const coolingEffectiveness =
+      TowerDataProcessor.calculateCoolingEffectivenessByInterval(
+        data,
+        wetBulb,
+        breakdownType,
+        dto.towerType || 'all',
+      );
     return {
       message: 'Dashboard Data',
       data: {
-        overall,
-        breakdown,
+        Approach: intervalApproach,
+        coolingTowerEffectiveness: coolingEffectiveness,
       },
     };
   }

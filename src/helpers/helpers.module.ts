@@ -5,6 +5,7 @@ import { DateUtilsService } from './date-utils';
 import { MappingSheetService } from './mappingsheet-utils';
 import { MongoDateFilterService } from './mongodbfilter-utils';
 import { TowerDataProcessor } from './towerdataformulating-utils';
+import { AnalysisTowerDataProcessor } from './analysistowerdataformulating-utils';
 @Module({
   imports: [HttpModule],
   providers: [
@@ -13,6 +14,7 @@ import { TowerDataProcessor } from './towerdataformulating-utils';
     MappingSheetService,
     MongoDateFilterService,
     TowerDataProcessor,
+    AnalysisTowerDataProcessor,
   ],
   exports: [
     HttpFetcherService,
@@ -20,6 +22,7 @@ import { TowerDataProcessor } from './towerdataformulating-utils';
     MappingSheetService,
     MongoDateFilterService,
     TowerDataProcessor,
+    AnalysisTowerDataProcessor,
   ],
 })
 export class HelpersModule {}

@@ -53,57 +53,57 @@ export class AnalysisController {
     return { message: 'Analysis Data', data };
   }
 
-  @Post('vibration-analysis')
+  // @Post('vibration-analysis')
+  // async getanalysisDataChart9(@Body() dto: AnalysisDto) {
+  //   const data = await this.AnalysisService.getAnalysisDataChart9(dto);
+  //   return { message: 'Analysis Data', data };
+  // }
+
+  // @Post('PO2')
+  // async getanalysisDataChart10(@Body() dto: AnalysisDto) {
+  //   const data = await this.AnalysisService.getAnalysisDataChart10(dto);
+  //   return { message: 'Analysis Data', data };
+  // }
+
+  // @Post('ph-levels')
+  // async getanalysisDataChart11(@Body() dto: AnalysisDto) {
+  //   const data = await this.AnalysisService.getAnalysisDataChart11(dto);
+  //   return { message: 'Analysis Data', data };
+  // }
+
+  // @Post('conductivity')
+  // async getanalysisDataChart12(@Body() dto: AnalysisDto) {
+  //   const data = await this.AnalysisService.getAnalysisDataChart12(dto);
+  //   return { message: 'Analysis Data', data };
+  // }
+
+  // @Post('corrision-rate')
+  // async getanalysisDataChart13(@Body() dto: AnalysisDto) {
+  //   const data = await this.AnalysisService.getAnalysisDataChart13(dto);
+  //   return { message: 'Analysis Data', data };
+  // }
+
+  @Post('fan-speed')
   async getanalysisDataChart9(@Body() dto: AnalysisDto) {
     const data = await this.AnalysisService.getAnalysisDataChart9(dto);
     return { message: 'Analysis Data', data };
   }
 
-  @Post('PO2')
+  @Post('delta-temperature')
   async getanalysisDataChart10(@Body() dto: AnalysisDto) {
     const data = await this.AnalysisService.getAnalysisDataChart10(dto);
     return { message: 'Analysis Data', data };
   }
 
-  @Post('ph-levels')
-  async getanalysisDataChart11(@Body() dto: AnalysisDto) {
-    const data = await this.AnalysisService.getAnalysisDataChart11(dto);
-    return { message: 'Analysis Data', data };
-  }
-
-  @Post('conductivity')
-  async getanalysisDataChart12(@Body() dto: AnalysisDto) {
-    const data = await this.AnalysisService.getAnalysisDataChart12(dto);
-    return { message: 'Analysis Data', data };
-  }
-
-  @Post('corrision-rate')
-  async getanalysisDataChart13(@Body() dto: AnalysisDto) {
-    const data = await this.AnalysisService.getAnalysisDataChart13(dto);
-    return { message: 'Analysis Data', data };
-  }
-
-  @Post('fan-speed')
-  async getanalysisDataChart14(@Body() dto: AnalysisDto) {
-    const data = await this.AnalysisService.getAnalysisDataChart14(dto);
-    return { message: 'Analysis Data', data };
-  }
-
-  @Post('delta-temperature')
-  async getanalysisDataChart15(@Body() dto: AnalysisDto) {
-    const data = await this.AnalysisService.getAnalysisDataChart15(dto);
-    return { message: 'Analysis Data', data };
-  }
-
-  @Post('return-waterflow')
-  async getanalysisDataChart16(@Body() dto: AnalysisDto) {
-    const data = await this.AnalysisService.getAnalysisDataChart16(dto);
-    return { message: 'Analysis Data', data };
-  }
+  // @Post('return-waterflow')
+  // async getanalysisDataChart16(@Body() dto: AnalysisDto) {
+  //   const data = await this.AnalysisService.getAnalysisDataChart16(dto);
+  //   return { message: 'Analysis Data', data };
+  // }
 
   @Post('cooling-watersupply')
-  async getanalysisDataChart17(@Body() dto: AnalysisDto) {
-    const data = await this.AnalysisService.getAnalysisDataChart17(dto);
+  async getanalysisDataChart11(@Body() dto: AnalysisDto) {
+    const data = await this.AnalysisService.getAnalysisDataChart11(dto);
     return { message: 'Analysis Data', data };
   }
 }

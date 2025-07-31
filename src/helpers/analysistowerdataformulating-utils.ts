@@ -268,6 +268,86 @@ export class AnalysisTowerDataProcessor {
 
     return { grouped, overallAverage };
   }
+  static calculateAverageTemperaturesGrouped(
+    data: any[],
+    towerType: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2',
+    groupBy: 'hour' | 'day' | 'week' | 'month',
+    startDate: Date,
+    endDate: Date,
+  ): {
+    grouped: {
+      label: string;
+      averageSupplyTemp: number;
+      averageReturnTemp: number;
+    }[];
+  } {
+    const supplyKey = `${towerType}_TEMP_RTD_02_AI`;
+    const returnKey = `${towerType}_TEMP_RTD_01_AI`;
+
+    const emptyBuckets = this.generateEmptyBuckets(
+      startDate,
+      endDate,
+      groupBy,
+    ).map((bucket) => ({
+      label: bucket.timestamp,
+      averageSupplyTemp: 0,
+      averageReturnTemp: 0,
+    }));
+
+    if (data.length === 0) return { grouped: emptyBuckets };
+
+    const groupMap = new Map<
+      string,
+      { supplySum: number; returnSum: number; count: number }
+    >();
+
+    for (const doc of data) {
+      const timestamp = new Date(doc.timestamp);
+      let groupKey = '';
+
+      switch (groupBy) {
+        case 'hour':
+          groupKey = format(timestamp, 'yyyy-MM-dd HH:00');
+          break;
+        case 'day':
+          groupKey = format(timestamp, 'yyyy-MM-dd');
+          break;
+        case 'week':
+          groupKey = `${getYear(timestamp)}-W${String(getWeek(timestamp)).padStart(2, '0')}`;
+          break;
+        case 'month':
+          groupKey = format(timestamp, 'yyyy-MM');
+          break;
+      }
+
+      if (!groupMap.has(groupKey)) {
+        groupMap.set(groupKey, { supplySum: 0, returnSum: 0, count: 0 });
+      }
+
+      const group = groupMap.get(groupKey)!;
+      const supply = doc[supplyKey];
+      const ret = doc[returnKey];
+
+      if (typeof supply === 'number') group.supplySum += supply;
+      if (typeof ret === 'number') group.returnSum += ret;
+      group.count++;
+    }
+
+    const grouped = emptyBuckets.map((bucket) => {
+      const group = groupMap.get(bucket.label);
+      if (group) {
+        return {
+          label: bucket.label,
+          averageSupplyTemp: group.supplySum / group.count,
+          averageReturnTemp: group.returnSum / group.count,
+        };
+      }
+      return bucket;
+    });
+
+    return { grouped };
+  }
+
   static calculateCoolingEfficiency(
     data: any[],
     towerType: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2' | 'all',

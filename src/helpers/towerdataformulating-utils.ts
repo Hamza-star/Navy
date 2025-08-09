@@ -3507,4 +3507,186 @@ export class TowerDataProcessor {
       breakdown: breakdownResult,
     };
   }
+  static calculateTowerUtilisationRate(
+    data: any[],
+    towerType: 'CHCT' | 'CT' | 'all',
+    groupBy: 'hour' | 'day' | 'week' | 'month',
+    startDate: Date,
+    endDate: Date,
+  ): { grouped: { label: string; value: number }[]; overallAverage: number } {
+    const emptyBuckets = this.generateEmptyBuckets(
+      startDate,
+      endDate,
+      groupBy,
+    ).map((b) => ({
+      label: b.timestamp,
+      value: 0,
+    }));
+
+    const groupMap = new Map<string, { runtime: number; total: number }>();
+    let totalRuntime = 0;
+    let totalAvailable = 0;
+
+    for (const doc of data) {
+      const docDate = new Date(doc.timestamp);
+      const label = this.getGroupKey(docDate, groupBy);
+
+      if (!groupMap.has(label)) {
+        groupMap.set(label, { runtime: 0, total: 0 });
+      }
+      const group = groupMap.get(label)!;
+
+      let isRunning = false;
+
+      if (towerType === 'CHCT' || towerType === 'all') {
+        isRunning ||= (doc.CHCT1_INV_01_SPD_AI ?? 0) > 0;
+        isRunning ||= (doc.CHCT2_INV_01_SPD_AI ?? 0) > 0;
+      }
+
+      if (towerType === 'CT' || towerType === 'all') {
+        isRunning ||= (doc.CT1_INV_01_SPD_AI ?? 0) > 0;
+        isRunning ||= (doc.CT2_INV_01_SPD_AI ?? 0) > 0;
+      }
+
+      if (isRunning) group.runtime++;
+      group.total++;
+
+      totalRuntime += isRunning ? 1 : 0;
+      totalAvailable++;
+    }
+
+    const grouped = emptyBuckets.map((b) => {
+      if (groupMap.has(b.label)) {
+        const g = groupMap.get(b.label)!;
+        return {
+          label: b.label,
+          value: +(g.total > 0 ? g.runtime / g.total : 0).toFixed(3),
+        };
+      }
+      return b;
+    });
+
+    const overallAverage =
+      totalAvailable > 0 ? +(totalRuntime / totalAvailable).toFixed(3) : 0;
+
+    return {
+      grouped,
+      overallAverage,
+    };
+  }
+  static calculateHeatRejectRate(
+    data: any[],
+    towerType: 'CHCT' | 'CT' | 'all',
+    groupBy: 'hour' | 'day' | 'month',
+    startDate: Date,
+    endDate: Date,
+  ) {
+    const rho = 1000;
+    const Cp = 4.186;
+
+    const buckets = this.generateEmptyBuckets(startDate, endDate, groupBy).map(
+      (b) => ({
+        label: b.timestamp,
+        value: 0,
+      }),
+    );
+
+    const groupMap = new Map<string, { sum: number; count: number }>();
+
+    for (const doc of data) {
+      const docDate = new Date(doc.timestamp);
+      const label = this.getGroupKey(docDate, groupBy);
+      if (!groupMap.has(label)) groupMap.set(label, { sum: 0, count: 0 });
+      const group = groupMap.get(label)!;
+
+      const compute = (flow: number, hot: number, cold: number) =>
+        rho * flow * Cp * (hot - cold);
+
+      let total = 0;
+
+      if (towerType === 'CHCT' || towerType === 'all') {
+        if (
+          typeof doc.CHCT1_FM_02_FR === 'number' &&
+          typeof doc.CHCT1_TEMP_RTD_02_AI === 'number' &&
+          typeof doc.CHCT1_TEMP_RTD_01_AI === 'number'
+        ) {
+          total += compute(
+            doc.CHCT1_FM_02_FR,
+            doc.CHCT1_TEMP_RTD_02_AI,
+            doc.CHCT1_TEMP_RTD_01_AI,
+          );
+        }
+        if (
+          typeof doc.CHCT2_FM_02_FR === 'number' &&
+          typeof doc.CHCT2_TEMP_RTD_02_AI === 'number' &&
+          typeof doc.CHCT2_TEMP_RTD_01_AI === 'number'
+        ) {
+          total += compute(
+            doc.CHCT2_FM_02_FR,
+            doc.CHCT2_TEMP_RTD_02_AI,
+            doc.CHCT2_TEMP_RTD_01_AI,
+          );
+        }
+      }
+
+      if (towerType === 'CT' || towerType === 'all') {
+        if (
+          typeof doc.CT1_FM_02_FR === 'number' &&
+          typeof doc.CT1_TEMP_RTD_02_AI === 'number' &&
+          typeof doc.CT1_TEMP_RTD_01_AI === 'number'
+        ) {
+          total += compute(
+            doc.CT1_FM_02_FR,
+            doc.CT1_TEMP_RTD_02_AI,
+            doc.CT1_TEMP_RTD_01_AI,
+          );
+        }
+        if (
+          typeof doc.CT2_FM_02_FR === 'number' &&
+          typeof doc.CT2_TEMP_RTD_02_AI === 'number' &&
+          typeof doc.CT2_TEMP_RTD_01_AI === 'number'
+        ) {
+          total += compute(
+            doc.CT2_FM_02_FR,
+            doc.CT2_TEMP_RTD_02_AI,
+            doc.CT2_TEMP_RTD_01_AI,
+          );
+        }
+      }
+
+      if (total > 0) {
+        group.sum += total;
+        group.count++;
+      }
+    }
+
+    return buckets.map((b) =>
+      groupMap.has(b.label)
+        ? {
+            label: b.label,
+            value: +(
+              groupMap.get(b.label)!.sum / groupMap.get(b.label)!.count
+            ).toFixed(2),
+          }
+        : b,
+    );
+  }
+
+  static getGroupKey(
+    date: Date,
+    groupBy: 'hour' | 'day' | 'week' | 'month',
+  ): string {
+    switch (groupBy) {
+      case 'hour':
+        return format(date, 'yyyy-MM-dd HH:00');
+      case 'day':
+        return format(date, 'yyyy-MM-dd');
+      case 'week':
+        return format(date, "yyyy-'W'II"); // ISO week format
+      case 'month':
+        return format(date, 'yyyy-MM');
+      default:
+        return format(date, 'yyyy-MM-dd');
+    }
+  }
 }

@@ -11,7 +11,6 @@ import { LogEntrySchema } from './schemas/logs.schema';
         schema: LogEntrySchema,
       },
     ]),
-    // ...other imports if needed
   ],
   providers: [LogsDataService],
   controllers: [LogsDataController],

@@ -21,7 +21,7 @@ export class NodeRedLinkService {
       );
       const data = response.data;
       const WET_BULB = 25;
-      const Fixed_Value = 1350;
+      const Fixed_Value = 1450;
       data.CHCT1_RANGE =
         (data.CHCT1_TEMP_RTD_02_AI || 0) - (data.CHCT1_TEMP_RTD_01_AI || 0);
       data.CHCT2_RANGE =

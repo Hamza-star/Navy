@@ -8,6 +8,8 @@ async function bootstrap() {
     origin: [
       'http://localhost:3000',
       'http://192.168.2.245:3000',
+      'http://192.168.2.174:3000',
+      'http://192.168.3.58:3000',
       'http://110.39.23.107:3000',
     ],
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],

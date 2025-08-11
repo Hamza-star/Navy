@@ -11,6 +11,7 @@ import {
   getYear,
   startOfDay,
   startOfHour,
+  addMinutes,
 } from 'date-fns';
 
 export class AnalysisTowerDataProcessor {
@@ -2303,13 +2304,25 @@ export class AnalysisTowerDataProcessor {
   static generateEmptyBuckets(
     start: Date,
     end: Date,
-    groupBy: 'hour' | 'day' | 'week' | 'month',
+    groupBy: 'hour' | 'day' | 'week' | 'month' | '15min',
   ): { timestamp: string; value: number }[] {
     const buckets: { timestamp: string; value: number }[] = [];
     let current = new Date(start);
     const endTime = end.getTime();
 
     switch (groupBy) {
+      case '15min': {
+        const minutes = current.getMinutes();
+        const roundedMinutes = Math.floor(minutes / 15) * 15;
+        current.setMinutes(roundedMinutes, 0, 0);
+
+        while (current.getTime() <= endTime) {
+          const label = format(current, 'yyyy-MM-dd HH:mm');
+          buckets.push({ timestamp: label, value: 0 });
+          current = addMinutes(current, 15);
+        }
+        break;
+      }
       case 'hour':
         current = startOfHour(start);
         while (current <= end) {

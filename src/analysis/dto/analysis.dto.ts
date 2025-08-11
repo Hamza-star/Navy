@@ -24,4 +24,8 @@ export class AnalysisDto {
   @IsOptional()
   @IsString()
   endTime?: string; // Format: 'HH:MM:SS'
+
+  @IsOptional()
+  @IsString()
+  interval?: 'hour' | '15min';
 }

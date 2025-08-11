@@ -166,6 +166,7 @@ export class AnalysisService {
     startTime?: string;
     endTime?: string;
     towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
+    wetBulb?: number; // pass this as argument or use a default
   }) {
     const filter: any = {};
     let startDate: Date;
@@ -207,7 +208,7 @@ export class AnalysisService {
     const sampleDoc = await this.AnalysisModel.findOne(filter).lean().exec();
 
     if (!sampleDoc) {
-      return { message: 'Analysis Chart 1 Data', rawdata: [] };
+      return { message: 'Analysis Chart 2 Data', rawdata: [] };
     }
 
     const towerPrefix = `${dto.towerType}_`;
@@ -225,7 +226,8 @@ export class AnalysisService {
       (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
     const groupBy: 'hour' | 'day' = diffInDays <= 1 ? 'hour' : 'day';
 
-    const wetBulb = 28;
+    // Use provided wetBulb or default
+    const wetBulb = dto.wetBulb ?? 28;
 
     // Step 1: Generate empty buckets
     const emptyBuckets = AnalysisTowerDataProcessor.generateEmptyBuckets(
@@ -234,11 +236,11 @@ export class AnalysisService {
       groupBy,
     );
 
-    // Step 2: Group data
+    // Step 2: Group data by period
     const groupMap = new Map<
       string,
       {
-        efficiencySum: number;
+        approachSum: number;
         supplySum: number;
         returnSum: number;
         count: number;
@@ -259,7 +261,7 @@ export class AnalysisService {
 
       if (!groupMap.has(label)) {
         groupMap.set(label, {
-          efficiencySum: 0,
+          approachSum: 0,
           supplySum: 0,
           returnSum: 0,
           count: 0,
@@ -268,35 +270,34 @@ export class AnalysisService {
 
       const group = groupMap.get(label)!;
 
-      const hot = doc[`${dto.towerType}_TEMP_RTD_02_AI`];
-      const cold = doc[`${dto.towerType}_TEMP_RTD_01_AI`];
-      const eff =
-        typeof hot === 'number' &&
-        typeof cold === 'number' &&
-        hot - wetBulb !== 0
-          ? ((hot - cold) / (hot - wetBulb)) * 100
-          : null;
+      const returnTemp = doc[`${dto.towerType}_TEMP_RTD_01_AI`];
+      const supplyTemp = doc[`${dto.towerType}_TEMP_RTD_02_AI`];
 
-      if (eff !== null) group.efficiencySum += eff;
-      if (typeof hot === 'number') group.supplySum += hot;
-      if (typeof cold === 'number') group.returnSum += cold;
+      // Approach = ReturnTemp - WetBulb
+      const approach =
+        typeof returnTemp === 'number' ? returnTemp - wetBulb : null;
+
+      if (approach !== null) group.approachSum += approach;
+      if (typeof supplyTemp === 'number') group.supplySum += supplyTemp;
+      if (typeof returnTemp === 'number') group.returnSum += returnTemp;
       group.count++;
     }
 
-    // Step 3: Merge buckets
+    // Step 3: Map groups into result array
     const result = emptyBuckets.map(({ timestamp }) => {
       const group = groupMap.get(timestamp);
       const count = group?.count || 0;
       return {
         label: timestamp,
-        coolingEfficiency: count > 0 ? group!.efficiencySum / count : 0,
+        approach: count > 0 ? group!.approachSum / count : 0,
         supplyTemp: count > 0 ? group!.supplySum / count : 0,
+        returnTemp: count > 0 ? group!.returnSum / count : 0,
         wetBulb,
       };
     });
 
     return {
-      message: 'Analysis Chart 1 Data',
+      message: 'Analysis Chart 2 Data',
       rawdata: result,
     };
   }
@@ -1099,6 +1100,7 @@ export class AnalysisService {
     startTime?: string;
     endTime?: string;
     towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
+    interval?: '15min' | 'hour'; // NEW param
   }) {
     const filter: any = {};
     let startDate: Date;
@@ -1149,14 +1151,12 @@ export class AnalysisService {
       .lean()
       .exec();
 
-    const diffInDays =
-      (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
-    const groupBy: 'hour' | 'day' = diffInDays <= 1 ? 'hour' : 'day';
+    const interval = dto.interval ?? 'hour'; // default hour
 
     const emptyBuckets = AnalysisTowerDataProcessor.generateEmptyBuckets(
       startDate,
       endDate,
-      groupBy,
+      interval,
     );
 
     const groupMap = new Map<
@@ -1166,10 +1166,18 @@ export class AnalysisService {
 
     for (const doc of data) {
       const ts = new Date(doc.timestamp);
-      const label =
-        groupBy === 'hour'
-          ? format(ts, 'yyyy-MM-dd HH:00')
-          : format(ts, 'yyyy-MM-dd');
+      let label: string;
+      if (interval === 'hour') {
+        label = format(ts, 'yyyy-MM-dd HH:00');
+      } else {
+        // 15min interval rounding
+        const minutes = ts.getMinutes();
+        const roundedMinutes = Math.floor(minutes / 15) * 15;
+        label = format(
+          ts,
+          `yyyy-MM-dd HH:${roundedMinutes.toString().padStart(2, '0')}`,
+        );
+      }
 
       if (!groupMap.has(label)) {
         groupMap.set(label, { fanSpeedSum: 0, fanAmpSum: 0, count: 0 });
@@ -1192,11 +1200,25 @@ export class AnalysisService {
     }
 
     const result = emptyBuckets.map(({ timestamp }) => {
-      const group = groupMap.get(timestamp);
+      const label = (() => {
+        const ts = new Date(timestamp);
+        if (interval === 'hour') {
+          return format(ts, 'yyyy-MM-dd HH:00');
+        } else {
+          const minutes = ts.getMinutes();
+          const roundedMinutes = Math.floor(minutes / 15) * 15;
+          return format(
+            ts,
+            `yyyy-MM-dd HH:${roundedMinutes.toString().padStart(2, '0')}`,
+          );
+        }
+      })();
+
+      const group = groupMap.get(label);
       const count = group?.count || 0;
 
       return {
-        label: timestamp,
+        label,
         fanSpeed: count > 0 ? group!.fanSpeedSum / count : 0,
         fanAmpere: count > 0 ? group!.fanAmpSum / count : 0,
       };
@@ -1207,7 +1229,6 @@ export class AnalysisService {
       rawdata: result,
     };
   }
-
   async getAnalysisDataChart10(dto: {
     date?: string;
     range?: string;
@@ -1216,6 +1237,7 @@ export class AnalysisService {
     startTime?: string;
     endTime?: string;
     towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
+    interval?: '15min' | 'hour'; // NEW param
   }) {
     const filter: any = {};
     let startDate: Date;
@@ -1267,27 +1289,37 @@ export class AnalysisService {
     const data = await this.AnalysisModel.find(filter, projection)
       .lean()
       .exec();
-    const diffInDays =
-      (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
-    const groupBy: 'hour' | 'day' = diffInDays <= 1 ? 'hour' : 'day';
 
-    const wetBulb = 28; // static
-    const ambientAirTemp = 36; // static
+    // Use interval param with default to 'hour'
+    const interval = dto.interval ?? 'hour';
 
+    // Generate empty buckets based on interval (15min or hour)
     const emptyBuckets = AnalysisTowerDataProcessor.generateEmptyBuckets(
       startDate,
       endDate,
-      groupBy,
+      interval,
     );
+
+    const wetBulb = 28; // static
+    const ambientAirTemp = 36; // static
 
     const groupMap = new Map<string, { deltaTempSum: number; count: number }>();
 
     for (const doc of data) {
       const docDate = new Date(doc.timestamp);
-      const label =
-        groupBy === 'hour'
-          ? format(docDate, 'yyyy-MM-dd HH:00')
-          : format(docDate, 'yyyy-MM-dd');
+
+      let label: string;
+      if (interval === 'hour') {
+        label = format(docDate, 'yyyy-MM-dd HH:00');
+      } else {
+        // 15min interval rounding
+        const minutes = docDate.getMinutes();
+        const roundedMinutes = Math.floor(minutes / 15) * 15;
+        label = format(
+          docDate,
+          `yyyy-MM-dd HH:${roundedMinutes.toString().padStart(2, '0')}`,
+        );
+      }
 
       if (!groupMap.has(label)) {
         groupMap.set(label, { deltaTempSum: 0, count: 0 });
@@ -1304,7 +1336,21 @@ export class AnalysisService {
     }
 
     const result = emptyBuckets.map(({ timestamp }) => {
-      const group = groupMap.get(timestamp);
+      // Normalize timestamp label to match group keys for 15min or hour
+      const tsDate = new Date(timestamp);
+      let label: string;
+      if (interval === 'hour') {
+        label = format(tsDate, 'yyyy-MM-dd HH:00');
+      } else {
+        const minutes = tsDate.getMinutes();
+        const roundedMinutes = Math.floor(minutes / 15) * 15;
+        label = format(
+          tsDate,
+          `yyyy-MM-dd HH:${roundedMinutes.toString().padStart(2, '0')}`,
+        );
+      }
+
+      const group = groupMap.get(label);
       const count = group?.count || 0;
       return {
         label: timestamp,
@@ -1328,6 +1374,7 @@ export class AnalysisService {
     startTime?: string;
     endTime?: string;
     towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
+    interval?: '15min' | 'hour'; // NEW param
   }) {
     const filter: any = {};
     let startDate: Date;
@@ -1366,28 +1413,27 @@ export class AnalysisService {
     }
 
     const projection: any = { _id: 0, timestamp: 1 };
-    const tower = dto.towerType;
+    const tower = dto.towerType!;
 
     // Fan currents
     projection[`${tower}_EM01_Current_AN_Amp`] = 1;
     projection[`${tower}_EM01_Current_BN_Amp`] = 1;
     projection[`${tower}_EM01_Current_CN_Amp`] = 1;
 
-    // Supply & Return Temps
-    projection[`${tower}_TT01_SupplyWaterTemp`] = 1;
-    projection[`${tower}_TT02_ReturnWaterTemp`] = 1;
+    // Corrected supply & return temp fields to match DB tags
+    projection[`${tower}_TEMP_RTD_01_AI`] = 1;
+    projection[`${tower}_TEMP_RTD_02_AI`] = 1;
 
     const data = await this.AnalysisModel.find(filter, projection)
       .lean()
       .exec();
-    const diffInDays =
-      (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
-    const groupBy: 'hour' | 'day' = diffInDays <= 1 ? 'hour' : 'day';
+
+    const interval = dto.interval ?? 'hour';
 
     const emptyBuckets = AnalysisTowerDataProcessor.generateEmptyBuckets(
       startDate,
       endDate,
-      groupBy,
+      interval,
     );
 
     const groupMap = new Map<
@@ -1397,18 +1443,18 @@ export class AnalysisService {
 
     for (const doc of data) {
       const docDate = new Date(doc.timestamp);
-      const label =
-        groupBy === 'hour'
-          ? format(docDate, 'yyyy-MM-dd HH:00')
-          : format(docDate, 'yyyy-MM-dd');
 
-      const an = doc[`${tower}_EM01_Current_AN_Amp`] ?? 0;
-      const bn = doc[`${tower}_EM01_Current_BN_Amp`] ?? 0;
-      const cn = doc[`${tower}_EM01_Current_CN_Amp`] ?? 0;
-      const avgPower = (an + bn + cn) / 3;
-
-      const supplyTemp = doc[`${tower}_TT01_SupplyWaterTemp`];
-      const returnTemp = doc[`${tower}_TT02_ReturnWaterTemp`];
+      let label: string;
+      if (interval === 'hour') {
+        label = format(docDate, 'yyyy-MM-dd HH:00');
+      } else {
+        const minutes = docDate.getMinutes();
+        const roundedMinutes = Math.floor(minutes / 15) * 15;
+        label = format(
+          docDate,
+          `yyyy-MM-dd HH:${roundedMinutes.toString().padStart(2, '0')}`,
+        );
+      }
 
       if (!groupMap.has(label)) {
         groupMap.set(label, {
@@ -1420,6 +1466,15 @@ export class AnalysisService {
       }
 
       const group = groupMap.get(label)!;
+
+      const an = doc[`${tower}_EM01_Current_AN_Amp`] ?? 0;
+      const bn = doc[`${tower}_EM01_Current_BN_Amp`] ?? 0;
+      const cn = doc[`${tower}_EM01_Current_CN_Amp`] ?? 0;
+      const avgPower = (an + bn + cn) / 3;
+
+      const supplyTemp = doc[`${tower}_TEMP_RTD_01_AI`];
+      const returnTemp = doc[`${tower}_TEMP_RTD_02_AI`];
+
       group.powerSum += avgPower;
       if (typeof supplyTemp === 'number') group.supplySum += supplyTemp;
       if (typeof returnTemp === 'number') group.returnSum += returnTemp;
@@ -1427,7 +1482,20 @@ export class AnalysisService {
     }
 
     const result = emptyBuckets.map(({ timestamp }) => {
-      const group = groupMap.get(timestamp);
+      const tsDate = new Date(timestamp);
+      let label: string;
+      if (interval === 'hour') {
+        label = format(tsDate, 'yyyy-MM-dd HH:00');
+      } else {
+        const minutes = tsDate.getMinutes();
+        const roundedMinutes = Math.floor(minutes / 15) * 15;
+        label = format(
+          tsDate,
+          `yyyy-MM-dd HH:${roundedMinutes.toString().padStart(2, '0')}`,
+        );
+      }
+
+      const group = groupMap.get(label);
       const count = group?.count || 0;
 
       return {

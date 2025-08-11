@@ -1,3 +1,10 @@
+/* eslint-disable @typescript-eslint/restrict-template-expressions */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-case-declarations */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 // towerdataformulating-utils.ts
 import {
   addDays,
@@ -21,22 +28,10 @@ export class TowerDataProcessor {
     startDate: Date,
     endDate: Date,
   ): { grouped: { label: string; value: number }[]; overallAverage: number } {
-    // Generate empty buckets for the entire range
-    const emptyBuckets = this.generateEmptyBuckets(
-      startDate,
-      endDate,
-      groupBy,
-    ).map((bucket) => ({ label: bucket.timestamp, value: 0 }));
-
-    // If no data, return empty buckets
-    if (data.length === 0) {
-      return {
-        grouped: emptyBuckets,
-        overallAverage: 0,
-      };
+    if (!data || data.length === 0) {
+      return { grouped: [], overallAverage: 0 };
     }
 
-    // Helper to extract date from document
     const getDocumentDate = (doc: any): Date => {
       if (doc.timestamp?.$date) {
         return new Date(doc.timestamp.$date);
@@ -60,7 +55,6 @@ export class TowerDataProcessor {
       return new Date();
     };
 
-    // Calculate range value for a document
     const calculateDocumentRange = (doc: any): number | null => {
       const ranges: number[] = [];
 
@@ -99,7 +93,6 @@ export class TowerDataProcessor {
         : null;
     };
 
-    // Group data by time period
     const groupMap = new Map<string, { sum: number; count: number }>();
     let totalSum = 0;
     let totalCount = 0;
@@ -136,22 +129,16 @@ export class TowerDataProcessor {
       group.count++;
     }
 
-    // Fill buckets with actual data
-    const grouped = emptyBuckets.map((bucket) => {
-      if (groupMap.has(bucket.label)) {
-        const group = groupMap.get(bucket.label)!;
-        return {
-          label: bucket.label,
-          value: group.sum / group.count,
-        };
-      }
-      return bucket;
-    });
+    const grouped = Array.from(groupMap.entries()).map(([label, g]) => ({
+      label,
+      value: g.sum / g.count,
+    }));
 
     const overallAverage = totalCount > 0 ? totalSum / totalCount : 0;
 
     return { grouped, overallAverage };
   }
+
   static calculateApproach(
     data: any[],
     towerType: 'CHCT' | 'CT' | 'all',
@@ -160,18 +147,9 @@ export class TowerDataProcessor {
     endDate: Date,
     wetBulb: number, // static value
   ): { grouped: { label: string; value: number }[]; overallAverage: number } {
-    const emptyBuckets = this.generateEmptyBuckets(
-      startDate,
-      endDate,
-      groupBy,
-    ).map((bucket) => ({
-      label: bucket.timestamp,
-      value: 0,
-    }));
-
     if (data.length === 0) {
       return {
-        grouped: emptyBuckets,
+        grouped: [],
         overallAverage: 0,
       };
     }
@@ -253,21 +231,18 @@ export class TowerDataProcessor {
       group.count++;
     }
 
-    const grouped = emptyBuckets.map((bucket) => {
-      if (groupMap.has(bucket.label)) {
-        const group = groupMap.get(bucket.label)!;
-        return {
-          label: bucket.label,
-          value: group.sum / group.count,
-        };
-      }
-      return bucket;
-    });
+    const grouped = Array.from(groupMap.entries()).map(
+      ([label, { sum, count }]) => ({
+        label,
+        value: sum / count,
+      }),
+    );
 
     const overallAverage = totalCount > 0 ? totalSum / totalCount : 0;
 
     return { grouped, overallAverage };
   }
+
   static calculateCoolingEfficiency(
     data: any[],
     towerType: 'CHCT' | 'CT' | 'all',
@@ -276,20 +251,8 @@ export class TowerDataProcessor {
     endDate: Date,
     wetBulb: number,
   ): { grouped: { label: string; value: number }[]; overallAverage: number } {
-    const emptyBuckets = this.generateEmptyBuckets(
-      startDate,
-      endDate,
-      groupBy,
-    ).map((bucket) => ({
-      label: bucket.timestamp,
-      value: 0,
-    }));
-
     if (data.length === 0) {
-      return {
-        grouped: emptyBuckets,
-        overallAverage: 0,
-      };
+      return { grouped: [], overallAverage: 0 };
     }
 
     const getDocumentDate = (doc: any): Date => {
@@ -378,16 +341,13 @@ export class TowerDataProcessor {
       group.count++;
     }
 
-    const grouped = emptyBuckets.map((bucket) => {
-      if (groupMap.has(bucket.label)) {
-        const group = groupMap.get(bucket.label)!;
-        return {
-          label: bucket.label,
-          value: group.sum / group.count,
-        };
-      }
-      return bucket;
-    });
+    // Only include groups that have data
+    const grouped = Array.from(groupMap.entries()).map(
+      ([label, { sum, count }]) => ({
+        label,
+        value: sum / count,
+      }),
+    );
 
     const overallAverage = totalCount > 0 ? totalSum / totalCount : 0;
 
@@ -400,20 +360,8 @@ export class TowerDataProcessor {
     startDate: Date,
     endDate: Date,
   ): { grouped: { label: string; value: number }[]; overallAverage: number } {
-    const emptyBuckets = this.generateEmptyBuckets(
-      startDate,
-      endDate,
-      groupBy,
-    ).map((bucket) => ({
-      label: bucket.timestamp,
-      value: 0,
-    }));
-
     if (data.length === 0) {
-      return {
-        grouped: emptyBuckets,
-        overallAverage: 0,
-      };
+      return { grouped: [], overallAverage: 0 };
     }
 
     const getDocumentDate = (doc: any): Date => {
@@ -435,21 +383,17 @@ export class TowerDataProcessor {
       const speeds: number[] = [];
 
       if (towerType === 'CHCT' || towerType === 'all') {
-        if (typeof doc.CHCT1_INV_01_SPD_AI === 'number') {
+        if (typeof doc.CHCT1_INV_01_SPD_AI === 'number')
           speeds.push(doc.CHCT1_INV_01_SPD_AI);
-        }
-        if (typeof doc.CHCT2_INV_01_SPD_AI === 'number') {
+        if (typeof doc.CHCT2_INV_01_SPD_AI === 'number')
           speeds.push(doc.CHCT2_INV_01_SPD_AI);
-        }
       }
 
       if (towerType === 'CT' || towerType === 'all') {
-        if (typeof doc.CT1_INV_01_SPD_AI === 'number') {
+        if (typeof doc.CT1_INV_01_SPD_AI === 'number')
           speeds.push(doc.CT1_INV_01_SPD_AI);
-        }
-        if (typeof doc.CT2_INV_01_SPD_AI === 'number') {
+        if (typeof doc.CT2_INV_01_SPD_AI === 'number')
           speeds.push(doc.CT2_INV_01_SPD_AI);
-        }
       }
 
       return speeds.length > 0
@@ -494,16 +438,13 @@ export class TowerDataProcessor {
       group.count++;
     }
 
-    const grouped = emptyBuckets.map((bucket) => {
-      if (groupMap.has(bucket.label)) {
-        const group = groupMap.get(bucket.label)!;
-        return {
-          label: bucket.label,
-          value: group.sum / group.count,
-        };
-      }
-      return bucket;
-    });
+    // ✅ Only keep buckets that have data
+    const grouped = Array.from(groupMap.entries()).map(
+      ([label, { sum, count }]) => ({
+        label,
+        value: sum / count,
+      }),
+    );
 
     const overallAverage = totalCount > 0 ? totalSum / totalCount : 0;
 
@@ -516,17 +457,8 @@ export class TowerDataProcessor {
     startDate: Date,
     endDate: Date,
   ): { grouped: { label: string; value: number }[]; overallAverage: number } {
-    const emptyBuckets = this.generateEmptyBuckets(
-      startDate,
-      endDate,
-      groupBy,
-    ).map((bucket) => ({ label: bucket.timestamp, value: 0 }));
-
     if (data.length === 0) {
-      return {
-        grouped: emptyBuckets,
-        overallAverage: 0,
-      };
+      return { grouped: [], overallAverage: 0 };
     }
 
     const getDocumentDate = (doc: any): Date => {
@@ -607,16 +539,10 @@ export class TowerDataProcessor {
       group.count++;
     }
 
-    const grouped = emptyBuckets.map((bucket) => {
-      if (groupMap.has(bucket.label)) {
-        const group = groupMap.get(bucket.label)!;
-        return {
-          label: bucket.label,
-          value: group.sum / group.count,
-        };
-      }
-      return bucket;
-    });
+    const grouped = Array.from(groupMap.entries()).map(([label, group]) => ({
+      label,
+      value: group.sum / group.count,
+    }));
 
     const overallAverage = totalCount > 0 ? totalSum / totalCount : 0;
 
@@ -629,14 +555,8 @@ export class TowerDataProcessor {
     startDate: Date,
     endDate: Date,
   ): { grouped: { label: string; value: number }[]; overallAverage: number } {
-    const emptyBuckets = this.generateEmptyBuckets(
-      startDate,
-      endDate,
-      groupBy,
-    ).map((bucket) => ({ label: bucket.timestamp, value: 0 }));
-
     if (data.length === 0) {
-      return { grouped: emptyBuckets, overallAverage: 0 };
+      return { grouped: [], overallAverage: 0 };
     }
 
     const getDocumentDate = (doc: any): Date => {
@@ -750,16 +670,12 @@ export class TowerDataProcessor {
       group.count++;
     }
 
-    const grouped = emptyBuckets.map((bucket) => {
-      if (groupMap.has(bucket.label)) {
-        const group = groupMap.get(bucket.label)!;
-        return {
-          label: bucket.label,
-          value: group.sum / group.count,
-        };
-      }
-      return bucket;
-    });
+    const grouped = Array.from(groupMap.entries()).map(
+      ([label, { sum, count }]) => ({
+        label,
+        value: sum / count,
+      }),
+    );
 
     const overallAverage = totalCount > 0 ? totalSum / totalCount : 0;
 
@@ -772,17 +688,8 @@ export class TowerDataProcessor {
     startDate: Date,
     endDate: Date,
   ): { grouped: { label: string; value: number }[]; overallAverage: number } {
-    const emptyBuckets = this.generateEmptyBuckets(
-      startDate,
-      endDate,
-      groupBy,
-    ).map((bucket) => ({
-      label: bucket.timestamp,
-      value: 0,
-    }));
-
     if (data.length === 0) {
-      return { grouped: emptyBuckets, overallAverage: 0 };
+      return { grouped: [], overallAverage: 0 };
     }
 
     const getDocumentDate = (doc: any): Date => {
@@ -896,16 +803,12 @@ export class TowerDataProcessor {
       group.count++;
     }
 
-    const grouped = emptyBuckets.map((bucket) => {
-      if (groupMap.has(bucket.label)) {
-        const group = groupMap.get(bucket.label)!;
-        return {
-          label: bucket.label,
-          value: group.sum / group.count,
-        };
-      }
-      return bucket;
-    });
+    const grouped = Array.from(groupMap.entries()).map(
+      ([label, { sum, count }]) => ({
+        label,
+        value: sum / count,
+      }),
+    );
 
     const overallAverage = totalCount > 0 ? totalSum / totalCount : 0;
 
@@ -918,14 +821,8 @@ export class TowerDataProcessor {
     startDate: Date,
     endDate: Date,
   ): { grouped: { label: string; value: number }[]; overallAverage: number } {
-    const emptyBuckets = this.generateEmptyBuckets(
-      startDate,
-      endDate,
-      groupBy,
-    ).map((bucket) => ({ label: bucket.timestamp, value: 0 }));
-
     if (data.length === 0) {
-      return { grouped: emptyBuckets, overallAverage: 0 };
+      return { grouped: [], overallAverage: 0 };
     }
 
     const getDocumentDate = (doc: any): Date => {
@@ -1059,16 +956,12 @@ export class TowerDataProcessor {
       group.count++;
     }
 
-    const grouped = emptyBuckets.map((bucket) => {
-      if (groupMap.has(bucket.label)) {
-        const group = groupMap.get(bucket.label)!;
-        return {
-          label: bucket.label,
-          value: group.sum / group.count,
-        };
-      }
-      return bucket;
-    });
+    const grouped = Array.from(groupMap.entries()).map(
+      ([label, { sum, count }]) => ({
+        label,
+        value: sum / count,
+      }),
+    );
 
     const overallAverage = totalCount > 0 ? totalSum / totalCount : 0;
 
@@ -1083,16 +976,7 @@ export class TowerDataProcessor {
   ): { grouped: { label: string; value: number }[]; overallAverage: number } {
     const Cp = 4.186; // kJ/kg°C
 
-    const emptyBuckets = this.generateEmptyBuckets(
-      startDate,
-      endDate,
-      groupBy,
-    ).map((bucket) => ({
-      label: bucket.timestamp,
-      value: 0,
-    }));
-
-    if (data.length === 0) return { grouped: emptyBuckets, overallAverage: 0 };
+    if (data.length === 0) return { grouped: [], overallAverage: 0 };
 
     const getDocumentDate = (doc: any): Date => {
       if (doc.timestamp?.$date) return new Date(doc.timestamp.$date);
@@ -1108,7 +992,6 @@ export class TowerDataProcessor {
 
     const calculateDocCapacity = (doc: any): number | null => {
       const capacities: number[] = [];
-
       const compute = (flow: number, hot: number, cold: number) =>
         Cp * flow * (hot - cold); // Units = kJ/s = kW
 
@@ -1209,15 +1092,11 @@ export class TowerDataProcessor {
       group.count++;
     }
 
-    const grouped = emptyBuckets.map((bucket) =>
-      groupMap.has(bucket.label)
-        ? {
-            label: bucket.label,
-            value:
-              groupMap.get(bucket.label)!.sum /
-              groupMap.get(bucket.label)!.count,
-          }
-        : bucket,
+    const grouped = Array.from(groupMap.entries()).map(
+      ([label, { sum, count }]) => ({
+        label,
+        value: sum / count,
+      }),
     );
 
     const overallAverage = totalCount > 0 ? totalSum / totalCount : 0;
@@ -1231,14 +1110,8 @@ export class TowerDataProcessor {
     startDate: Date,
     endDate: Date,
   ): { grouped: { label: string; value: number }[]; overallAverage: number } {
-    const emptyBuckets = this.generateEmptyBuckets(
-      startDate,
-      endDate,
-      groupBy,
-    ).map((bucket) => ({ label: bucket.timestamp, value: 0 }));
-
     if (data.length === 0) {
-      return { grouped: emptyBuckets, overallAverage: 0 };
+      return { grouped: [], overallAverage: 0 };
     }
 
     const getDocumentDate = (doc: any): Date => {
@@ -1257,167 +1130,119 @@ export class TowerDataProcessor {
     };
 
     const Cp = 4.186; // kJ/kg°C
-    const constant = 0.00085 * 1.8;
 
-    const calculateDocCapacity = (doc: any): number | null => {
-      const capacities: number[] = [];
-
+    const calcCapacity_kW = (doc: any): number | null => {
+      const arr: number[] = [];
       const compute = (flow: number, hot: number, cold: number) =>
-        Cp * flow * (hot - cold);
+        (Cp * flow * (hot - cold)) / 3600; // convert kJ/h to kWh
 
-      if (towerType === 'CHCT' || towerType === 'all') {
+      const checkAndPush = (
+        flowTag: string,
+        hotTag: string,
+        coldTag: string,
+      ) => {
         if (
-          typeof doc.CHCT1_FM_02_FR === 'number' &&
-          typeof doc.CHCT1_TEMP_RTD_02_AI === 'number' &&
-          typeof doc.CHCT1_TEMP_RTD_01_AI === 'number'
+          typeof doc[flowTag] === 'number' &&
+          typeof doc[hotTag] === 'number' &&
+          typeof doc[coldTag] === 'number'
         ) {
-          capacities.push(
-            compute(
-              doc.CHCT1_FM_02_FR,
-              doc.CHCT1_TEMP_RTD_02_AI,
-              doc.CHCT1_TEMP_RTD_01_AI,
-            ),
-          );
+          arr.push(compute(doc[flowTag], doc[hotTag], doc[coldTag]));
         }
-        if (
-          typeof doc.CHCT2_FM_02_FR === 'number' &&
-          typeof doc.CHCT2_TEMP_RTD_02_AI === 'number' &&
-          typeof doc.CHCT2_TEMP_RTD_01_AI === 'number'
-        ) {
-          capacities.push(
-            compute(
-              doc.CHCT2_FM_02_FR,
-              doc.CHCT2_TEMP_RTD_02_AI,
-              doc.CHCT2_TEMP_RTD_01_AI,
-            ),
-          );
-        }
-      }
-
-      if (towerType === 'CT' || towerType === 'all') {
-        if (
-          typeof doc.CT1_FM_02_FR === 'number' &&
-          typeof doc.CT1_TEMP_RTD_02_AI === 'number' &&
-          typeof doc.CT1_TEMP_RTD_01_AI === 'number'
-        ) {
-          capacities.push(
-            compute(
-              doc.CT1_FM_02_FR,
-              doc.CT1_TEMP_RTD_02_AI,
-              doc.CT1_TEMP_RTD_01_AI,
-            ),
-          );
-        }
-        if (
-          typeof doc.CT2_FM_02_FR === 'number' &&
-          typeof doc.CT2_TEMP_RTD_02_AI === 'number' &&
-          typeof doc.CT2_TEMP_RTD_01_AI === 'number'
-        ) {
-          capacities.push(
-            compute(
-              doc.CT2_FM_02_FR,
-              doc.CT2_TEMP_RTD_02_AI,
-              doc.CT2_TEMP_RTD_01_AI,
-            ),
-          );
-        }
-      }
-
-      return capacities.length > 0
-        ? capacities.reduce((a, b) => a + b, 0) / capacities.length
-        : null;
-    };
-
-    const calculateDocMakeupWater = (doc: any): number | null => {
-      const values: number[] = [];
-
-      const computeLosses = (
-        flow: number,
-        hot: number,
-        cold: number,
-      ): number => {
-        const evap = constant * flow * (hot - cold);
-        const blowdown = evap / 6;
-        const drift = 0.0005 * flow;
-        return evap + blowdown + drift;
       };
 
       if (towerType === 'CHCT' || towerType === 'all') {
-        if (
-          typeof doc.CHCT1_FM_02_FR === 'number' &&
-          typeof doc.CHCT1_TEMP_RTD_02_AI === 'number' &&
-          typeof doc.CHCT1_TEMP_RTD_01_AI === 'number'
-        ) {
-          values.push(
-            computeLosses(
-              doc.CHCT1_FM_02_FR,
-              doc.CHCT1_TEMP_RTD_02_AI,
-              doc.CHCT1_TEMP_RTD_01_AI,
-            ),
-          );
-        }
-        if (
-          typeof doc.CHCT2_FM_02_FR === 'number' &&
-          typeof doc.CHCT2_TEMP_RTD_02_AI === 'number' &&
-          typeof doc.CHCT2_TEMP_RTD_01_AI === 'number'
-        ) {
-          values.push(
-            computeLosses(
-              doc.CHCT2_FM_02_FR,
-              doc.CHCT2_TEMP_RTD_02_AI,
-              doc.CHCT2_TEMP_RTD_01_AI,
-            ),
-          );
-        }
+        checkAndPush(
+          'CHCT1_FM_02_FR',
+          'CHCT1_TEMP_RTD_02_AI',
+          'CHCT1_TEMP_RTD_01_AI',
+        );
+        checkAndPush(
+          'CHCT2_FM_02_FR',
+          'CHCT2_TEMP_RTD_02_AI',
+          'CHCT2_TEMP_RTD_01_AI',
+        );
       }
-
       if (towerType === 'CT' || towerType === 'all') {
-        if (
-          typeof doc.CT1_FM_02_FR === 'number' &&
-          typeof doc.CT1_TEMP_RTD_02_AI === 'number' &&
-          typeof doc.CT1_TEMP_RTD_01_AI === 'number'
-        ) {
-          values.push(
-            computeLosses(
-              doc.CT1_FM_02_FR,
-              doc.CT1_TEMP_RTD_02_AI,
-              doc.CT1_TEMP_RTD_01_AI,
-            ),
-          );
-        }
-        if (
-          typeof doc.CT2_FM_02_FR === 'number' &&
-          typeof doc.CT2_TEMP_RTD_02_AI === 'number' &&
-          typeof doc.CT2_TEMP_RTD_01_AI === 'number'
-        ) {
-          values.push(
-            computeLosses(
-              doc.CT2_FM_02_FR,
-              doc.CT2_TEMP_RTD_02_AI,
-              doc.CT2_TEMP_RTD_01_AI,
-            ),
-          );
-        }
+        checkAndPush(
+          'CT1_FM_02_FR',
+          'CT1_TEMP_RTD_02_AI',
+          'CT1_TEMP_RTD_01_AI',
+        );
+        checkAndPush(
+          'CT2_FM_02_FR',
+          'CT2_TEMP_RTD_02_AI',
+          'CT2_TEMP_RTD_01_AI',
+        );
       }
 
-      return values.length > 0
-        ? values.reduce((a, b) => a + b, 0) / values.length
+      return arr.length > 0
+        ? arr.reduce((a, b) => a + b, 0) / arr.length
         : null;
     };
 
-    const groupMap = new Map<string, { sum: number; count: number }>();
-    let totalSum = 0;
-    let totalCount = 0;
+    const calcMakeup_m3h = (doc: any): number | null => {
+      const arr: number[] = [];
+      const constant = 0.00085 * 1.8; // m³/h formula factor
+      const computeLosses = (flow: number, hot: number, cold: number) => {
+        const evap = constant * flow * (hot - cold);
+        const blowdown = evap / 6;
+        const drift = 0.0005 * flow;
+        return evap + blowdown + drift; // m³/h
+      };
+
+      const checkAndPush = (
+        flowTag: string,
+        hotTag: string,
+        coldTag: string,
+      ) => {
+        if (
+          typeof doc[flowTag] === 'number' &&
+          typeof doc[hotTag] === 'number' &&
+          typeof doc[coldTag] === 'number'
+        ) {
+          arr.push(computeLosses(doc[flowTag], doc[hotTag], doc[coldTag]));
+        }
+      };
+
+      if (towerType === 'CHCT' || towerType === 'all') {
+        checkAndPush(
+          'CHCT1_FM_02_FR',
+          'CHCT1_TEMP_RTD_02_AI',
+          'CHCT1_TEMP_RTD_01_AI',
+        );
+        checkAndPush(
+          'CHCT2_FM_02_FR',
+          'CHCT2_TEMP_RTD_02_AI',
+          'CHCT2_TEMP_RTD_01_AI',
+        );
+      }
+      if (towerType === 'CT' || towerType === 'all') {
+        checkAndPush(
+          'CT1_FM_02_FR',
+          'CT1_TEMP_RTD_02_AI',
+          'CT1_TEMP_RTD_01_AI',
+        );
+        checkAndPush(
+          'CT2_FM_02_FR',
+          'CT2_TEMP_RTD_02_AI',
+          'CT2_TEMP_RTD_01_AI',
+        );
+      }
+
+      return arr.length > 0
+        ? arr.reduce((a, b) => a + b, 0) / arr.length
+        : null;
+    };
+
+    // Group data
+    const groupMap = new Map<string, { total_kWh: number; total_L: number }>();
 
     for (const doc of data) {
-      const capacity = calculateDocCapacity(doc);
-      const makeup = calculateDocMakeupWater(doc);
-      if (capacity === null || makeup === null || makeup === 0) continue;
+      const capacity_kW = calcCapacity_kW(doc);
+      const makeup_m3h = calcMakeup_m3h(doc);
+      if (capacity_kW === null || makeup_m3h === null) continue;
 
-      const efficiency = capacity / makeup;
       const docDate = getDocumentDate(doc);
-      totalSum += efficiency;
-      totalCount++;
 
       let groupKey = '';
       switch (groupBy) {
@@ -1435,26 +1260,32 @@ export class TowerDataProcessor {
           break;
       }
 
+      const hrs = 1; // assume each doc = 1h interval
+      const kWh = capacity_kW * hrs;
+      const liters = makeup_m3h * hrs * 1000;
+
       if (!groupMap.has(groupKey)) {
-        groupMap.set(groupKey, { sum: 0, count: 0 });
+        groupMap.set(groupKey, { total_kWh: 0, total_L: 0 });
       }
-      const group = groupMap.get(groupKey)!;
-      group.sum += efficiency;
-      group.count++;
+      const g = groupMap.get(groupKey)!;
+      g.total_kWh += kWh;
+      g.total_L += liters;
     }
 
-    const grouped = emptyBuckets.map((bucket) => {
-      if (groupMap.has(bucket.label)) {
-        const group = groupMap.get(bucket.label)!;
-        return {
-          label: bucket.label,
-          value: group.sum / group.count,
-        };
-      }
-      return bucket;
+    // Build grouped output
+    let totalValueSum = 0;
+    let totalValueCount = 0;
+
+    const grouped = Array.from(groupMap.entries()).map(([label, g]) => {
+      if (g.total_L === 0) return { label, value: 0 };
+      const wei = g.total_kWh / g.total_L; // kWh per liter
+      totalValueSum += wei;
+      totalValueCount++;
+      return { label, value: wei };
     });
 
-    const overallAverage = totalCount > 0 ? totalSum / totalCount : 0;
+    const overallAverage =
+      totalValueCount > 0 ? totalValueSum / totalValueCount : 0;
 
     return { grouped, overallAverage };
   }
@@ -1465,20 +1296,8 @@ export class TowerDataProcessor {
     startDate: Date,
     endDate: Date,
   ): { grouped: { label: string; value: number }[]; overallAverage: number } {
-    const emptyBuckets = this.generateEmptyBuckets(
-      startDate,
-      endDate,
-      groupBy,
-    ).map((bucket) => ({
-      label: bucket.timestamp,
-      value: 0,
-    }));
-
     if (data.length === 0) {
-      return {
-        grouped: emptyBuckets,
-        overallAverage: 0,
-      };
+      return { grouped: [], overallAverage: 0 };
     }
 
     const getDocumentDate = (doc: any): Date => {
@@ -1487,11 +1306,9 @@ export class TowerDataProcessor {
       if (doc.Time) return new Date(doc.Time);
       if (doc.UNIXtimestamp) return new Date(doc.UNIXtimestamp * 1000);
       if (doc.PLC_Date_Time) {
-        const dateString = doc.PLC_Date_Time.replace('DT#', '').replace(
-          /-/g,
-          '/',
+        return new Date(
+          doc.PLC_Date_Time.replace('DT#', '').replace(/-/g, '/'),
         );
-        return new Date(dateString);
       }
       return new Date();
     };
@@ -1499,11 +1316,10 @@ export class TowerDataProcessor {
     const calculateDocumentPower = (doc: any): number | null => {
       const powers: number[] = [];
 
-      // Helper to check and sum power values
       const getTowerPower = (
-        phaseA: number | undefined,
-        phaseB: number | undefined,
-        phaseC: number | undefined,
+        phaseA?: number,
+        phaseB?: number,
+        phaseC?: number,
       ): number | null => {
         if (
           typeof phaseA === 'number' &&
@@ -1588,16 +1404,12 @@ export class TowerDataProcessor {
       group.count++;
     }
 
-    const grouped = emptyBuckets.map((bucket) => {
-      if (groupMap.has(bucket.label)) {
-        const group = groupMap.get(bucket.label)!;
-        return {
-          label: bucket.label,
-          value: group.sum / group.count,
-        };
-      }
-      return bucket;
-    });
+    const grouped = Array.from(groupMap.entries()).map(
+      ([label, { sum, count }]) => ({
+        label,
+        value: sum / count,
+      }),
+    );
 
     const overallAverage = totalCount > 0 ? totalSum / totalCount : 0;
 
@@ -1610,20 +1422,8 @@ export class TowerDataProcessor {
     startDate: Date,
     endDate: Date,
   ): { grouped: { label: string; value: number }[]; overallAverage: number } {
-    const emptyBuckets = this.generateEmptyBuckets(
-      startDate,
-      endDate,
-      groupBy,
-    ).map((bucket) => ({
-      label: bucket.timestamp,
-      value: 0,
-    }));
-
     if (data.length === 0) {
-      return {
-        grouped: emptyBuckets,
-        overallAverage: 0,
-      };
+      return { grouped: [], overallAverage: 0 };
     }
 
     const getDocumentDate = (doc: any): Date => {
@@ -1641,182 +1441,117 @@ export class TowerDataProcessor {
       return new Date();
     };
 
-    const Cp = 4.186; // kJ/kg°C for cooling capacity calculation
+    const Cp = 4.186; // kJ/kg°C
 
-    const calculateDocumentEfficiency = (doc: any): number | null => {
-      const efficiencies: number[] = [];
+    const calculateTowerData = (
+      flow: number,
+      hot: number,
+      cold: number,
+      pA: number,
+      pB: number,
+      pC: number,
+    ) => {
+      if ([flow, hot, cold, pA, pB, pC].some((v) => typeof v !== 'number'))
+        return { capacity: 0, power: 0 };
+      const capacity = Cp * flow * (hot - cold); // kW
+      const power = pA + pB + pC; // kW
+      return { capacity, power };
+    };
 
-      // Helper to calculate cooling capacity for a tower
-      const calculateCapacity = (flow: number, hot: number, cold: number) => {
-        return Cp * flow * (hot - cold); // kJ/s = kW
-      };
+    const groupMap = new Map<
+      string,
+      { totalCapacity: number; totalPower: number }
+    >();
+    let grandCapacity = 0;
+    let grandPower = 0;
 
-      // Helper to calculate power consumption for a tower
-      const calculatePower = (
-        phaseA: number,
-        phaseB: number,
-        phaseC: number,
-      ) => {
-        return phaseA + phaseB + phaseC;
-      };
+    for (const doc of data) {
+      const date = getDocumentDate(doc);
+
+      let totalCapacityThisDoc = 0;
+      let totalPowerThisDoc = 0;
 
       if (towerType === 'CHCT' || towerType === 'all') {
-        // Process CHCT1
-        if (
-          typeof doc.CHCT1_FM_02_FR === 'number' &&
-          typeof doc.CHCT1_TEMP_RTD_02_AI === 'number' &&
-          typeof doc.CHCT1_TEMP_RTD_01_AI === 'number' &&
-          typeof doc.CHCT1_EM01_ActivePower_A_kW === 'number' &&
-          typeof doc.CHCT1_EM01_ActivePower_B_kW === 'number' &&
-          typeof doc.CHCT1_EM01_ActivePower_C_kW === 'number'
-        ) {
-          const capacity = calculateCapacity(
-            doc.CHCT1_FM_02_FR,
-            doc.CHCT1_TEMP_RTD_02_AI,
-            doc.CHCT1_TEMP_RTD_01_AI,
-          );
-          const power = calculatePower(
-            doc.CHCT1_EM01_ActivePower_A_kW,
-            doc.CHCT1_EM01_ActivePower_B_kW,
-            doc.CHCT1_EM01_ActivePower_C_kW,
-          );
+        const chct1 = calculateTowerData(
+          doc.CHCT1_FM_02_FR,
+          doc.CHCT1_TEMP_RTD_02_AI,
+          doc.CHCT1_TEMP_RTD_01_AI,
+          doc.CHCT1_EM01_ActivePower_A_kW,
+          doc.CHCT1_EM01_ActivePower_B_kW,
+          doc.CHCT1_EM01_ActivePower_C_kW,
+        );
+        const chct2 = calculateTowerData(
+          doc.CHCT2_FM_02_FR,
+          doc.CHCT2_TEMP_RTD_02_AI,
+          doc.CHCT2_TEMP_RTD_01_AI,
+          doc.CHCT2_EM01_ActivePower_A_kW,
+          doc.CHCT2_EM01_ActivePower_B_kW,
+          doc.CHCT2_EM01_ActivePower_C_kW,
+        );
 
-          if (power !== 0) {
-            efficiencies.push(capacity / power);
-          }
-        }
-
-        // Process CHCT2
-        if (
-          typeof doc.CHCT2_FM_02_FR === 'number' &&
-          typeof doc.CHCT2_TEMP_RTD_02_AI === 'number' &&
-          typeof doc.CHCT2_TEMP_RTD_01_AI === 'number' &&
-          typeof doc.CHCT2_EM01_ActivePower_A_kW === 'number' &&
-          typeof doc.CHCT2_EM01_ActivePower_B_kW === 'number' &&
-          typeof doc.CHCT2_EM01_ActivePower_C_kW === 'number'
-        ) {
-          const capacity = calculateCapacity(
-            doc.CHCT2_FM_02_FR,
-            doc.CHCT2_TEMP_RTD_02_AI,
-            doc.CHCT2_TEMP_RTD_01_AI,
-          );
-          const power = calculatePower(
-            doc.CHCT2_EM01_ActivePower_A_kW,
-            doc.CHCT2_EM01_ActivePower_B_kW,
-            doc.CHCT2_EM01_ActivePower_C_kW,
-          );
-
-          if (power !== 0) {
-            efficiencies.push(capacity / power);
-          }
-        }
+        totalCapacityThisDoc += chct1.capacity + chct2.capacity;
+        totalPowerThisDoc += chct1.power + chct2.power;
       }
 
       if (towerType === 'CT' || towerType === 'all') {
-        // Process CT1
-        if (
-          typeof doc.CT1_FM_02_FR === 'number' &&
-          typeof doc.CT1_TEMP_RTD_02_AI === 'number' &&
-          typeof doc.CT1_TEMP_RTD_01_AI === 'number' &&
-          typeof doc.CT1_EM01_ActivePower_A_kW === 'number' &&
-          typeof doc.CT1_EM01_ActivePower_B_kW === 'number' &&
-          typeof doc.CT1_EM01_ActivePower_C_kW === 'number'
-        ) {
-          const capacity = calculateCapacity(
-            doc.CT1_FM_02_FR,
-            doc.CT1_TEMP_RTD_02_AI,
-            doc.CT1_TEMP_RTD_01_AI,
-          );
-          const power = calculatePower(
-            doc.CT1_EM01_ActivePower_A_kW,
-            doc.CT1_EM01_ActivePower_B_kW,
-            doc.CT1_EM01_ActivePower_C_kW,
-          );
+        const ct1 = calculateTowerData(
+          doc.CT1_FM_02_FR,
+          doc.CT1_TEMP_RTD_02_AI,
+          doc.CT1_TEMP_RTD_01_AI,
+          doc.CT1_EM01_ActivePower_A_kW,
+          doc.CT1_EM01_ActivePower_B_kW,
+          doc.CT1_EM01_ActivePower_C_kW,
+        );
+        const ct2 = calculateTowerData(
+          doc.CT2_FM_02_FR,
+          doc.CT2_TEMP_RTD_02_AI,
+          doc.CT2_TEMP_RTD_01_AI,
+          doc.CT2_EM01_ActivePower_A_kW,
+          doc.CT2_EM01_ActivePower_B_kW,
+          doc.CT2_EM01_ActivePower_C_kW,
+        );
 
-          if (power !== 0) {
-            efficiencies.push(capacity / power);
-          }
+        totalCapacityThisDoc += ct1.capacity + ct2.capacity;
+        totalPowerThisDoc += ct1.power + ct2.power;
+      }
+
+      if (totalPowerThisDoc > 0) {
+        grandCapacity += totalCapacityThisDoc;
+        grandPower += totalPowerThisDoc;
+
+        let groupKey = '';
+        switch (groupBy) {
+          case 'hour':
+            groupKey = format(date, 'yyyy-MM-dd HH:00');
+            break;
+          case 'day':
+            groupKey = format(date, 'yyyy-MM-dd');
+            break;
+          case 'week':
+            groupKey = `${getYear(date)}-W${String(getWeek(date)).padStart(2, '0')}`;
+            break;
+          case 'month':
+            groupKey = format(date, 'yyyy-MM');
+            break;
         }
 
-        // Process CT2
-        if (
-          typeof doc.CT2_FM_02_FR === 'number' &&
-          typeof doc.CT2_TEMP_RTD_02_AI === 'number' &&
-          typeof doc.CT2_TEMP_RTD_01_AI === 'number' &&
-          typeof doc.CT2_EM01_ActivePower_A_kW === 'number' &&
-          typeof doc.CT2_EM01_ActivePower_B_kW === 'number' &&
-          typeof doc.CT2_EM01_ActivePower_C_kW === 'number'
-        ) {
-          const capacity = calculateCapacity(
-            doc.CT2_FM_02_FR,
-            doc.CT2_TEMP_RTD_02_AI,
-            doc.CT2_TEMP_RTD_01_AI,
-          );
-          const power = calculatePower(
-            doc.CT2_EM01_ActivePower_A_kW,
-            doc.CT2_EM01_ActivePower_B_kW,
-            doc.CT2_EM01_ActivePower_C_kW,
-          );
-
-          if (power !== 0) {
-            efficiencies.push(capacity / power);
-          }
+        if (!groupMap.has(groupKey)) {
+          groupMap.set(groupKey, { totalCapacity: 0, totalPower: 0 });
         }
+        const group = groupMap.get(groupKey)!;
+        group.totalCapacity += totalCapacityThisDoc;
+        group.totalPower += totalPowerThisDoc;
       }
-
-      return efficiencies.length > 0
-        ? efficiencies.reduce((a, b) => a + b, 0) / efficiencies.length
-        : null;
-    };
-
-    const groupMap = new Map<string, { sum: number; count: number }>();
-    let totalSum = 0;
-    let totalCount = 0;
-
-    for (const doc of data) {
-      const efficiency = calculateDocumentEfficiency(doc);
-      if (efficiency === null) continue;
-
-      const docDate = getDocumentDate(doc);
-      totalSum += efficiency;
-      totalCount++;
-
-      let groupKey = '';
-      switch (groupBy) {
-        case 'hour':
-          groupKey = format(docDate, 'yyyy-MM-dd HH:00');
-          break;
-        case 'day':
-          groupKey = format(docDate, 'yyyy-MM-dd');
-          break;
-        case 'week':
-          groupKey = `${getYear(docDate)}-W${String(getWeek(docDate)).padStart(2, '0')}`;
-          break;
-        case 'month':
-          groupKey = format(docDate, 'yyyy-MM');
-          break;
-      }
-
-      if (!groupMap.has(groupKey)) {
-        groupMap.set(groupKey, { sum: 0, count: 0 });
-      }
-      const group = groupMap.get(groupKey)!;
-      group.sum += efficiency;
-      group.count++;
     }
 
-    const grouped = emptyBuckets.map((bucket) => {
-      if (groupMap.has(bucket.label)) {
-        const group = groupMap.get(bucket.label)!;
-        return {
-          label: bucket.label,
-          value: group.sum / group.count,
-        };
-      }
-      return bucket;
-    });
+    const grouped = Array.from(groupMap.entries()).map(
+      ([label, { totalCapacity, totalPower }]) => ({
+        label,
+        value: totalPower > 0 ? totalCapacity / totalPower : 0, // matches Excel's total-sum logic
+      }),
+    );
 
-    const overallAverage = totalCount > 0 ? totalSum / totalCount : 0;
+    const overallAverage = grandPower > 0 ? grandCapacity / grandPower : 0;
 
     return { grouped, overallAverage };
   }
@@ -1827,18 +1562,9 @@ export class TowerDataProcessor {
     startDate: Date,
     endDate: Date,
   ): { grouped: { label: string; value: number }[]; overallAverage: number } {
-    const emptyBuckets = this.generateEmptyBuckets(
-      startDate,
-      endDate,
-      groupBy,
-    ).map((bucket) => ({
-      label: bucket.timestamp,
-      value: 0,
-    }));
-
     if (data.length === 0) {
       return {
-        grouped: emptyBuckets,
+        grouped: [],
         overallAverage: 0,
       };
     }
@@ -1920,16 +1646,13 @@ export class TowerDataProcessor {
       group.count++;
     }
 
-    const grouped = emptyBuckets.map((bucket) => {
-      if (groupMap.has(bucket.label)) {
-        const group = groupMap.get(bucket.label)!;
-        return {
-          label: bucket.label,
-          value: group.sum / group.count,
-        };
-      }
-      return bucket;
-    });
+    // Return only the grouped data without empty buckets
+    const grouped = Array.from(groupMap.entries()).map(
+      ([label, { sum, count }]) => ({
+        label,
+        value: sum / count,
+      }),
+    );
 
     const overallAverage = totalCount > 0 ? totalSum / totalCount : 0;
 
@@ -1942,22 +1665,11 @@ export class TowerDataProcessor {
     startDate: Date,
     endDate: Date,
   ): { grouped: { label: string; value: number }[]; overallAverage: number } {
-    const emptyBuckets = this.generateEmptyBuckets(
-      startDate,
-      endDate,
-      groupBy,
-    ).map((bucket) => ({
-      label: bucket.timestamp,
-      value: 0,
-    }));
-
     if (data.length === 0) {
-      return {
-        grouped: emptyBuckets,
-        overallAverage: 0,
-      };
+      return { grouped: [], overallAverage: 0 };
     }
 
+    // Helper to extract a date from various formats
     const getDocumentDate = (doc: any): Date => {
       if (doc.timestamp?.$date) return new Date(doc.timestamp.$date);
       if (typeof doc.timestamp === 'string') return new Date(doc.timestamp);
@@ -1973,43 +1685,37 @@ export class TowerDataProcessor {
       return new Date();
     };
 
-    const calculateDocumentEnergy = (doc: any): number | null => {
-      const energyValues: number[] = [];
+    // Select meter fields based on tower type
+    const meterFields: string[] = [];
+    if (towerType === 'CHCT' || towerType === 'all') {
+      meterFields.push(
+        'CHCT1_EM01_ActiveEnergy_Total_kWhh',
+        'CHCT2_EM01_ActiveEnergy_Total_kWhh',
+      );
+    }
+    if (towerType === 'CT' || towerType === 'all') {
+      meterFields.push(
+        'CT1_EM01_ActiveEnergy_Total_kWhh',
+        'CT2_EM01_ActiveEnergy_Total_kWhh',
+      );
+    }
 
-      if (towerType === 'CHCT' || towerType === 'all') {
-        if (typeof doc.CHCT1_EM01_ActiveEnergy_Total_kWhh === 'number') {
-          energyValues.push(doc.CHCT1_EM01_ActiveEnergy_Total_kWhh);
-        }
-        if (typeof doc.CHCT2_EM01_ActiveEnergy_Total_kWhh === 'number') {
-          energyValues.push(doc.CHCT2_EM01_ActiveEnergy_Total_kWhh);
-        }
-      }
+    // Sort readings chronologically
+    const sorted = [...data].sort(
+      (a, b) => getDocumentDate(a).getTime() - getDocumentDate(b).getTime(),
+    );
 
-      if (towerType === 'CT' || towerType === 'all') {
-        if (typeof doc.CT1_EM01_ActiveEnergy_Total_kWhh === 'number') {
-          energyValues.push(doc.CT1_EM01_ActiveEnergy_Total_kWhh);
-        }
-        if (typeof doc.CT2_EM01_ActiveEnergy_Total_kWhh === 'number') {
-          energyValues.push(doc.CT2_EM01_ActiveEnergy_Total_kWhh);
-        }
-      }
+    // Track last reading for each meter
+    const lastSeen = new Map<string, number>();
 
-      return energyValues.length > 0
-        ? energyValues.reduce((a, b) => a + b, 0) / energyValues.length
-        : null;
-    };
+    // Map of groupKey → total kWh for that period
+    const groupMap = new Map<string, number>();
 
-    const groupMap = new Map<string, { sum: number; count: number }>();
-    let totalSum = 0;
-    let totalCount = 0;
+    // Map of yyyy-MM-dd → daily totals (for Excel-like average calculation)
+    const dailyTotals = new Map<string, number>();
 
-    for (const doc of data) {
-      const docEnergy = calculateDocumentEnergy(doc);
-      if (docEnergy === null) continue;
-
+    for (const doc of sorted) {
       const docDate = getDocumentDate(doc);
-      totalSum += docEnergy;
-      totalCount++;
 
       let groupKey = '';
       switch (groupBy) {
@@ -2027,26 +1733,47 @@ export class TowerDataProcessor {
           break;
       }
 
-      if (!groupMap.has(groupKey)) {
-        groupMap.set(groupKey, { sum: 0, count: 0 });
+      if (!groupMap.has(groupKey)) groupMap.set(groupKey, 0);
+
+      for (const field of meterFields) {
+        const cur = doc[field];
+        if (typeof cur !== 'number') continue;
+
+        if (!lastSeen.has(field)) {
+          lastSeen.set(field, cur);
+          continue;
+        }
+
+        const prev = lastSeen.get(field)!;
+        const delta = cur - prev;
+        lastSeen.set(field, cur);
+
+        if (!Number.isFinite(delta) || delta <= 0) continue;
+
+        // Add to grouped total
+        groupMap.set(groupKey, groupMap.get(groupKey)! + delta);
+
+        // Also track daily total
+        const dayLabel = format(docDate, 'yyyy-MM-dd');
+        dailyTotals.set(dayLabel, (dailyTotals.get(dayLabel) ?? 0) + delta);
       }
-      const group = groupMap.get(groupKey)!;
-      group.sum += docEnergy;
-      group.count++;
     }
 
-    const grouped = emptyBuckets.map((bucket) => {
-      if (groupMap.has(bucket.label)) {
-        const group = groupMap.get(bucket.label)!;
-        return {
-          label: bucket.label,
-          value: group.sum / group.count,
-        };
-      }
-      return bucket;
-    });
+    // Return only groups that have data (no empty buckets)
+    const grouped = Array.from(groupMap.entries()).map(([label, value]) => ({
+      label,
+      value,
+    }));
 
-    const overallAverage = totalCount > 0 ? totalSum / totalCount : 0;
+    // Excel-like per-day average calculation
+    const totalEnergy = Array.from(dailyTotals.values()).reduce(
+      (sum, val) => sum + val,
+      0,
+    );
+    const daysWithData = Array.from(dailyTotals.values()).filter(
+      (v) => v > 0,
+    ).length;
+    const overallAverage = daysWithData > 0 ? totalEnergy / daysWithData : 0;
 
     return { grouped, overallAverage };
   }
@@ -2057,16 +1784,10 @@ export class TowerDataProcessor {
     startDate: Date,
     endDate: Date,
   ): { grouped: { label: string; value: number }[]; overallAverage: number } {
-    // Generate empty buckets
-    const emptyBuckets = this.generateEmptyBuckets(
-      startDate,
-      endDate,
-      groupBy,
-    ).map((bucket) => ({ label: bucket.timestamp, value: 0 }));
-
     if (data.length === 0) {
-      return { grouped: emptyBuckets, overallAverage: 0 };
+      return { grouped: [], overallAverage: 0 };
     }
+
     const getDocumentDate = (doc: any): Date => {
       if (doc.timestamp?.$date) return new Date(doc.timestamp.$date);
       if (typeof doc.timestamp === 'string') return new Date(doc.timestamp);
@@ -2089,7 +1810,6 @@ export class TowerDataProcessor {
     const calculateDocumentRatio = (doc: any): number | null => {
       const ratios: number[] = [];
 
-      // Helper function for calculation
       const calculateTowerRatio = (
         flow: number,
         hotTemp: number,
@@ -2100,7 +1820,6 @@ export class TowerDataProcessor {
         return evap > 0 ? drift / evap : null;
       };
 
-      // Process CHCT towers
       if (towerType === 'CHCT' || towerType === 'all') {
         if (
           typeof doc.CHCT1_FM_02_FR === 'number' &&
@@ -2126,10 +1845,8 @@ export class TowerDataProcessor {
           );
           if (ratio !== null) ratios.push(ratio);
         }
-        // Repeat for CHCT2...
       }
 
-      // Process CT towers
       if (towerType === 'CT' || towerType === 'all') {
         if (
           typeof doc.CT1_FM_02_FR === 'number' &&
@@ -2155,7 +1872,6 @@ export class TowerDataProcessor {
           );
           if (ratio !== null) ratios.push(ratio);
         }
-        // Repeat for CT2...
       }
 
       return ratios.length > 0
@@ -2163,7 +1879,6 @@ export class TowerDataProcessor {
         : null;
     };
 
-    // Grouping logic
     const groupMap = new Map<string, { sum: number; count: number }>();
     let totalSum = 0;
     let totalCount = 0;
@@ -2176,7 +1891,6 @@ export class TowerDataProcessor {
       totalSum += ratio;
       totalCount++;
 
-      // Generate group key based on period
       let groupKey = '';
       switch (groupBy) {
         case 'hour':
@@ -2201,22 +1915,19 @@ export class TowerDataProcessor {
       group.count++;
     }
 
-    // Fill buckets with calculated ratios
-    const grouped = emptyBuckets.map((bucket) => {
-      if (groupMap.has(bucket.label)) {
-        const group = groupMap.get(bucket.label)!;
-        return {
-          label: bucket.label,
-          value: group.sum / group.count,
-        };
-      }
-      return bucket;
-    });
+    // Only groups with data
+    const grouped = Array.from(groupMap.entries()).map(
+      ([label, { sum, count }]) => ({
+        label,
+        value: sum / count,
+      }),
+    );
 
     const overallAverage = totalCount > 0 ? totalSum / totalCount : 0;
 
     return { grouped, overallAverage };
   }
+
   static generateEmptyBuckets(
     start: Date,
     end: Date,
@@ -2853,9 +2564,9 @@ export class TowerDataProcessor {
     breakdownType: 'hour' | 'day' | 'month' | 'none' = 'none',
     towerType: 'CHCT' | 'CT' | 'all' = 'all',
   ): Array<{ interval: string; averageApproach: number }> {
-    if (breakdownType === 'none') {
-      throw new Error('Breakdown type cannot be "none" for interval grouping');
-    }
+    // if (breakdownType === 'none') {
+    //   throw new Error('Breakdown type cannot be "none" for interval grouping');
+    // }
 
     const towerFieldsMap = {
       CHCT: ['CHCT1_TEMP_RTD_01_AI', 'CHCT2_TEMP_RTD_01_AI'],

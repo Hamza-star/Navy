@@ -16,6 +16,7 @@ import { AnalysisModule } from './analysis/analysis.module';
 import { HelpersModule } from './helpers/helpers.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { TrendsModule } from './trends/trends.module';
+import { AlarmsModule } from './alarms/alarms.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { TrendsModule } from './trends/trends.module';
     HelpersModule,
     DashboardModule,
     TrendsModule,
+    AlarmsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

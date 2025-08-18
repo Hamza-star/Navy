@@ -1,72 +1,66 @@
 // mongo-date-filter.service.ts
 import { Injectable } from '@nestjs/common';
-
+import { DateTime } from 'luxon';
 @Injectable()
 export class MongoDateFilterService {
   private toISOStringStart(date: Date): string {
     const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
+    //d.setHours(0, 0, 0, 0);
     return d.toISOString();
   }
 
   private toISOStringEnd(date: Date): string {
     const d = new Date(date);
-    d.setHours(23, 59, 59, 999);
+    //d.setHours(23, 59, 59, 999);
     return d.toISOString();
   }
 
   getDateRangeFilter(range: string): { $gte: string; $lte: string } {
-    const now = new Date();
-    let from: Date;
-    let to: Date = new Date(now);
+    const tz = 'Asia/Karachi';
+    const now = DateTime.now().setZone(tz);
+
+    let from: DateTime;
+    let to: DateTime;
 
     switch (range) {
       case 'today': {
-        from = new Date(now);
+        from = now.startOf('day');
+        to = now.endOf('day');
         break;
       }
       case 'yesterday': {
-        from = new Date(now);
-        from.setDate(from.getDate() - 1);
-        to = new Date(from);
+        from = now.minus({ days: 1 }).startOf('day');
+        to = now.minus({ days: 1 }).endOf('day');
         break;
       }
       case 'week': {
-        const day = now.getDay();
-        const diffToMonday = day === 0 ? 6 : day - 1;
-        from = new Date(now);
-        from.setDate(now.getDate() - diffToMonday);
-        to = new Date(from);
-        to.setDate(to.getDate() + 6);
+        from = now.startOf('week'); // Luxon uses Monday as start
+        to = now.endOf('week');
         break;
       }
       case 'lastWeek': {
-        const day = now.getDay();
-        const diffToLastMonday = (day === 0 ? 7 : day - 1) + 7;
-        from = new Date(now);
-        from.setDate(now.getDate() - diffToLastMonday);
-        to = new Date(from);
-        to.setDate(to.getDate() + 6);
+        from = now.minus({ weeks: 1 }).startOf('week');
+        to = now.minus({ weeks: 1 }).endOf('week');
         break;
       }
       case 'month': {
-        from = new Date(now.getFullYear(), now.getMonth(), 1);
-        to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        from = now.startOf('month');
+        to = now.endOf('month');
         break;
       }
       case 'lastMonth': {
-        from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        to = new Date(now.getFullYear(), now.getMonth(), 0);
+        from = now.minus({ months: 1 }).startOf('month');
+        to = now.minus({ months: 1 }).endOf('month');
         break;
       }
       case 'year': {
-        from = new Date(now.getFullYear(), 0, 1);
-        to = new Date(now.getFullYear(), 11, 31);
+        from = now.startOf('year');
+        to = now.endOf('year');
         break;
       }
       case 'lastYear': {
-        from = new Date(now.getFullYear() - 1, 0, 1);
-        to = new Date(now.getFullYear() - 1, 11, 31);
+        from = now.minus({ years: 1 }).startOf('year');
+        to = now.minus({ years: 1 }).endOf('year');
         break;
       }
       default: {
@@ -74,9 +68,19 @@ export class MongoDateFilterService {
       }
     }
 
+    console.log(`[DEBUG] getDateRangeFilter(${range})`);
+    console.log(
+      '  From (Asia/Karachi):',
+      from.toFormat('yyyy-MM-dd HH:mm:ss ZZZZ'),
+    );
+    console.log(
+      '  To   (Asia/Karachi):',
+      to.toFormat('yyyy-MM-dd HH:mm:ss ZZZZ'),
+    );
+
     return {
-      $gte: this.toISOStringStart(from),
-      $lte: this.toISOStringEnd(to),
+      $gte: from.toISO(), // ISO string with offset, e.g. 2025-08-16T00:00:00.000+05:00
+      $lte: to.toISO(), // same with +05:00
     };
   }
 

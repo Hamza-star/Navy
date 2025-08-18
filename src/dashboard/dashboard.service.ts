@@ -41,8 +41,11 @@ export class DashboardService {
       try {
         const rangeFilter = this.mongoDateFilter.getDateRangeFilter(dto.range);
         query.timestamp = rangeFilter;
+        console.log('query Timestamp', query.timestamp);
         startDate = new Date(rangeFilter.$gte);
         endDate = new Date(rangeFilter.$lte);
+        console.log(startDate);
+        console.log(endDate);
       } catch (err) {
         console.error('\n[ERROR] Date range filter error:', err.message);
       }
@@ -1354,7 +1357,8 @@ export class DashboardService {
     let breakdownType: 'hour' | 'day' | 'month' | 'none' = 'none';
 
     if (dto.range) {
-      if (dto.range === 'today' || dto.range === "yesterday") breakdownType = 'hour';
+      if (dto.range === 'today' || dto.range === 'yesterday')
+        breakdownType = 'hour';
       else if (dto.range === 'week' || dto.range === 'month')
         breakdownType = 'day';
       else if (dto.range === 'year') breakdownType = 'month';

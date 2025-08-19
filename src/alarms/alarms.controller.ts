@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { AlarmsService } from './alarms.service';
 import { AlarmsTypeDto } from './dto/alarmsType.dto';
-
+import { CreateAlarmDto } from './dto/alarms.dto';
 @Controller('alarms')
 export class AlarmsController {
   constructor(private readonly alarmTypeService: AlarmsService) {}
@@ -34,5 +34,10 @@ export class AlarmsController {
   @Delete('delete-types-alarms/:id')
   async delete(@Param('id') id: string) {
     return this.alarmTypeService.deleteAlarmType(id);
+  }
+
+  @Post('add-alarm')
+  async createAlarm(@Body() dto: CreateAlarmDto) {
+    return this.alarmTypeService.addAlarm(dto);
   }
 }

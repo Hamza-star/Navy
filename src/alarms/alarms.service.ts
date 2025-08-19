@@ -1,13 +1,19 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { AlarmsType } from './schema/alarmsType.schema';
 import { AlarmsTypeDto } from './dto/alarmsType.dto';
-
+import { CreateAlarmDto } from './dto/alarms.dto';
+import { Alarms } from './schema/alarms.schema';
+import { AlarmRulesSet } from './schema/alarmsTriggerConfig.schema';
+import { AlarmTriggerConfigDto } from './dto/alarmsTriggerConfig.dto';
 @Injectable()
 export class AlarmsService {
   constructor(
     @InjectModel(AlarmsType.name) private alarmTypeModel: Model<AlarmsType>,
+    @InjectModel(Alarms.name) private alarmsModel: Model<Alarms>,
+    @InjectModel(AlarmRulesSet.name)
+    private alarmsRulesSetModel: Model<AlarmRulesSet>,
   ) {}
 
   async addAlarmType(dto: AlarmsTypeDto) {
@@ -52,6 +58,26 @@ export class AlarmsService {
     return {
       message: 'Alarm Type deleted successfully',
       data: deleted,
+    };
+  }
+
+  async addAlarm(dto: CreateAlarmDto) {
+    // 1️⃣ Save ruleset separately
+    const ruleset = new this.alarmsRulesSetModel(dto.alarmTriggerConfig);
+    await ruleset.save();
+
+    // 2️⃣ Create alarm with correct ObjectIds
+    const alarm = new this.alarmsModel({
+      ...dto,
+      alarmTypeId: new Types.ObjectId(dto.alarmTypeId), // ✅ force ObjectId
+      alarmTriggerConfig: ruleset._id, // ✅ ObjectId from saved ruleset
+    });
+
+    await alarm.save();
+
+    return {
+      message: 'Alarm added successfully',
+      data: alarm,
     };
   }
 }

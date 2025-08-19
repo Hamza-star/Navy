@@ -5,6 +5,10 @@ import { HelpersModule } from 'src/helpers/helpers.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AlarmsType, AlarmsTypeSchema } from './schema/alarmsType.schema';
 import { Alarms, AlarmsSchema } from './schema/alarms.schema';
+import {
+  AlarmRulesSet,
+  AlarmRulesSetSchema,
+} from './schema/alarmsTriggerConfig.schema';
 
 @Module({
   imports: [
@@ -12,6 +16,7 @@ import { Alarms, AlarmsSchema } from './schema/alarms.schema';
     MongooseModule.forFeature([
       { name: AlarmsType.name, schema: AlarmsTypeSchema },
       { name: Alarms.name, schema: AlarmsSchema },
+      { name: AlarmRulesSet.name, schema: AlarmRulesSetSchema },
     ]),
   ],
   controllers: [AlarmsController],

@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
 @Schema({ collection: 'alarmsType' })
-export class AlarmsType extends Document {
+export class AlarmsType {
   @Prop({ required: true })
   type: string;
 
@@ -19,4 +19,5 @@ export class AlarmsType extends Document {
   acknowledgeType: string;
 }
 
+export type AlarmsTypeDocument = AlarmsType & Document;
 export const AlarmsTypeSchema = SchemaFactory.createForClass(AlarmsType);

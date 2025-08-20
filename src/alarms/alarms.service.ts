@@ -59,11 +59,24 @@ export class AlarmsService {
 
   // Delete by ID
   async deleteAlarmType(id: string) {
-    const deleted = await this.alarmTypeModel.findByIdAndDelete(id);
-
-    if (!deleted) {
+    // 1. Check if alarm type exists
+    const alarmType = await this.alarmTypeModel.findById(id);
+    if (!alarmType) {
       throw new NotFoundException(`Alarm Type with ID ${id} not found`);
     }
+
+    console.log('alarms with type');
+    // 2. Check if any alarms reference this alarmType
+    const alarmsWithType = await this.alarmsModel.findOne({ alarmTypeId: id });
+    if (alarmsWithType) {
+      return {
+        message: `Cannot delete: alarms exist with this alarm type.`,
+        data: null,
+      };
+    }
+
+    // 3. Delete if safe
+    const deleted = await this.alarmTypeModel.findByIdAndDelete(id);
 
     return {
       message: 'Alarm Type deleted successfully',

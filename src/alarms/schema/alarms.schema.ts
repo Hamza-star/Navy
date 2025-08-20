@@ -26,8 +26,8 @@ export class Alarms {
   @Prop({ required: true })
   alarmParameter: string;
 
-  @Prop({ required: true, default: false })
-  alarmStatus: boolean;
+  // @Prop({ required: true, default: false })
+  // alarmStatus: boolean;
 
   @Prop({ type: [String], default: [] })
   acknowledgementActions: string[];

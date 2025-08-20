@@ -16,8 +16,8 @@ export class AlarmRulesSet {
   @Prop() persistenceTime?: number;
   @Prop() occursCount?: number;
   @Prop() occursWithin?: number;
-  @Prop({ enum: ['&&', '||'], default: '||' })
-  conditionType: '&&' | '||';
+  @Prop({ enum: ['&&', '||', '', 'null'] })
+  conditionType: '&&' | '||' | '' | 'null';
 
   @Prop({ type: [ThresholdCondition], required: true })
   thresholds: ThresholdCondition[];

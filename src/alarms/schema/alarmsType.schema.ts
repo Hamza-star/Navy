@@ -15,9 +15,10 @@ export class AlarmsType {
   @Prop({ required: true })
   code: string;
 
-  @Prop({ required: true })
-  acknowledgeType: string;
+  @Prop({ enum: ['Single', 'Both'], default: 'null' })
+  acknowledgeType: 'Single' | 'Both';
 }
 
 export type AlarmsTypeDocument = AlarmsType & Document;
 export const AlarmsTypeSchema = SchemaFactory.createForClass(AlarmsType);
+export const AlarmsTypeCollectionName = 'alarmsType';

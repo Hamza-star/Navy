@@ -30,8 +30,8 @@ export class AlarmTriggerConfigDto {
   @IsNumber()
   occursWithin?: number;
 
-  @IsEnum(['&&', '||'])
-  conditionType: '&&' | '||';
+  @IsEnum(['&&', '||', ''])
+  conditionType: '&&' | '||' | '';
 
   @IsArray()
   @ValidateNested({ each: true })

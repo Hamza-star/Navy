@@ -40,4 +40,13 @@ export class AlarmsController {
   async createAlarm(@Body() dto: CreateAlarmDto) {
     return this.alarmTypeService.addAlarm(dto);
   }
+  @Get('intervals')
+  getIntervals() {
+    return this.alarmTypeService.getIntervals();
+  }
+
+  @Get('time')
+  getTime() {
+    return this.alarmTypeService.getTime();
+  }
 }

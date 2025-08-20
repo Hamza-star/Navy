@@ -1,12 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { AlarmsType } from './schema/alarmsType.schema';
-import { AlarmsTypeDto } from './dto/alarmsType.dto';
 import { CreateAlarmDto } from './dto/alarms.dto';
+import { AlarmsTypeDto } from './dto/alarmsType.dto';
 import { Alarms } from './schema/alarms.schema';
 import { AlarmRulesSet } from './schema/alarmsTriggerConfig.schema';
-import { AlarmTriggerConfigDto } from './dto/alarmsTriggerConfig.dto';
+import { AlarmsType } from './schema/alarmsType.schema';
 @Injectable()
 export class AlarmsService {
   constructor(
@@ -15,6 +14,17 @@ export class AlarmsService {
     @InjectModel(AlarmRulesSet.name)
     private alarmsRulesSetModel: Model<AlarmRulesSet>,
   ) {}
+
+  private readonly intervalsSec = [5, 15, 30, 60, 120];
+  private readonly Time = [1, 2, 3, 4, 5];
+
+  getIntervals(): number[] {
+    return this.intervalsSec;
+  }
+
+  getTime(): number[] {
+    return this.Time;
+  }
 
   async addAlarmType(dto: AlarmsTypeDto) {
     const alarmType = new this.alarmTypeModel(dto);

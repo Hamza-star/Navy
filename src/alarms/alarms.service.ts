@@ -90,4 +90,54 @@ export class AlarmsService {
       data: alarm,
     };
   }
+
+  async getAlarmsByType(alarmTypeId: string): Promise<{
+    message: string;
+    data: (Alarms & {
+      alarmTypeId: AlarmsType;
+      alarmTriggerConfig: AlarmRulesSet;
+    })[];
+  }> {
+    const alarms = await this.alarmsModel
+      .find({ alarmTypeId: new Types.ObjectId(alarmTypeId) })
+      .populate<{ alarmTypeId: AlarmsType }>('alarmTypeId')
+      .populate<{ alarmTriggerConfig: AlarmRulesSet }>('alarmTriggerConfig')
+      .lean()
+      .exec();
+
+    if (!alarms || alarms.length === 0) {
+      throw new NotFoundException(`No alarms found for typeId ${alarmTypeId}`);
+    }
+
+    return {
+      message: 'Alarms fetched successfully',
+      data: alarms as unknown as (Alarms & {
+        alarmTypeId: AlarmsType;
+        alarmTriggerConfig: AlarmRulesSet;
+      })[],
+    };
+  }
+
+  async getAlarmTypeByAlarmId(
+    alarmId: string,
+  ): Promise<{ message: string; data: AlarmsType }> {
+    const alarm = await this.alarmsModel
+      .findById(alarmId)
+      .populate<{ alarmTypeId: AlarmsType }>('alarmTypeId')
+      .lean()
+      .exec();
+
+    if (!alarm) {
+      throw new NotFoundException(`Alarm with ID ${alarmId} not found`);
+    }
+
+    if (!alarm.alarmTypeId) {
+      throw new NotFoundException(`AlarmType not found for alarmId ${alarmId}`);
+    }
+
+    return {
+      message: 'AlarmType fetched successfully',
+      data: alarm.alarmTypeId as AlarmsType,
+    };
+  }
 }

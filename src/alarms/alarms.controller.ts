@@ -10,43 +10,53 @@ import {
 import { AlarmsService } from './alarms.service';
 import { AlarmsTypeDto } from './dto/alarmsType.dto';
 import { CreateAlarmDto } from './dto/alarms.dto';
+import { GetAlarmsByTypeDto } from './dto/get-alarms-by-type.dto';
+
 @Controller('alarms')
 export class AlarmsController {
-  constructor(private readonly alarmTypeService: AlarmsService) {}
+  constructor(private readonly alarmsService: AlarmsService) {}
 
   @Post('add-types-alarms')
-  async create(@Body() dto: AlarmsTypeDto) {
-    return this.alarmTypeService.addAlarmType(dto);
+  create(@Body() dto: AlarmsTypeDto) {
+    return this.alarmsService.addAlarmType(dto);
   }
 
   @Get('all-types-alarms')
-  async findAll() {
-    return this.alarmTypeService.getAllAlarmTypes();
+  findAll() {
+    return this.alarmsService.getAllAlarmTypes();
   }
 
-  // Update (using document ID)
   @Put('update-types-alarms/:id')
-  async update(@Param('id') id: string, @Body() dto: AlarmsTypeDto) {
-    return this.alarmTypeService.updateAlarmType(id, dto);
+  update(@Param('id') id: string, @Body() dto: AlarmsTypeDto) {
+    return this.alarmsService.updateAlarmType(id, dto);
   }
 
-  // Delete (using document ID)
   @Delete('delete-types-alarms/:id')
-  async delete(@Param('id') id: string) {
-    return this.alarmTypeService.deleteAlarmType(id);
+  delete(@Param('id') id: string) {
+    return this.alarmsService.deleteAlarmType(id);
   }
 
   @Post('add-alarm')
-  async createAlarm(@Body() dto: CreateAlarmDto) {
-    return this.alarmTypeService.addAlarm(dto);
+  createAlarm(@Body() dto: CreateAlarmDto) {
+    return this.alarmsService.addAlarm(dto);
   }
+
   @Get('intervals')
   getIntervals() {
-    return this.alarmTypeService.getIntervals();
+    return this.alarmsService.getIntervals();
   }
 
   @Get('time')
   getTime() {
-    return this.alarmTypeService.getTime();
+    return this.alarmsService.getTime();
+  }
+
+  @Post('by-type')
+  async getByType(@Body() dto: GetAlarmsByTypeDto) {
+    return this.alarmsService.getAlarmsByType(dto.typeId);
+  }
+  @Get('type-by-alarm/:alarmId')
+  getAlarmTypeByAlarmId(@Param('alarmId') alarmId: string) {
+    return this.alarmsService.getAlarmTypeByAlarmId(alarmId);
   }
 }

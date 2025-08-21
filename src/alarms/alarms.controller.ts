@@ -5,6 +5,8 @@ import { AlarmsTypeDto } from './dto/alarmsType.dto';
 import { GetAlarmsByTypeDto } from './dto/get-alarms-by-type.dto';
 import { GetTypeByAlarmDto } from './dto/get-type-by-alarm.dto';
 import { GetUpdateIdDto } from './dto/get-update-id.dto';
+import { UpdateAlarmDto } from './dto/update-alarm.dto';
+import { DeleteAlarmDto } from './dto/delete-alarm.dto';
 
 @Controller('alarms')
 export class AlarmsController {
@@ -25,9 +27,19 @@ export class AlarmsController {
     return this.alarmsService.updateAlarmType(dto.typeId, updateDto);
   }
 
+  @Put('update-alarm-config')
+  updateAlarm(@Body() dto: UpdateAlarmDto) {
+    return this.alarmsService.updateAlarm(dto);
+  }
+
   @Post('delete-types-alarms')
   delete(@Body() dto: GetAlarmsByTypeDto) {
     return this.alarmsService.deleteAlarmType(dto.typeId);
+  }
+
+  @Post('delete-alarm-config')
+  async deleteAlarm(@Body() dto: DeleteAlarmDto) {
+    return this.alarmsService.deleteAlarmByConfigId(dto.alarmConfigId);
   }
 
   @Post('add-alarm')

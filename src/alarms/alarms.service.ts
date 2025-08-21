@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { ConfigAlarmDto } from './dto/alarmsConfig.dto';
@@ -6,6 +10,7 @@ import { AlarmsTypeDto } from './dto/alarmsType.dto';
 import { alarmsConfiguration } from './schema/alarmsConfig.schema';
 import { AlarmRulesSet } from './schema/alarmsTriggerConfig.schema';
 import { AlarmsType } from './schema/alarmsType.schema';
+import { UpdateAlarmDto } from './dto/update-alarm.dto';
 @Injectable()
 export class AlarmsService {
   constructor(
@@ -84,6 +89,56 @@ export class AlarmsService {
     return {
       message: 'Alarm Type updated successfully',
       data: updated,
+    };
+  }
+
+  /**
+   * Update an existing alarm.
+   * @param dto The data transfer object containing updated alarm details.
+   * @returns The updated alarm.
+   */
+
+  async updateAlarm(dto: UpdateAlarmDto) {
+    const { alarmConfigId, ...updateData } = dto;
+
+    const objectId = new Types.ObjectId(alarmConfigId);
+
+    const updated = await this.alarmsModel
+      .findByIdAndUpdate(objectId, updateData, { new: true })
+      .lean();
+
+    if (!updated) {
+      throw new NotFoundException(`Alarm with ID ${alarmConfigId} not found`);
+    }
+
+    return {
+      message: 'Alarm updated successfully',
+      data: updated,
+    };
+  }
+
+  /**
+   * Delete an existing alarm.
+   * @param alarmConfigId The ID of the alarm to delete.
+   * @returns A message indicating the result of the deletion.
+   */
+
+  async deleteAlarmByConfigId(alarmConfigId: string) {
+    if (!Types.ObjectId.isValid(alarmConfigId)) {
+      throw new BadRequestException('Invalid AlarmConfigId');
+    }
+
+    const objectId = new Types.ObjectId(alarmConfigId);
+
+    const deleted = await this.alarmsModel.findByIdAndDelete(objectId).lean();
+
+    if (!deleted) {
+      throw new NotFoundException(`Alarm with ID ${alarmConfigId} not found`);
+    }
+
+    return {
+      message: 'Alarm deleted successfully',
+      data: deleted,
     };
   }
 

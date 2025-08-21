@@ -3,14 +3,15 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { CreateAlarmDto } from './dto/alarms.dto';
 import { AlarmsTypeDto } from './dto/alarmsType.dto';
-import { Alarms } from './schema/alarms.schema';
+import { alarmsConfiguration } from './schema/alarms.schema';
 import { AlarmRulesSet } from './schema/alarmsTriggerConfig.schema';
 import { AlarmsType } from './schema/alarmsType.schema';
 @Injectable()
 export class AlarmsService {
   constructor(
     @InjectModel(AlarmsType.name) private alarmTypeModel: Model<AlarmsType>,
-    @InjectModel(Alarms.name) private alarmsModel: Model<Alarms>,
+    @InjectModel(alarmsConfiguration.name)
+    private alarmsModel: Model<alarmsConfiguration>,
     @InjectModel(AlarmRulesSet.name)
     private alarmsRulesSetModel: Model<AlarmRulesSet>,
   ) {}
@@ -33,10 +34,19 @@ export class AlarmsService {
     return this.location;
   }
 
+  /**
+   * Get the list of sub-locations.
+   * @returns Array of sub-location strings.
+   */
   getSubLocation(): string[] {
     return this.subLocation;
   }
 
+  /**
+   * Add a new alarm type.
+   * @param dto The data transfer object containing alarm type details.
+   * @returns The created alarm type.
+   */
   async addAlarmType(dto: AlarmsTypeDto) {
     const alarmType = new this.alarmTypeModel(dto);
     await alarmType.save();
@@ -47,11 +57,21 @@ export class AlarmsService {
     };
   }
 
+
+  /**
+   * Get all alarm types.
+   * @returns Array of alarm types.
+   */
   async getAllAlarmTypes() {
     return this.alarmTypeModel.find().exec();
   }
 
-  // Update by ID
+  /**
+   * Update an existing alarm type.
+   * @param id The ID of the alarm type to update.
+   * @param dto The data transfer object containing updated alarm type details.
+   * @returns The updated alarm type.
+   */
   async updateAlarmType(id: string, dto: AlarmsTypeDto) {
     const updated = await this.alarmTypeModel.findByIdAndUpdate(id, dto, {
       new: true,
@@ -68,7 +88,11 @@ export class AlarmsService {
     };
   }
 
-  // Delete by ID
+  /**
+   * Delete an existing alarm type.
+   * @param id The ID of the alarm type to delete.
+   * @returns A message indicating the result of the deletion.
+   */
   async deleteAlarmType(id: string) {
     const objectId = new Types.ObjectId(id);
     const relatedAlarms = await this.alarmsModel
@@ -102,6 +126,11 @@ export class AlarmsService {
     };
   }
 
+  /**
+   * Add a new alarm.
+   * @param dto The data transfer object containing alarm details.
+   * @returns The created alarm.
+   */
   async addAlarm(dto: CreateAlarmDto) {
     // 1️⃣ Save ruleset separately
     const ruleset = new this.alarmsRulesSetModel(dto.alarmTriggerConfig);
@@ -122,9 +151,14 @@ export class AlarmsService {
     };
   }
 
+  /**
+   * Get alarms by type.
+   * @param alarmTypeId The ID of the alarm type to retrieve alarms for.
+   * @returns An object containing a message and the array of alarms.
+   */
   async getAlarmsByType(alarmTypeId: string): Promise<{
     message: string;
-    data: (Alarms & {
+    data: (alarmsConfiguration & {
       alarmTypeId: AlarmsType;
       alarmTriggerConfig: AlarmRulesSet;
     })[];
@@ -142,13 +176,18 @@ export class AlarmsService {
 
     return {
       message: 'Alarms fetched successfully',
-      data: alarms as unknown as (Alarms & {
+      data: alarms as unknown as (alarmsConfiguration & {
         alarmTypeId: AlarmsType;
         alarmTriggerConfig: AlarmRulesSet;
       })[],
     };
   }
 
+  /**
+   * Get the alarm type associated with a specific alarm.
+   * @param alarmId The ID of the alarm to retrieve the type for.
+   * @returns An object containing a message and the alarm type.
+   */
   async getAlarmTypeByAlarmId(
     alarmId: string,
   ): Promise<{ message: string; data: AlarmsType }> {

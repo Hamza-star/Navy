@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put } from '@nestjs/common';
 import { AlarmsService } from './alarms.service';
 import { CreateAlarmDto } from './dto/alarms.dto';
 import { AlarmsTypeDto } from './dto/alarmsType.dto';
@@ -20,7 +20,7 @@ export class AlarmsController {
     return this.alarmsService.getAllAlarmTypes();
   }
 
-  @Post('update-types-alarms')
+  @Put('update-types-alarms')
   update(@Body() dto: GetUpdateIdDto, @Body() updateDto: AlarmsTypeDto) {
     return this.alarmsService.updateAlarmType(dto.typeId, updateDto);
   }

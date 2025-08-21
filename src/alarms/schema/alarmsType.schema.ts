@@ -15,10 +15,14 @@ export class AlarmsType {
   @Prop({ required: true })
   code: string;
 
-  @Prop({ enum: ['Single', 'Both'], default: 'null' })
-  acknowledgeType: 'Single' | 'Both';
+  @Prop({ enum: ['Single', 'Both'], required: false })
+  acknowledgeType?: 'Single' | 'Both';
 }
 
 export type AlarmsTypeDocument = AlarmsType & Document;
 export const AlarmsTypeSchema = SchemaFactory.createForClass(AlarmsType);
+
+// 👇 Add this after schema creation
+AlarmsTypeSchema.index({ type: 1, priority: 1 }, { unique: true });
+
 export const AlarmsTypeCollectionName = 'alarmsType';

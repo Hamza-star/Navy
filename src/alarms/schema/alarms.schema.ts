@@ -6,8 +6,8 @@ import {
   AlarmAcknowledgementSchema,
 } from './alarmsAcknowledgment.schema';
 
-@Schema({ collection: 'alarms' })
-export class Alarms {
+@Schema({ collection: 'alarmsConfiguration' })
+export class alarmsConfiguration {
   @Prop({ type: Types.ObjectId, ref: 'AlarmsType', required: true })
   alarmTypeId: Types.ObjectId;
 
@@ -40,5 +40,6 @@ export class Alarms {
   alarmTriggerConfig: Types.ObjectId;
 }
 
-export type AlarmsDocument = Alarms & Document;
-export const AlarmsSchema = SchemaFactory.createForClass(Alarms);
+export type AlarmsDocument = alarmsConfiguration & Document;
+export const AlarmsConfigurationSchema =
+  SchemaFactory.createForClass(alarmsConfiguration);

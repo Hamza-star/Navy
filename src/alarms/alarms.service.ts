@@ -18,12 +18,23 @@ export class AlarmsService {
   private readonly intervalsSec = [5, 15, 30, 60, 120];
   private readonly Time = [1, 2, 3, 4, 5];
 
+  private readonly location = ['Chillers', 'Process'];
+  private readonly subLocation = ['CT1', 'CT2', 'CHCT1', 'CHCT2'];
+
   getIntervals(): number[] {
     return this.intervalsSec;
   }
 
   getTime(): number[] {
     return this.Time;
+  }
+
+  getLocation(): string[] {
+    return this.location;
+  }
+
+  getSubLocation(): string[] {
+    return this.subLocation;
   }
 
   async addAlarmType(dto: AlarmsTypeDto) {
@@ -59,12 +70,19 @@ export class AlarmsService {
 
   // Delete by ID
   async deleteAlarmType(id: string) {
-    // 1. Check if alarm type exists
-    const alarmType = await this.alarmTypeModel.findById(id);
-    if (!alarmType) {
-      throw new NotFoundException(`Alarm Type with ID ${id} not found`);
-    }
+    const objectId = new Types.ObjectId(id);
+    const relatedAlarms = await this.alarmsModel
+      .find({ alarmTypeId: objectId })
+      .select('alarmName')
+      .lean();
 
+    if (relatedAlarms.length > 0) {
+      return {
+        message: `Cannot delete AlarmType. It is used in ${relatedAlarms.length} alarms.`,
+        count: relatedAlarms.length,
+        alarms: relatedAlarms.map((a) => a.alarmName),
+      };
+    }
     console.log('alarms with type');
     // 2. Check if any alarms reference this alarmType
     const alarmsWithType = await this.alarmsModel.findOne({ alarmTypeId: id });

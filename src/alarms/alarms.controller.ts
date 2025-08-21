@@ -1,16 +1,10 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Post,
-  Put,
-} from '@nestjs/common';
+import { Body, Controller, Get, Post } from '@nestjs/common';
 import { AlarmsService } from './alarms.service';
-import { AlarmsTypeDto } from './dto/alarmsType.dto';
 import { CreateAlarmDto } from './dto/alarms.dto';
+import { AlarmsTypeDto } from './dto/alarmsType.dto';
 import { GetAlarmsByTypeDto } from './dto/get-alarms-by-type.dto';
+import { GetTypeByAlarmDto } from './dto/get-type-by-alarm.dto';
+import { GetUpdateIdDto } from './dto/get-update-id.dto';
 
 @Controller('alarms')
 export class AlarmsController {
@@ -26,14 +20,14 @@ export class AlarmsController {
     return this.alarmsService.getAllAlarmTypes();
   }
 
-  @Put('update-types-alarms/:id')
-  update(@Param('id') id: string, @Body() dto: AlarmsTypeDto) {
-    return this.alarmsService.updateAlarmType(id, dto);
+  @Post('update-types-alarms')
+  update(@Body() dto: GetUpdateIdDto, @Body() updateDto: AlarmsTypeDto) {
+    return this.alarmsService.updateAlarmType(dto.typeId, updateDto);
   }
 
-  @Delete('delete-types-alarms/:id')
-  delete(@Param('id') id: string) {
-    return this.alarmsService.deleteAlarmType(id);
+  @Post('delete-types-alarms')
+  delete(@Body() dto: GetAlarmsByTypeDto) {
+    return this.alarmsService.deleteAlarmType(dto.typeId);
   }
 
   @Post('add-alarm')
@@ -51,12 +45,22 @@ export class AlarmsController {
     return this.alarmsService.getTime();
   }
 
+  @Get('location')
+  getLocation() {
+    return this.alarmsService.getLocation();
+  }
+
+  @Get('sub-location')
+  getSubLocation() {
+    return this.alarmsService.getSubLocation();
+  }
+
   @Post('by-type')
   async getByType(@Body() dto: GetAlarmsByTypeDto) {
     return this.alarmsService.getAlarmsByType(dto.typeId);
   }
-  @Get('type-by-alarm/:alarmId')
-  getAlarmTypeByAlarmId(@Param('alarmId') alarmId: string) {
-    return this.alarmsService.getAlarmTypeByAlarmId(alarmId);
+  @Post('type-by-alarm')
+  getAlarmTypeByAlarmId(@Body() dto: GetTypeByAlarmDto) {
+    return this.alarmsService.getAlarmTypeByAlarmId(dto.alarmId);
   }
 }

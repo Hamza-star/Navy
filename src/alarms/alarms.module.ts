@@ -4,7 +4,10 @@ import { AlarmsService } from './alarms.service';
 import { HelpersModule } from 'src/helpers/helpers.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AlarmsType, AlarmsTypeSchema } from './schema/alarmsType.schema';
-import { alarmsConfiguration, AlarmsConfigurationSchema } from './schema/alarms.schema';
+import {
+  alarmsConfiguration,
+  AlarmsConfigurationSchema,
+} from './schema/alarmsConfig.schema';
 import {
   AlarmRulesSet,
   AlarmRulesSetSchema,

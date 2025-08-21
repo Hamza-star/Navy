@@ -1,9 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { CreateAlarmDto } from './dto/alarms.dto';
+import { ConfigAlarmDto } from './dto/alarmsConfig.dto';
 import { AlarmsTypeDto } from './dto/alarmsType.dto';
-import { alarmsConfiguration } from './schema/alarms.schema';
+import { alarmsConfiguration } from './schema/alarmsConfig.schema';
 import { AlarmRulesSet } from './schema/alarmsTriggerConfig.schema';
 import { AlarmsType } from './schema/alarmsType.schema';
 @Injectable()
@@ -56,7 +56,6 @@ export class AlarmsService {
       data: alarmType,
     };
   }
-
 
   /**
    * Get all alarm types.
@@ -131,7 +130,7 @@ export class AlarmsService {
    * @param dto The data transfer object containing alarm details.
    * @returns The created alarm.
    */
-  async addAlarm(dto: CreateAlarmDto) {
+  async addAlarm(dto: ConfigAlarmDto) {
     // 1️⃣ Save ruleset separately
     const ruleset = new this.alarmsRulesSetModel(dto.alarmTriggerConfig);
     await ruleset.save();

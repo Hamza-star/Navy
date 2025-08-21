@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Post, Put } from '@nestjs/common';
 import { AlarmsService } from './alarms.service';
-import { CreateAlarmDto } from './dto/alarms.dto';
+import { ConfigAlarmDto } from './dto/alarmsConfig.dto';
 import { AlarmsTypeDto } from './dto/alarmsType.dto';
 import { GetAlarmsByTypeDto } from './dto/get-alarms-by-type.dto';
 import { GetTypeByAlarmDto } from './dto/get-type-by-alarm.dto';
@@ -31,7 +31,7 @@ export class AlarmsController {
   }
 
   @Post('add-alarm')
-  createAlarm(@Body() dto: CreateAlarmDto) {
+  createAlarm(@Body() dto: ConfigAlarmDto) {
     return this.alarmsService.addAlarm(dto);
   }
 

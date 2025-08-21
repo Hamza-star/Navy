@@ -10,7 +10,7 @@ import { AlarmTriggerConfigDto } from './alarmsTriggerConfig.dto';
 import { Types } from 'mongoose';
 
 // create-alarm.dto.ts
-export class CreateAlarmDto {
+export class ConfigAlarmDto {
   @IsMongoId()
   @Transform(({ value }) => new Types.ObjectId(value))
   alarmTypeId: Types.ObjectId;

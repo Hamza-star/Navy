@@ -98,13 +98,40 @@ export class AlarmsService {
    * @returns The updated alarm.
    */
 
+  // async updateAlarm(dto: UpdateAlarmDto) {
+  //   const { alarmConfigId, ...updateData } = dto;
+
+  //   const objectId = new Types.ObjectId(alarmConfigId);
+
+  //   const updated = await this.alarmsModel
+  //     .findByIdAndUpdate(objectId, updateData, { new: true })
+  //     .populate('alarmTypeId')
+  //     .populate('alarmTriggerConfig')
+  //     .lean();
+
+  //   if (!updated) {
+  //     throw new NotFoundException(`Alarm with ID ${alarmConfigId} not found`);
+  //   }
+
+  //   return {
+  //     message: 'Alarm updated successfully',
+  //     data: updated,
+  //   };
+  // }
+
   async updateAlarm(dto: UpdateAlarmDto) {
     const { alarmConfigId, ...updateData } = dto;
 
-    const objectId = new Types.ObjectId(alarmConfigId);
+    if (!Types.ObjectId.isValid(alarmConfigId)) {
+      throw new BadRequestException('Invalid AlarmConfigId');
+    }
 
     const updated = await this.alarmsModel
-      .findByIdAndUpdate(objectId, updateData, { new: true })
+      .findByIdAndUpdate(new Types.ObjectId(alarmConfigId), updateData, {
+        new: true,
+      })
+      .populate('alarmTypeId')
+      .populate('alarmTriggerConfig')
       .lean();
 
     if (!updated) {

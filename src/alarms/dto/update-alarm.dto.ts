@@ -1,8 +1,8 @@
-import { IsString } from 'class-validator';
-import { CreateAlarmDto } from './alarms.dto';
 import { PartialType } from '@nestjs/mapped-types';
+import { IsString } from 'class-validator';
+import { ConfigAlarmDto } from './alarmsConfig.dto';
 
-export class UpdateAlarmDto extends PartialType(CreateAlarmDto) {
+export class UpdateAlarmDto extends PartialType(ConfigAlarmDto) {
   @IsString()
   alarmConfigId: string;
 }

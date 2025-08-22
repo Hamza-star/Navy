@@ -11,6 +11,8 @@ import { alarmsConfiguration } from './schema/alarmsConfig.schema';
 import { AlarmRulesSet } from './schema/alarmsTriggerConfig.schema';
 import { AlarmsType } from './schema/alarmsType.schema';
 import { UpdateAlarmDto } from './dto/update-alarm.dto';
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
 @Injectable()
 export class AlarmsService {
   constructor(
@@ -19,6 +21,7 @@ export class AlarmsService {
     private alarmsModel: Model<alarmsConfiguration>,
     @InjectModel(AlarmRulesSet.name)
     private alarmsRulesSetModel: Model<AlarmRulesSet>,
+    private readonly httpService: HttpService,
   ) {}
 
   private readonly intervalsSec = [5, 15, 30, 60, 120];
@@ -26,7 +29,96 @@ export class AlarmsService {
 
   private readonly location = ['Chillers', 'Process'];
   private readonly subLocation = ['CT1', 'CT2', 'CHCT1', 'CHCT2'];
+  private meterSuffixMapping(): Record<string, string[]> {
+    return {
+      FM_01: ['FR', 'TOT'],
+      FM_02: ['FR', 'TOT'],
+      TEMP_RTD_01: ['AI'],
+      TEMP_RTD_02: ['AI'],
+      PT_01: ['AI'],
+      INV_01_SPD: ['AI'],
+      LLS_01: ['DI'],
+      LS_01: ['DI'],
+      VS_FAN_01: ['DI'],
+      EM01: [
+        'Voltage_AN_V',
+        'Voltage_BN_V',
+        'Voltage_CN_V',
+        'Voltage_LN_V',
+        'Voltage_AB_V',
+        'Voltage_BC_V',
+        'Voltage_CA_V',
+        'Voltage_LL_V',
+        'Current_AN_Amp',
+        'Current_BN_Amp',
+        'Current_CN_Amp',
+        'Current_Total_Amp',
+        'Frequency_Hz',
+        'ActivePower_A_kW',
+        'ActivePower_B_kW',
+        'ActivePower_C_kW',
+        'ActivePower_Total_kW',
+        'ReactivePower_A_kVAR',
+        'ReactivePower_B_kVAR',
+        'ReactivePower_C_kVAR',
+        'ReactivePower_Total_kVAR',
+        'ApparentPower_A_kVA',
+        'ApparentPower_B_kVA',
+        'ApparentPower_C_kVA',
+        'ApparentPower_Total_kVA',
+        'ActiveEnergy_A_kWh',
+        'ActiveEnergy_B_kWh',
+        'ActiveEnergy_C_kWh',
+        'ActiveEnergy_Total_kWh',
+        'ActiveEnergy_A_Received_kWh',
+        'ActiveEnergy_B_Received_kWh',
+        'ActiveEnergy_C_Received_kWh',
+        'ActiveEnergy_Total_Received_kWh',
+        'ActiveEnergy_A_Delivered_kWh',
+        'ActiveEnergy_B_Delivered_kWh',
+        'ActiveEnergy_C_Delivered_kWh',
+        'ActiveEnergy_Total_Delivered_kWh',
+        'ApparentEnergy_A_kVAh',
+        'ApparentEnergy_B_kVAh',
+        'ApparentEnergy_C_kVAh',
+        'ApparentEnergy_Total_kVAh',
+        'ReactiveEnergy_A_kVARh',
+        'ReactiveEnergy_B_kVARh',
+        'ReactiveEnergy_C_kVARh',
+        'ReactiveEnergy_Total_kVARh',
+        'ReactiveEnergy_A_Inductive_kVARh',
+        'ReactiveEnergy_B_Inductive_kVARh',
+        'ReactiveEnergy_C_Inductive_kVARh',
+        'ReactiveEnergy_Total_Inductive_kVARh',
+        'ReactiveEnergy_A_Capacitive_kVARh',
+        'ReactiveEnergy_B_Capacitive_kVARh',
+        'ReactiveEnergy_C_Capacitive_kVARh',
+        'ReactiveEnergy_Total_Capacitive_kVARh',
+        'Harmonics_V1_THD',
+        'Harmonics_V2_THD',
+        'Harmonics_V3_THD',
+        'Harmonics_I1_THD',
+        'Harmonics_I2_THD',
+        'Harmonics_I3_THD',
+        'PowerFactor_A',
+        'PowerFactor_B',
+        'PowerFactor_C',
+        'PowerFactor_Total',
+      ],
+      // Add more here as needed...
+    };
+  }
 
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async DevicesDropdownList() {
+    const mapping = this.meterSuffixMapping();
+
+    // Create dropdown-friendly format
+    return Object.keys(mapping).map((meterId) => ({
+      meterId,
+      suffixes: mapping[meterId],
+    }));
+  }
   getIntervals(): number[] {
     return this.intervalsSec;
   }
@@ -269,5 +361,114 @@ export class AlarmsService {
       message: 'AlarmType fetched successfully',
       data: alarm.alarmTypeId as AlarmsType,
     };
+  }
+
+  private evaluateCondition(
+    value: number,
+    operator: string,
+    threshold: number,
+  ): boolean {
+    switch (operator) {
+      case '>':
+        return value > threshold;
+      case '<':
+        return value < threshold;
+      case '>=':
+        return value >= threshold;
+      case '<=':
+        return value <= threshold;
+      case '==':
+        return value === threshold;
+      case '!=':
+        return value !== threshold;
+      default:
+        return false;
+    }
+  }
+
+  private evaluateRules(value: number, rules: any): boolean {
+    if (!rules || !rules.thresholds?.length) return false;
+
+    const results = rules.thresholds.map((rule) =>
+      this.evaluateCondition(value, rule.operator, rule.value),
+    );
+
+    if (rules.conditionType === '&&') return results.every(Boolean);
+    if (rules.conditionType === '||') return results.some(Boolean);
+    return results[0] ?? false;
+  }
+
+  async processActiveAlarms() {
+    const url = 'http://13.234.241.103:1880/ifl_realtime';
+    const resp = await firstValueFrom(this.httpService.get(url));
+    const payload = resp.data;
+    if (!payload) throw new BadRequestException('No data from Node-RED');
+
+    console.log(
+      '✅ Payload received from Node-RED:',
+      Object.keys(payload).slice(0, 10),
+      '... total:',
+      Object.keys(payload).length,
+    );
+
+    // Fetch alarm configs
+    const alarms = await this.alarmsModel
+      .find()
+      .populate('alarmTriggerConfig')
+      .exec();
+
+    console.log('✅ Loaded alarms from DB:', alarms.length);
+
+    const triggeredAlarms: Array<{
+      alarmName: string;
+      device: string;
+      parameter: string;
+      value: number;
+      threshold: any[];
+    }> = [];
+
+    for (const alarm of alarms) {
+      const { alarmDevice, alarmParameter } = alarm;
+      console.log(
+        `\n🔎 Checking alarm: ${alarm.alarmName} (Device=${alarmDevice}, Param=${alarmParameter})`,
+      );
+
+      // Find matching key in payload
+      const key = Object.keys(payload).find(
+        (k) => k.startsWith(alarmDevice) && k.includes(alarmParameter),
+      );
+
+      console.log('   ➡ Matching key found:', key);
+
+      if (!key) continue;
+
+      const value = payload[key];
+      console.log(`   ➡ Payload value: ${value}`);
+
+      // ✅ Only run rules if populated doc exists
+      if ('thresholds' in alarm.alarmTriggerConfig) {
+        const rules = alarm.alarmTriggerConfig as AlarmRulesSet;
+        console.log('   ➡ Rules:', rules.thresholds);
+
+        const isTriggered = this.evaluateRules(value, rules);
+        console.log('   ⚡ Rule evaluation result:', isTriggered);
+
+        if (isTriggered) {
+          triggeredAlarms.push({
+            alarmName: alarm.alarmName,
+            device: alarmDevice,
+            parameter: alarmParameter,
+            value,
+            threshold: rules.thresholds,
+          });
+          console.log('   🚨 Alarm TRIGGERED!');
+        }
+      } else {
+        console.log('   ⚠ No thresholds in alarmTriggerConfig');
+      }
+    }
+
+    console.log('\n✅ Final triggered alarms:', triggeredAlarms.length);
+    return triggeredAlarms;
   }
 }

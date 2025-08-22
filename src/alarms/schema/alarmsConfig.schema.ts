@@ -5,6 +5,7 @@ import {
   AlarmAcknowledgement,
   AlarmAcknowledgementSchema,
 } from './alarmsAcknowledgment.schema';
+import { AlarmRulesSet } from './alarmsTriggerConfig.schema';
 
 @Schema({ collection: 'alarmsConfiguration' })
 export class alarmsConfiguration {
@@ -37,7 +38,7 @@ export class alarmsConfiguration {
 
   // 👇 Reference, not embed
   @Prop({ type: Types.ObjectId, ref: 'AlarmRulesSet', required: true })
-  alarmTriggerConfig: Types.ObjectId;
+  alarmTriggerConfig: AlarmRulesSet | Types.ObjectId;
 }
 
 export type AlarmsDocument = alarmsConfiguration & Document;

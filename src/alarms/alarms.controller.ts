@@ -67,6 +67,10 @@ export class AlarmsController {
     return this.alarmsService.getSubLocation();
   }
 
+  @Get('/device-dropdownlist')
+  async getDeviceDropdownList() {
+    return this.alarmsService.DevicesDropdownList();
+  }
   @Post('by-type')
   async getByType(@Body() dto: GetAlarmsByTypeDto) {
     return this.alarmsService.getAlarmsByType(dto.typeId);
@@ -74,5 +78,10 @@ export class AlarmsController {
   @Post('type-by-alarm')
   getAlarmTypeByAlarmId(@Body() dto: GetTypeByAlarmDto) {
     return this.alarmsService.getAlarmTypeByAlarmId(dto.alarmId);
+  }
+
+  @Get('/active-alarms')
+  getActiveAlarms(){
+    return this.alarmsService.processActiveAlarms();
   }
 }

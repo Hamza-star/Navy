@@ -1,8 +1,8 @@
-import { PartialType } from '@nestjs/mapped-types';
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 import { IsString } from 'class-validator';
 import { ConfigAlarmDto } from './alarmsConfig.dto';
 
-export class UpdateAlarmDto extends PartialType(ConfigAlarmDto) {
+export class UpdateAlarmDto extends ConfigAlarmDto {
   @IsString()
   alarmConfigId: string;
 }

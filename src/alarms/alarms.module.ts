@@ -12,10 +12,12 @@ import {
   AlarmRulesSet,
   AlarmRulesSetSchema,
 } from './schema/alarmsTriggerConfig.schema';
+import { HttpModule } from '@nestjs/axios';
 
 @Module({
   imports: [
     HelpersModule,
+    HttpModule,
     MongooseModule.forFeature([
       { name: AlarmsType.name, schema: AlarmsTypeSchema },
       { name: alarmsConfiguration.name, schema: AlarmsConfigurationSchema },

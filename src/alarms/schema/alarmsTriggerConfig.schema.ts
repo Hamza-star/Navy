@@ -1,9 +1,11 @@
 // alarmsTriggerConfig.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 @Schema()
 export class ThresholdCondition {
+  // Mongoose will provide an _id for subdocuments at runtime; declare it for TS
+  _id?: Types.ObjectId;
   @Prop({ required: true })
   value: number;
 

@@ -22,6 +22,11 @@ export class AlarmsController {
     return this.alarmsService.getAllAlarmTypes();
   }
 
+  @Get('mapped-location')
+  getMappedLocation() {
+    return this.alarmsService.getMappedLocation();
+  }
+
   @Put('update-types-alarms')
   update(@Body() dto: GetUpdateIdDto, @Body() updateDto: AlarmsTypeDto) {
     return this.alarmsService.updateAlarmType(dto.typeId, updateDto);
@@ -57,16 +62,6 @@ export class AlarmsController {
     return this.alarmsService.getTime();
   }
 
-  @Get('location')
-  getLocation() {
-    return this.alarmsService.getLocation();
-  }
-
-  @Get('sub-location')
-  getSubLocation() {
-    return this.alarmsService.getSubLocation();
-  }
-
   @Get('/device-dropdownlist')
   async getDeviceDropdownList() {
     return this.alarmsService.DevicesDropdownList();
@@ -81,7 +76,7 @@ export class AlarmsController {
   }
 
   @Get('/active-alarms')
-  getActiveAlarms(){
+  getActiveAlarms() {
     return this.alarmsService.processActiveAlarms();
   }
 }

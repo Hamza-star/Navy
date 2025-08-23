@@ -27,8 +27,6 @@ export class AlarmsService {
   private readonly intervalsSec = [5, 15, 30, 60, 120];
   private readonly Time = [1, 2, 3, 4, 5];
 
-  private readonly location = ['Chillers', 'Process'];
-  private readonly subLocation = ['CT1', 'CT2', 'CHCT1', 'CHCT2'];
   private meterSuffixMapping(): Record<string, string[]> {
     return {
       FM_01: ['FR', 'TOT'],
@@ -119,6 +117,14 @@ export class AlarmsService {
       suffixes: mapping[meterId],
     }));
   }
+
+  getMappedLocation(): Record<string, string[]> {
+    return {
+      Chillers: ['CHCT1', 'CHCT2'],
+      Process: ['CT1', 'CT2'],
+    };
+  }
+
   getIntervals(): number[] {
     return this.intervalsSec;
   }
@@ -127,17 +133,10 @@ export class AlarmsService {
     return this.Time;
   }
 
-  getLocation(): string[] {
-    return this.location;
-  }
-
   /**
    * Get the list of sub-locations.
    * @returns Array of sub-location strings.
    */
-  getSubLocation(): string[] {
-    return this.subLocation;
-  }
 
   /**
    * Add a new alarm type.

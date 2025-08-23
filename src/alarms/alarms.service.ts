@@ -125,6 +125,13 @@ export class AlarmsService {
     };
   }
 
+  async getAlarmsTypeName(): Promise<string[]> {
+    const alarmsType = await this.alarmTypeModel
+      .find({}, { type: 1, _id: 0 })
+      .exec();
+    return alarmsType.map((alarm) => alarm.type);
+  }
+
   getIntervals(): number[] {
     return this.intervalsSec;
   }

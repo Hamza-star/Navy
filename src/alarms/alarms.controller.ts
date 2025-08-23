@@ -27,6 +27,11 @@ export class AlarmsController {
     return this.alarmsService.getMappedLocation();
   }
 
+  @Get('all-alarms-types-names')
+  getAllAlarmsTypes() {
+    return this.alarmsService.getAlarmsTypeName();
+  }
+
   @Put('update-types-alarms')
   update(@Body() dto: GetUpdateIdDto, @Body() updateDto: AlarmsTypeDto) {
     return this.alarmsService.updateAlarmType(dto.typeId, updateDto);

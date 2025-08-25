@@ -10,11 +10,11 @@ import { AlarmsTypeDto } from './dto/alarmsType.dto';
 import { alarmsConfiguration } from './schema/alarmsConfig.schema';
 import { AlarmRulesSet } from './schema/alarmsTriggerConfig.schema';
 import { AlarmsType } from './schema/alarmsType.schema';
+import { Alarms, AlarmsDocument } from './schema/alarmsModel.schema';
 import {
   AlarmOccurrence,
-  Alarms,
-  AlarmsDocument,
-} from './schema/alarmsModel.schema';
+  AlarmsOccurrenceDocument,
+} from './schema/alarmOccurences.schema';
 import { UpdateAlarmDto } from './dto/update-alarm.dto';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
@@ -34,6 +34,8 @@ export class AlarmsService {
     @InjectModel(AlarmRulesSet.name)
     private alarmsRulesSetModel: Model<AlarmRulesSet>,
     @InjectModel(Alarms.name) private alarmsEventModel: Model<AlarmsDocument>,
+    @InjectModel(AlarmOccurrence.name)
+    private alarmOccurrenceModel: Model<AlarmsOccurrenceDocument>,
     private readonly httpService: HttpService,
   ) {}
 
@@ -210,22 +212,83 @@ export class AlarmsService {
    */
 
   async updateAlarm(dto: UpdateAlarmDto) {
-    const { alarmConfigId, ...updateData } = dto;
+    const {
+      alarmConfigId,
+      alarmTriggerConfig,
+      alarmTypeId,
+      ...restUpdateData
+    } = dto;
 
+    // 1️⃣ Validate alarmConfigId
     if (!Types.ObjectId.isValid(alarmConfigId)) {
-      throw new BadRequestException('Invalid AlarmConfigId');
+      throw new BadRequestException('Invalid alarmConfigId');
     }
 
+    // 2️⃣ Fetch existing alarm
+    const existingAlarm = await this.alarmsModel.findById(alarmConfigId);
+    if (!existingAlarm) {
+      throw new NotFoundException(`Alarm with ID ${alarmConfigId} not found`);
+    }
+
+    const updateData: any = { ...restUpdateData };
+
+    // 3️⃣ Handle alarmTypeId
+    if (alarmTypeId) {
+      if (!Types.ObjectId.isValid(alarmTypeId)) {
+        throw new BadRequestException('Invalid alarmTypeId');
+      }
+      updateData.alarmTypeId = new Types.ObjectId(alarmTypeId);
+    }
+    // If missing in DTO, preserve existing
+
+    // 4️⃣ Handle alarmTriggerConfig
+    if (alarmTriggerConfig) {
+      if (typeof alarmTriggerConfig === 'object') {
+        if (
+          alarmTriggerConfig._id &&
+          Types.ObjectId.isValid(alarmTriggerConfig._id)
+        ) {
+          // Update existing ruleset
+          await this.alarmsRulesSetModel.findByIdAndUpdate(
+            alarmTriggerConfig._id,
+            alarmTriggerConfig,
+          );
+          updateData.alarmTriggerConfig = new Types.ObjectId(
+            alarmTriggerConfig._id,
+          );
+        } else {
+          // Create new ruleset
+          const ruleset = new this.alarmsRulesSetModel(alarmTriggerConfig);
+          await ruleset.save();
+          updateData.alarmTriggerConfig = ruleset._id;
+        }
+      } else if (Types.ObjectId.isValid(alarmTriggerConfig)) {
+        updateData.alarmTriggerConfig = new Types.ObjectId(alarmTriggerConfig);
+      } else {
+        throw new BadRequestException('Invalid alarmTriggerConfig');
+      }
+    }
+    // If missing in DTO, preserve existing
+
+    // 5️⃣ Perform update
     const updated = await this.alarmsModel
-      .findByIdAndUpdate(new Types.ObjectId(alarmConfigId), updateData, {
-        new: true,
-      })
+      .findByIdAndUpdate(alarmConfigId, { $set: updateData }, { new: true })
       .populate('alarmTypeId')
       .populate('alarmTriggerConfig')
       .lean();
 
     if (!updated) {
-      throw new NotFoundException(`Alarm with ID ${alarmConfigId} not found`);
+      throw new NotFoundException(
+        `Alarm with ID ${alarmConfigId} could not be updated`,
+      );
+    }
+
+    // 6️⃣ Ensure previous values are preserved in response if missing
+    if (!updated.alarmTypeId) {
+      updated.alarmTypeId = existingAlarm.alarmTypeId;
+    }
+    if (!updated.alarmTriggerConfig) {
+      updated.alarmTriggerConfig = existingAlarm.alarmTriggerConfig;
     }
 
     return {
@@ -450,8 +513,11 @@ export class AlarmsService {
       .exec();
 
     const triggered = this.getTriggeredThreshold(value, rules);
-    const occurrence: AlarmOccurrence = {
+
+    const occurrence = await this.alarmOccurrenceModel.create({
       date: now,
+      alarmID: `ALM_${configId?.toString?.() ?? 'cfg'}_${now.getTime()}`,
+      alarmStatus: true,
       alarmThresholdId:
         triggered && typeof triggered === 'object' && '_id' in triggered
           ? (triggered._id as Types.ObjectId)
@@ -465,32 +531,31 @@ export class AlarmsService {
       alarmAcknowledgedDelay: 0,
       alarmAge: 0,
       alarmDuration: 0,
-    };
+    });
 
     if (event) {
       event.alarmOccurrenceCount = (event.alarmOccurrenceCount || 0) + 1;
       event.alarmLastOccurrence = now;
-      event.alarmOccurrences = [...(event.alarmOccurrences || []), occurrence];
+      event.alarmOccurrences.push(occurrence._id as Types.ObjectId);
       await event.save();
-      return event;
+      return { event, occurrence }; // ✅ return both
     }
 
-    const alarmID = `${configId?.toString?.() ?? 'cfg'}_${now.getTime()}`;
     const created = new this.alarmsEventModel({
-      alarmID,
+      alarmID: `${configId?.toString?.() ?? 'cfg'}_${now.getTime()}`,
       alarmConfigId: configId,
       alarmTimestamp: now,
       alarmStatus: true,
       alarmOccurrenceCount: 1,
       alarmFirstOccurrence: now,
       alarmLastOccurrence: now,
-      alarmOccurrences: [occurrence],
+      alarmOccurrences: [occurrence._id],
       alarmAcknowledgeStatus: 'Unacknowledged',
       alarmAcknowledgmentAction: '',
     });
 
     await created.save();
-    return created;
+    return { event: created, occurrence }; // ✅ return both
   }
 
   /**
@@ -500,13 +565,18 @@ export class AlarmsService {
     const now = new Date();
 
     const activeEvents = await this.alarmsEventModel
-      .find({ alarmStatus: true })
+      .find({}) // no alarmStatus here
+      .populate({
+        path: 'alarmOccurrences',
+        model: AlarmOccurrence.name,
+        match: { alarmStatus: true }, // ✅ only pull active ones
+      })
       .exec();
 
     for (const ev of activeEvents) {
       const cfgId = ev.alarmConfigId?.toString?.() ?? '';
+
       if (!activeConfigIds.has(cfgId)) {
-        ev.alarmStatus = false;
         ev.alarmLastOccurrence = now;
 
         if (ev.alarmFirstOccurrence) {
@@ -515,11 +585,25 @@ export class AlarmsService {
               1000,
           );
 
-          // ✅ Update last occurrence's duration
           if (ev.alarmOccurrences?.length) {
             const lastOccurrence =
               ev.alarmOccurrences[ev.alarmOccurrences.length - 1];
-            lastOccurrence.alarmDuration = durationSec;
+            const lastOccurrenceId = lastOccurrence._id ?? lastOccurrence; // handle both populated and non-populated cases
+
+            try {
+              await this.alarmOccurrenceModel.findByIdAndUpdate(
+                lastOccurrenceId,
+                {
+                  alarmStatus: false,
+                  alarmDuration: durationSec,
+                },
+              );
+            } catch (err) {
+              console.error(
+                '⚠ Failed to update occurrence duration:',
+                err?.message ?? err,
+              );
+            }
           }
         }
 
@@ -533,16 +617,15 @@ export class AlarmsService {
    * @returns An array of triggered alarm events.
    */
   async processActiveAlarms() {
-    // const url = 'http://13.234.241.103:1880/ifl_realtime';
-    // const resp = await firstValueFrom(this.httpService.get(url));
-    // const data: unknown = resp.data;
-    // if (!data || typeof data !== 'object' || Array.isArray(data)) {
-    //   throw new BadRequestException('No data from Node-RED');
-    // }
-    // const payload: Record<string, unknown> = data as Record<string, unknown>;
-    const payload: Record<string, unknown> = {
-      CHCT2_EM01_Voltage_LN_V: 250,
-    };
+    const url = 'http://13.234.241.103:1880/ifl_realtime';
+    const resp = await firstValueFrom(this.httpService.get(url));
+    const data: unknown = resp.data;
+
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      throw new BadRequestException('No data from Node-RED');
+    }
+
+    const payload: Record<string, unknown> = data as Record<string, unknown>;
     console.log(
       '✅ Payload received from Node-RED:',
       Object.keys(payload).slice(0, 10),
@@ -550,13 +633,11 @@ export class AlarmsService {
       Object.keys(payload).length,
     );
 
-    // Fetch alarm configs and populate ruleset + alarm type
     const alarms = (await this.alarmsModel
       .find()
       .populate('alarmTriggerConfig')
       .populate('alarmTypeId')
       .exec()) as AlarmConfigWithPopulate[];
-
     console.log('✅ Loaded alarms from DB:', alarms.length);
 
     const triggeredAlarms: Array<{
@@ -567,6 +648,7 @@ export class AlarmsService {
       threshold: any[];
       alarmType?: any;
       alarmTypeName?: string | null;
+      triggeredAt?: Date; // ✅ add timestamp here
     }> = [];
 
     const activeConfigIds = new Set<string>();
@@ -574,20 +656,17 @@ export class AlarmsService {
     for (const alarm of alarms) {
       const { alarmDevice, alarmParameter } = alarm;
       console.log(
-        `\n🔎 Checking alarm: ${alarm.alarmName} (Device=${alarmDevice}, Param=${alarmParameter})`,
+        `\n🔎 Checking alarm: ${alarm.alarmName} (Device=${alarmDevice}, Param=${alarmParameter}),`,
       );
 
-      // Find matching key in payload using subLocation + device prefix (e.g. "CHCT2_EM01_Voltage_AN_V")
       const prefix =
         `${(alarm.alarmSubLocation || '').toString()}_${(alarm.alarmDevice || '').toString()}`.toLowerCase();
       const param = (alarm.alarmParameter || '').toString().toLowerCase();
 
       const key = Object.keys(payload).find((k) => {
         const kk = k.toString().toLowerCase();
-        // prefer exact prefix match and parameter contained in key
         if (prefix && kk.startsWith(prefix) && param && kk.includes(param))
           return true;
-        // fallback: device anywhere + parameter
         if (
           alarm.alarmDevice &&
           kk.includes(alarm.alarmDevice.toString().toLowerCase()) &&
@@ -599,7 +678,7 @@ export class AlarmsService {
       });
 
       console.log(
-        '   ➡ Matching key found:',
+        ' ➡ Matching key found:',
         key,
         '(prefix:',
         prefix,
@@ -612,46 +691,46 @@ export class AlarmsService {
 
       const valueRaw = payload[key];
       const value = typeof valueRaw === 'number' ? valueRaw : Number(valueRaw);
-      console.log(`   ➡ Payload value: ${value}`);
+      console.log(` ➡ Payload value: ${value}`);
 
-      // ✅ Only run rules if populated doc exists
       if ('thresholds' in alarm.alarmTriggerConfig) {
         const rules = alarm.alarmTriggerConfig as AlarmRulesSet;
-        console.log('   ➡ Rules:', rules.thresholds);
-
+        console.log(' ➡ Rules:', rules.thresholds);
         const isTriggered = this.evaluateRules(value, rules);
-        console.log('   ⚡ Rule evaluation result:', isTriggered);
+        console.log(' ⚡ Rule evaluation result:', isTriggered);
 
         if (isTriggered) {
-          triggeredAlarms.push({
-            alarmName: alarm.alarmName,
-            device: alarmDevice,
-            parameter: alarmParameter,
-            value,
-            threshold: rules.thresholds,
-            alarmType: alarm.alarmTypeId || null,
-            alarmTypeName: alarm.alarmTypeId?.type ?? null,
-          });
-          console.log('   🚨 Alarm TRIGGERED!');
-
-          // Persist/upsert the active alarm event
           try {
-            const ev = await this.upsertTriggeredAlarm(alarm, rules, value);
+            const { event, occurrence } = await this.upsertTriggeredAlarm(
+              alarm,
+              rules,
+              value,
+            );
             activeConfigIds.add(alarm._id.toString());
-            console.log('   💾 Alarm event upserted:', ev._id?.toString?.());
+            triggeredAlarms.push({
+              alarmName: alarm.alarmName,
+              device: alarmDevice,
+              parameter: alarmParameter,
+              value,
+              threshold: rules.thresholds,
+              alarmType: alarm.alarmTypeId || null,
+              alarmTypeName: alarm.alarmTypeId?.type ?? null,
+              triggeredAt: occurrence.date, // ✅ exact DB timestamp
+            });
+            console.log(' 🚨 Alarm TRIGGERED!');
+            console.log(' 💾 Alarm event upserted:', event._id?.toString?.());
           } catch (err) {
             console.error(
-              '   ⚠ Failed to upsert alarm event:',
+              ' ⚠ Failed to upsert alarm event:',
               err?.message ?? err,
             );
           }
         }
       } else {
-        console.log('   ⚠ No thresholds in alarmTriggerConfig');
+        console.log(' ⚠ No thresholds in alarmTriggerConfig');
       }
     }
 
-    // Deactivate resolved alarms (those active in DB but not present in current triggers)
     try {
       await this.deactivateResolvedAlarms(activeConfigIds);
     } catch (err) {

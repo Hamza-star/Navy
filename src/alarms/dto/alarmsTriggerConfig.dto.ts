@@ -37,4 +37,5 @@ export class AlarmTriggerConfigDto {
   @ValidateNested({ each: true })
   @Type(() => ThresholdConditionDto)
   thresholds: ThresholdConditionDto[];
+  _id: any;
 }

@@ -33,9 +33,6 @@ export class alarmsConfiguration {
   @Prop({ type: [String], default: [] })
   acknowledgementActions: string[];
 
-  @Prop({ type: [AlarmAcknowledgementSchema], default: [] })
-  alarmAcknowledgement: AlarmAcknowledgement[];
-
   // 👇 Reference, not embed
   @Prop({ type: Types.ObjectId, ref: 'AlarmRulesSet', required: true })
   alarmTriggerConfig: AlarmRulesSet | Types.ObjectId;

@@ -14,6 +14,14 @@ import {
 } from './schema/alarmsTriggerConfig.schema';
 import { HttpModule } from '@nestjs/axios';
 import { Alarms, AlarmsSchema } from './schema/alarmsModel.schema';
+import {
+  AlarmOccurrence,
+  AlarmsOccurrenceSchema,
+} from './schema/alarmOccurences.schema';
+import {
+  AlarmsIdCounter,
+  AlarmsIdCounterSchema,
+} from './schema/alarmIdCounter.schema';
 
 @Module({
   imports: [
@@ -24,6 +32,8 @@ import { Alarms, AlarmsSchema } from './schema/alarmsModel.schema';
       { name: alarmsConfiguration.name, schema: AlarmsConfigurationSchema },
       { name: AlarmRulesSet.name, schema: AlarmRulesSetSchema },
       { name: Alarms.name, schema: AlarmsSchema },
+      { name: AlarmOccurrence.name, schema: AlarmsOccurrenceSchema },
+      { name: AlarmsIdCounter.name, schema: AlarmsIdCounterSchema },
     ]),
   ],
   controllers: [AlarmsController],

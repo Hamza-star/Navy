@@ -18,10 +18,6 @@ import {
   AlarmOccurrence,
   AlarmsOccurrenceSchema,
 } from './schema/alarmOccurences.schema';
-import {
-  AlarmsIdCounter,
-  AlarmsIdCounterSchema,
-} from './schema/alarmIdCounter.schema';
 
 @Module({
   imports: [
@@ -33,7 +29,6 @@ import {
       { name: AlarmRulesSet.name, schema: AlarmRulesSetSchema },
       { name: Alarms.name, schema: AlarmsSchema },
       { name: AlarmOccurrence.name, schema: AlarmsOccurrenceSchema },
-      { name: AlarmsIdCounter.name, schema: AlarmsIdCounterSchema },
     ]),
   ],
   controllers: [AlarmsController],

@@ -23,6 +23,7 @@ export class AlarmRulesSet {
 
   @Prop({ type: [ThresholdCondition], required: true })
   thresholds: ThresholdCondition[];
+  _id: undefined;
 }
 
 export type AlarmRulesSetDocument = AlarmRulesSet & Document;

@@ -1,19 +1,55 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
-@Schema({ collection: 'alarmsIdCounter' })
-export class AlarmsIdCounter {
-  @Prop({ required: true, unique: true })
-  name: string; // e.g. "alarm"
-
-  @Prop({ required: true })
-  prefix: number; // e.g. 0 → "00"
+@Schema({ collection: 'alarmsOccurrence', timestamps: true })
+export class AlarmOccurrence {
+  @Prop({ type: Date, required: true })
+  date: Date;
 
   @Prop({ required: true })
-  sequence: number; // e.g. 1 → "001"
+  alarmID: string;
+
+  @Prop({ type: Boolean, default: false })
+  alarmStatus: boolean;
+
+  @Prop({ type: Types.ObjectId, ref: 'alarmsRuleSet', required: false })
+  alarmThresholdId: Types.ObjectId | null;
+
+  @Prop({ type: Number, required: false })
+  alarmThresholdValue: number | null;
+
+  @Prop({
+    type: String,
+    enum: ['>', '<', '>=', '<=', '==', '!='],
+    required: false,
+  })
+  alarmThresholdOperator: '>' | '<' | '>=' | '<=' | '==' | '!=' | null;
+
+  @Prop({ type: Number, required: true })
+  alarmPresentValue: number;
+
+  @Prop({
+    type: String,
+    enum: ['Acknowledged', 'Unacknowledged'],
+    default: 'Unacknowledged',
+  })
+  alarmAcknowledgeStatus: 'Acknowledged' | 'Unacknowledged';
+
+  @Prop({ type: String, default: '' })
+  alarmAcknowledgmentAction: string;
+
+  @Prop({ type: String, default: '' })
+  alarmAcknowledgedBy: string;
+
+  @Prop({ type: Number, default: 0 })
+  alarmAcknowledgedDelay: number;
+
+  @Prop({ type: Number, default: 0 })
+  alarmAge: number;
+
+  @Prop({ type: Number, default: 0 })
+  alarmDuration: number;
 }
 
-export type AlarmsIdCounterDocument = AlarmsIdCounter & Document;
-export const AlarmsIdCounterSchema = SchemaFactory.createForClass(AlarmsIdCounter);
-
-export const AlarmsIdCounterCollectionName = 'alarmsIdCounter';
+export type AlarmsOccurrenceDocument = AlarmOccurrence & Document;
+export const AlarmsOccurrenceSchema = SchemaFactory.createForClass(AlarmOccurrence);

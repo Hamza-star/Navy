@@ -639,6 +639,11 @@ export class AlarmsService {
     const resp = await firstValueFrom(
       this.httpService.get('http://13.234.241.103:1880/ifl_realtime'),
     );
+    // const resp = {
+    //   data: {
+    //     CHCT1_EM01_Voltage_AN_V: 213,
+    //   },
+    // };
     const payload = resp.data as Record<string, unknown>;
 
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
@@ -655,11 +660,15 @@ export class AlarmsService {
     const activeConfigIds = new Set<string>();
 
     for (const alarm of alarms) {
-      const key = Object.keys(payload).find(
-        (k) =>
-          k.toLowerCase().includes(alarm.alarmDevice.toLowerCase()) &&
-          k.toLowerCase().includes(alarm.alarmParameter.toLowerCase()),
-      );
+      const key = Object.keys(payload).find((k) => {
+        const parts = k.split('_').map((p) => p.toLowerCase());
+
+        return (
+          parts[0] === alarm.alarmSubLocation.toLowerCase() && // exact sublocation match
+          parts[1] === alarm.alarmDevice.toLowerCase() && // exact device match
+          parts.slice(2).join('_') === alarm.alarmParameter.toLowerCase() // exact parameter match
+        );
+      });
 
       if (!key) continue;
 
@@ -678,6 +687,8 @@ export class AlarmsService {
 
       triggeredAlarms.push({
         alarmName: alarm.alarmName,
+        Location: alarm.alarmLocation,
+        subLocation: alarm.alarmSubLocation,
         device: alarm.alarmDevice,
         parameter: alarm.alarmParameter,
         value,
@@ -687,7 +698,6 @@ export class AlarmsService {
         priority: alarm.alarmTypeId?.priority,
         color: alarm.alarmTypeId?.color,
         code: alarm.alarmTypeId?.code,
-        rulesetId: rules._id,
       });
     }
 

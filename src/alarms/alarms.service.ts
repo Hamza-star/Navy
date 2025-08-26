@@ -247,28 +247,37 @@ export class AlarmsService {
       }
       updateData.alarmTypeId = new Types.ObjectId(alarmTypeId);
     }
-    // If missing in DTO, preserve existing
 
-    // 4️⃣ Handle alarmTriggerConfig
+    // 4️⃣ Handle alarmTriggerConfig (update existing instead of creating new)
     if (alarmTriggerConfig) {
       if (typeof alarmTriggerConfig === 'object') {
-        if (
-          alarmTriggerConfig._id &&
-          Types.ObjectId.isValid(alarmTriggerConfig._id)
-        ) {
+        // Pick _id from DTO or fallback to existing alarm's ruleset
+        let rulesetId =
+          alarmTriggerConfig._id?.toString() ??
+          existingAlarm.alarmTriggerConfig?.toString();
+
+        if (rulesetId && Types.ObjectId.isValid(rulesetId)) {
+          const { thresholds, ...restRuleset } = alarmTriggerConfig;
+
+          // Build update object
+          const rulesetUpdate: any = { ...restRuleset };
+          if (Array.isArray(thresholds)) {
+            // overwrite thresholds instead of merging
+            rulesetUpdate.thresholds = thresholds;
+          }
+
           // Update existing ruleset
           await this.alarmsRulesSetModel.findByIdAndUpdate(
-            alarmTriggerConfig._id,
-            alarmTriggerConfig,
+            rulesetId,
+            { $set: rulesetUpdate },
+            { new: true },
           );
-          updateData.alarmTriggerConfig = new Types.ObjectId(
-            alarmTriggerConfig._id,
-          );
+
+          updateData.alarmTriggerConfig = new Types.ObjectId(rulesetId);
         } else {
-          // Create new ruleset
-          const ruleset = new this.alarmsRulesSetModel(alarmTriggerConfig);
-          await ruleset.save();
-          updateData.alarmTriggerConfig = ruleset._id;
+          throw new BadRequestException(
+            'No valid ruleset found for this alarmConfig',
+          );
         }
       } else if (Types.ObjectId.isValid(alarmTriggerConfig)) {
         updateData.alarmTriggerConfig = new Types.ObjectId(alarmTriggerConfig);
@@ -276,7 +285,6 @@ export class AlarmsService {
         throw new BadRequestException('Invalid alarmTriggerConfig');
       }
     }
-    // If missing in DTO, preserve existing
 
     // 5️⃣ Perform update
     const updated = await this.alarmsModel

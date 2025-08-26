@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-base-to-string */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
@@ -712,5 +713,29 @@ export class AlarmsService {
     await this.deactivateResolvedAlarms(activeConfigIds);
 
     return triggeredAlarms;
+  }
+
+  // alarms.service.ts
+  async getAllAlarmsByPagination(
+    page: number,
+    limit: number,
+    filters: any = {},
+  ) {
+    const [results, total] = await Promise.all([
+      this.alarmsEventModel
+        .find(filters)
+        .populate('alarmOccurrences') // 👈 populate occurrences
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .exec(),
+      this.alarmsEventModel.countDocuments(filters).exec(), // 👈 should be same model
+    ]);
+
+    return {
+      data: results,
+      total,
+      page,
+      lastPage: Math.ceil(total / limit),
+    };
   }
 }

@@ -84,4 +84,19 @@ export class AlarmsController {
   getActiveAlarms() {
     return this.alarmsService.processActiveAlarms();
   }
+
+  @Post('all-alarms-paginated')
+  async getAlarmsPaginated(
+    @Body() body: { page?: number; limit?: number; filters?: any },
+  ) {
+    const page = body.page ?? 1;
+    const limit = body.limit ?? 10;
+
+    // Optionally, pass filters to service (if you want dynamic filtering)
+    return this.alarmsService.getAllAlarmsByPagination(
+      page,
+      limit,
+      body.filters,
+    );
+  }
 }

@@ -85,18 +85,31 @@ export class AlarmsController {
     return this.alarmsService.processActiveAlarms();
   }
 
-  @Post('all-alarms-paginated')
-  async getAlarmsPaginated(
-    @Body() body: { page?: number; limit?: number; filters?: any },
-  ) {
-    const page = body.page ?? 1;
-    const limit = body.limit ?? 10;
+  @Post('get-all-Alarms')
+  async getAllAlarms(@Body() filters: any) {
+    return await this.alarmsService.gethistoricalAlarms(filters);
+  }
 
-    // Optionally, pass filters to service (if you want dynamic filtering)
-    return this.alarmsService.getAllAlarmsByPagination(
-      page,
-      limit,
-      body.filters,
-    );
+  @Get('acknowledgment-actions')
+  async acknowledgementActions() {
+    return await this.alarmsService.acknowledgementActions();
+  }
+
+  @Post('single-acknowledge')
+  async acknowledgeOne(
+    @Body('id') id: string,
+    @Body('action') action: string,
+    @Body('acknowledgedBy') acknowledgedBy: string,
+  ) {
+    return this.alarmsService.acknowledgeOne(id, action, acknowledgedBy);
+  }
+
+  // ✅ Acknowledge multiple occurrences
+  @Post('bulk-acknowledge')
+  async acknowledgeMany(
+    @Body('ids') ids: string[],
+    @Body('acknowledgedBy') acknowledgedBy: string,
+  ) {
+    return this.alarmsService.acknowledgeMany(ids, acknowledgedBy);
   }
 }

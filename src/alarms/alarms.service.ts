@@ -27,6 +27,7 @@ import {
 import { UpdateAlarmDto } from './dto/update-alarm.dto';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
+import { getTimeRange, TimeRangePayload } from 'src/helpers/generalTimeFilter';
 // Local type to represent an alarm config document with populated refs
 // (keeps this file lightweight rather than changing global schema types)
 type AlarmConfigWithPopulate = alarmsConfiguration & {
@@ -528,6 +529,46 @@ export class AlarmsService {
     );
   }
 
+  private async generateCustomAlarmId(): Promise<string | null> {
+    // Get last occurrence sorted by alarmID
+    const last = await this.alarmOccurrenceModel
+      .findOne({}, { alarmID: 1 })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!last || !last.alarmID) {
+      return 'ALM01-001'; // First ever alarm
+    }
+
+    const match = last.alarmID.match(/ALM(\d+)-(\d+)/);
+
+    if (!match) {
+      // agar purane format wali ID milti hai (ALM_configId_timestamp)
+      // to phir se naya sequence shuru karo
+      return 'ALM01-001';
+    }
+
+    const [, majorStr, minorStr] = match;
+    let major = parseInt(majorStr, 10);
+    let minor = parseInt(minorStr, 10);
+
+    minor++;
+
+    if (minor > 999) {
+      minor = 1;
+      major++;
+    }
+
+    if (major > 99) {
+      return null; // 🚫 limit reached, no more alarms allowed
+    }
+
+    const newMajor = major.toString().padStart(2, '0');
+    const newMinor = minor.toString().padStart(3, '0');
+
+    return `ALM${newMajor}-${newMinor}`;
+  }
+
   /**
    * Upsert an active alarm event for the given alarm configuration.
    * If an active event exists it will be updated (count, lastOccurrence, recentOccurrences).
@@ -548,9 +589,14 @@ export class AlarmsService {
     const triggered = this.getTriggeredThreshold(value, rules);
     if (!triggered) return null;
 
+    const customId = await this.generateCustomAlarmId();
+    if (!customId) {
+      throw new Error('Alarm ID limit reached (ALM99-999)');
+    }
+
     const occurrence = await this.alarmOccurrenceModel.create({
       date: now,
-      alarmID: `ALM_${configId.toString()}_${now.getTime()}`,
+      alarmID: customId,
       alarmStatus: true,
       alarmThresholdValue: triggered.value,
       alarmThresholdOperator: triggered.operator,
@@ -564,6 +610,7 @@ export class AlarmsService {
       alarmThreshold: triggered,
       alarmRulesetId: rules._id ?? undefined,
       alarmTypeId: alarmConfig.alarmTypeId?._id,
+      alarmAcknowledgmentType: alarmConfig.alarmTypeId?.acknowledgeType,
     });
 
     if (event) {
@@ -695,6 +742,7 @@ export class AlarmsService {
       activeConfigIds.add(alarm._id.toString());
 
       triggeredAlarms.push({
+        alarmId: occurrence.alarmID,
         alarmName: alarm.alarmName,
         Location: alarm.alarmLocation,
         subLocation: alarm.alarmSubLocation,
@@ -715,27 +763,200 @@ export class AlarmsService {
     return triggeredAlarms;
   }
 
-  // alarms.service.ts
-  async getAllAlarmsByPagination(
-    page: number,
-    limit: number,
-    filters: any = {},
-  ) {
-    const [results, total] = await Promise.all([
-      this.alarmsEventModel
-        .find(filters)
-        .populate('alarmOccurrences') // 👈 populate occurrences
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .exec(),
-      this.alarmsEventModel.countDocuments(filters).exec(), // 👈 should be same model
+  async gethistoricalAlarms(filters: any = {}) {
+    const match: any = {};
+
+    if (filters.alarmAcknowledgeStatus) {
+      match['alarmOccurrences.alarmAcknowledgeStatus'] =
+        filters.alarmAcknowledgeStatus;
+    }
+
+    if (filters.alarmStatus !== undefined) {
+      match['alarmOccurrences.alarmStatus'] = filters.alarmStatus;
+    }
+
+    // Time range filter (range, from-to, date sab handle ho jaye)
+    if (filters.range || filters.from || filters.to || filters.date) {
+      const { start, end } = getTimeRange(filters as TimeRangePayload);
+
+      match['alarmOccurrences.date'] = {
+        $gte: new Date(start),
+        $lte: new Date(end),
+      };
+    }
+
+    const results = await this.alarmsEventModel.aggregate([
+      // populate occurrences
+      {
+        $lookup: {
+          from: 'alarmsOccurrence',
+          localField: 'alarmOccurrences',
+          foreignField: '_id',
+          as: 'alarmOccurrences',
+        },
+      },
+
+      // populate config
+      {
+        $lookup: {
+          from: 'alarmsConfiguration',
+          localField: 'alarmConfigId',
+          foreignField: '_id',
+          as: 'alarmConfigure',
+        },
+      },
+      {
+        $unwind: { path: '$alarmConfigure', preserveNullAndEmptyArrays: true },
+      },
+
+      // 🔥 populate alarmTypeId inside alarmConfigure
+      {
+        $lookup: {
+          from: 'alarmsType', // 👈 your collection name for alarm types
+          localField: 'alarmConfigure.alarmTypeId',
+          foreignField: '_id',
+          as: 'alarmConfigure.alarmType',
+        },
+      },
+      {
+        $unwind: {
+          path: '$alarmConfigure.alarmType',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // unwind alarmOccurrences (mandatory for filtering)
+      {
+        $unwind: {
+          path: '$alarmOccurrences',
+          preserveNullAndEmptyArrays: false,
+        },
+      },
+
+      // apply filters
+      { $match: match },
+
+      // regroup back to arrays
+      {
+        $group: {
+          _id: '$_id',
+          alarmConfigId: { $first: '$alarmConfigId' },
+          alarmConfigure: { $first: '$alarmConfigure' },
+          alarmOccurrenceCount: { $first: '$alarmOccurrenceCount' },
+          alarmAcknowledgementStatusCount: {
+            $first: '$alarmAcknowledgementStatusCount',
+          },
+          alarmFirstOccurrence: { $first: '$alarmFirstOccurrence' },
+          alarmLastOccurrence: { $first: '$alarmLastOccurrence' },
+          alarmOccurrences: { $push: '$alarmOccurrences' },
+        },
+      },
     ]);
 
     return {
       data: results,
-      total,
-      page,
-      lastPage: Math.ceil(total / limit),
+      total: results.length,
     };
+  }
+
+  async acknowledgementActions() {
+    const results = await this.alarmsModel.find(
+      {}, // filter (sab documents)
+      { acknowledgementActions: 1, _id: 0 }, // projection (sirf acknowledgementActions field)
+    );
+    const merged = results.flatMap((r) => r.acknowledgementActions || []);
+    // merge all arrays into single array
+    return [...new Set(merged)]; // return unique values only
+  }
+
+  async acknowledgeOne(
+    occurrenceId: string,
+    action: string,
+    acknowledgedBy: string, // frontend still passes string id
+  ) {
+    const occurrence = await this.alarmOccurrenceModel.findById(occurrenceId);
+    if (!occurrence) throw new NotFoundException('Occurrence not found');
+
+    if (occurrence.alarmAcknowledgeStatus === 'Acknowledged') {
+      throw new Error('This occurrence is already acknowledged');
+    }
+
+    const now = new Date();
+    const delay = (now.getTime() - new Date(occurrence.date).getTime()) / 1000;
+
+    // ✅ Update occurrence
+    occurrence.alarmAcknowledgeStatus = 'Acknowledged';
+    occurrence.alarmAcknowledgmentAction = action;
+
+    // 👇 Cast to ObjectId safely
+    occurrence.alarmAcknowledgedBy = new Types.ObjectId(acknowledgedBy);
+
+    occurrence.alarmAcknowledgedDelay = delay;
+
+    await occurrence.save();
+
+    // ✅ Find parent AlarmEvent that has this occurrence
+    const parentAlarm = await this.alarmsEventModel.findOne({
+      alarmOccurrences: occurrence._id,
+    });
+
+    if (parentAlarm) {
+      // Count acknowledged occurrences
+      const acknowledgedCount = await this.alarmOccurrenceModel.countDocuments({
+        _id: { $in: parentAlarm.alarmOccurrences },
+        alarmAcknowledgeStatus: 'Acknowledged',
+      });
+
+      parentAlarm.alarmAcknowledgementStatusCount = acknowledgedCount;
+      await parentAlarm.save();
+    }
+  }
+  /**
+   * Acknowledge multiple occurrences at once
+   */
+  async acknowledgeMany(occurrenceIds: string[], acknowledgedBy: string) {
+    const now = new Date();
+
+    // ✅ Cast all IDs to ObjectId
+    const objectIds = occurrenceIds.map((id) => new Types.ObjectId(id));
+
+    // ✅ Update occurrences in bulk
+    await this.alarmOccurrenceModel.updateMany(
+      {
+        _id: { $in: objectIds },
+        alarmAcknowledgeStatus: { $ne: 'Acknowledged' },
+      },
+      {
+        $set: {
+          alarmAcknowledgeStatus: 'Acknowledged',
+          alarmAcknowledgmentAction: 'Auto Mass Acknowledged',
+          alarmAcknowledgedBy: new Types.ObjectId(acknowledgedBy),
+          alarmAcknowledgedDelay: 0, // you could calculate per-occurrence if needed
+        },
+      },
+    );
+
+    // ✅ Get all parent alarms that have these occurrences
+    const occurrences = await this.alarmOccurrenceModel.find({
+      _id: { $in: objectIds },
+    });
+
+    // Find unique parent alarms
+    const parentAlarms = await this.alarmsEventModel.find({
+      alarmOccurrences: { $in: objectIds },
+    });
+
+    for (const parentAlarm of parentAlarms) {
+      // Recalculate acknowledged count for this parent
+      const acknowledgedCount = await this.alarmOccurrenceModel.countDocuments({
+        _id: { $in: parentAlarm.alarmOccurrences },
+        alarmAcknowledgeStatus: 'Acknowledged',
+      });
+
+      parentAlarm.alarmAcknowledgementStatusCount = acknowledgedCount;
+      await parentAlarm.save();
+    }
+
+    return { updated: objectIds.length };
   }
 }

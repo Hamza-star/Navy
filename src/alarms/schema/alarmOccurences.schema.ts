@@ -37,8 +37,9 @@ export class AlarmOccurrence {
   @Prop({ type: String, default: '' })
   alarmAcknowledgmentAction: string;
 
-  @Prop({ type: String, default: '' })
-  alarmAcknowledgedBy: string;
+  // ✅ Make it ObjectId instead of string
+  @Prop({ type: Types.ObjectId, ref: 'Users', required: false })
+  alarmAcknowledgedBy: Types.ObjectId | null;
 
   @Prop({ type: Number, default: 0 })
   alarmAcknowledgedDelay: number;
@@ -48,6 +49,9 @@ export class AlarmOccurrence {
 
   @Prop({ type: Number, default: 0 })
   alarmDuration: number;
+
+  @Prop({ type: String })
+  alarmAcknowledgmentType: 'Single' | 'Both' | null;
 }
 
 export type AlarmsOccurrenceDocument = AlarmOccurrence & Document;

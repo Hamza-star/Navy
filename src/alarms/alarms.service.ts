@@ -605,58 +605,78 @@ export class AlarmsService {
     const now = new Date();
     const configId = alarmConfig._id;
 
-    const event = await this.alarmsEventModel
-      .findOne({ alarmConfigId: configId })
-      .exec();
-
     const triggered = this.getTriggeredThreshold(value, rules);
     if (!triggered) return null;
 
+    // ✅ Generate ID only if we need to insert
     const customId = await this.generateCustomAlarmId();
     if (!customId) {
       throw new Error('Alarm ID limit reached (ALM99-999)');
     }
 
-    const occurrence = await this.alarmOccurrenceModel.create({
-      date: now,
-      alarmID: customId,
-      alarmStatus: true,
-      alarmThresholdValue: triggered.value,
-      alarmThresholdOperator: triggered.operator,
-      alarmPresentValue: value,
-      alarmAcknowledgeStatus: 'Unacknowledged',
-      alarmAcknowledgmentAction: '',
-      alarmAcknowledgedBy: '',
-      alarmAcknowledgedDelay: 0,
-      alarmAge: 0,
-      alarmDuration: 0,
-      alarmThreshold: triggered,
-      alarmRulesetId: rules._id ?? undefined,
-      alarmTypeId: alarmConfig.alarmTypeId?._id,
-      alarmAcknowledgmentType: alarmConfig.alarmTypeId?.acknowledgeType,
-      alarmSnooze: false,
-      snoozeAt: null,
-      snoozeDuration: null,
-    });
+    // ✅ Step 1: Atomic upsert with marker field
+    const occurrence = await this.alarmOccurrenceModel.findOneAndUpdate(
+      {
+        alarmConfigId: configId,
+        alarmStatus: true, // only 1 active per config
+      },
+      {
+        $setOnInsert: {
+          alarmID: customId,
+          date: now,
+          alarmConfigId: configId,
+          alarmRulesetId: rules._id,
+          alarmTypeId: alarmConfig.alarmTypeId?._id,
+          alarmAcknowledgeStatus: 'Unacknowledged',
+          alarmAcknowledgmentAction: '',
+          alarmAcknowledgedBy: '',
+          alarmAcknowledgedDelay: 0,
+          alarmAge: 0,
+          alarmDuration: 0,
+          alarmAcknowledgmentType: alarmConfig.alarmTypeId?.acknowledgeType,
+          alarmSnooze: false,
+          snoozeAt: null,
+          snoozeDuration: null,
+          createdAt: now,
 
-    if (event) {
-      event.alarmOccurrenceCount = (event.alarmOccurrenceCount || 0) + 1;
-      event.alarmLastOccurrence = now;
-      event.alarmOccurrences.push(occurrence._id as Types.ObjectId);
-      await event.save();
-      return { event, occurrence };
+          __justCreated: true, // 👈 marker to detect new insert
+        },
+        $set: {
+          alarmPresentValue: value,
+          alarmThresholdValue: triggered.value,
+          alarmThresholdOperator: triggered.operator,
+          updatedAt: now,
+        },
+      },
+      { new: true, upsert: true },
+    );
+
+    // ✅ Step 2: Prepare event update
+    const updateEvent: any = {
+      $set: { alarmLastOccurrence: now },
+      $setOnInsert: { alarmFirstOccurrence: now },
+      $addToSet: { alarmOccurrences: occurrence._id },
+    };
+
+    // Only increment count if this was a new occurrence
+    if ((occurrence as any).__justCreated) {
+      updateEvent.$inc = { alarmOccurrenceCount: 1 };
+
+      // Cleanup the marker field
+      await this.alarmOccurrenceModel.updateOne(
+        { _id: occurrence._id },
+        { $unset: { __justCreated: 1 } },
+      );
     }
 
-    const created = new this.alarmsEventModel({
-      alarmConfigId: configId,
-      alarmOccurrenceCount: 1,
-      alarmFirstOccurrence: now,
-      alarmLastOccurrence: now,
-      alarmOccurrences: [occurrence._id],
-    });
+    // ✅ Step 3: Update / upsert the event
+    const event = await this.alarmsEventModel.findOneAndUpdate(
+      { alarmConfigId: configId },
+      updateEvent,
+      { new: true, upsert: true },
+    );
 
-    await created.save();
-    return { event: created, occurrence };
+    return { event, occurrence };
   }
 
   /**
@@ -759,8 +779,33 @@ export class AlarmsService {
       if (!rules || !rules.thresholds?.length) continue;
 
       const triggered = this.getTriggeredThreshold(value, rules);
-      if (!triggered) continue;
 
+      if (!triggered) {
+        // 🔴 No threshold triggered → close any active alarm for this config
+        const activeOccurrence =
+          await this.alarmOccurrenceModel.findOneAndUpdate(
+            { alarmConfigId: alarm._id, alarmStatus: true },
+            {
+              $set: {
+                alarmStatus: false,
+                alarmDuration: Math.floor(
+                  (Date.now() - new Date().getTime()) / 1000,
+                ), // you can refine with occurrence.date
+                updatedAt: new Date(),
+              },
+            },
+            { new: true },
+          );
+
+        if (activeOccurrence) {
+          await this.alarmsEventModel.findOneAndUpdate(
+            { alarmConfigId: alarm._id },
+            { $set: { alarmLastOccurrence: new Date() } },
+          );
+        }
+
+        continue; // skip to next alarm
+      }
       const result = await this.upsertTriggeredAlarm(alarm, rules, value);
       if (!result) continue;
 

@@ -52,6 +52,15 @@ export class AlarmOccurrence {
 
   @Prop({ type: String })
   alarmAcknowledgmentType: 'Single' | 'Both' | null;
+
+  @Prop({ type: Boolean, required: false })
+  alarmSnooze: boolean;
+
+  @Prop({ type: Date })
+  snoozeAt: Date;
+
+  @Prop({ type: Number, required: false })
+  snoozeDuration: number;
 }
 
 export type AlarmsOccurrenceDocument = AlarmOccurrence & Document;

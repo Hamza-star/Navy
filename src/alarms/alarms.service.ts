@@ -12,6 +12,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { ConfigAlarmDto } from './dto/alarmsConfig.dto';
 import { AlarmsTypeDto } from './dto/alarmsType.dto';
+import { SnoozeDto } from './dto/snooze.dto';
 import { alarmsConfiguration } from './schema/alarmsConfig.schema';
 import {
   AlarmRulesSet,
@@ -958,5 +959,28 @@ export class AlarmsService {
     }
 
     return { updated: objectIds.length };
+  }
+
+  // alarms-occurrence.service.ts
+  async snoozeAlarm(snoozeDto: SnoozeDto) {
+    const { ids, alarmSnooze, snoozeDuration, snoozeAt } = snoozeDto;
+
+    const updated = await this.alarmOccurrenceModel.updateMany(
+      { _id: { $in: ids } }, // 👈 multiple ids filter
+      {
+        $set: {
+          alarmSnooze,
+          snoozeDuration,
+          snoozeAt: new Date(snoozeAt),
+        },
+      },
+      { runValidators: true },
+    );
+
+    if (updated.modifiedCount === 0) {
+      throw new NotFoundException('No alarm occurrences updated');
+    }
+
+    return { message: `${updated.modifiedCount} alarms updated successfully` };
   }
 }

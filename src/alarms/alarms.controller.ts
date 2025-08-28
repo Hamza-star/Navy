@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Put } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Put } from '@nestjs/common';
 import { AlarmsService } from './alarms.service';
 import { ConfigAlarmDto } from './dto/alarmsConfig.dto';
 import { AlarmsTypeDto } from './dto/alarmsType.dto';
@@ -7,6 +7,7 @@ import { GetTypeByAlarmDto } from './dto/get-type-by-alarm.dto';
 import { GetUpdateIdDto } from './dto/get-update-id.dto';
 import { UpdateAlarmDto } from './dto/update-alarm.dto';
 import { DeleteAlarmDto } from './dto/delete-alarm.dto';
+import { SnoozeDto } from './dto/snooze.dto';
 
 @Controller('alarms')
 export class AlarmsController {
@@ -111,5 +112,10 @@ export class AlarmsController {
     @Body('acknowledgedBy') acknowledgedBy: string,
   ) {
     return this.alarmsService.acknowledgeMany(ids, acknowledgedBy);
+  }
+
+  @Patch('snooze')
+  async snoozeAlarm(@Body() snoozeDto: SnoozeDto) {
+    return this.alarmsService.snoozeAlarm(snoozeDto);
   }
 }

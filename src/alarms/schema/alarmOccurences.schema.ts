@@ -13,13 +13,13 @@ export class AlarmOccurrence {
   alarmStatus: boolean;
 
   // ✅ Link to config
-  @Prop({ type: Types.ObjectId, ref: 'alarmsConfiguration', required: true })
+  @Prop({ type: Types.ObjectId, ref: 'alarmsConfiguration' })
   alarmConfigId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'alarmsConfiguration', required: false })
+  @Prop({ type: Types.ObjectId, ref: 'alarmsConfiguration' })
   alarmThresholdId: Types.ObjectId | null;
 
-  @Prop({ type: Number, required: false })
+  @Prop({ type: Number })
   alarmThresholdValue: number | null;
 
   @Prop({
@@ -29,7 +29,7 @@ export class AlarmOccurrence {
   })
   alarmThresholdOperator: '>' | '<' | '>=' | '<=' | '==' | '!=' | null;
 
-  @Prop({ type: Number, required: true })
+  @Prop({ type: Number })
   alarmPresentValue: number;
 
   @Prop({
@@ -42,7 +42,7 @@ export class AlarmOccurrence {
   @Prop({ type: String, default: '' })
   alarmAcknowledgmentAction: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'Users', required: false })
+  @Prop({ type: Types.ObjectId, ref: 'Users' })
   alarmAcknowledgedBy: Types.ObjectId | null;
 
   @Prop({ type: Number, default: 0 })
@@ -57,13 +57,13 @@ export class AlarmOccurrence {
   @Prop({ type: String })
   alarmAcknowledgmentType: 'Single' | 'Both' | null;
 
-  @Prop({ type: Boolean, required: false })
+  @Prop({ type: Boolean })
   alarmSnooze: boolean;
 
   @Prop({ type: Date })
   snoozeAt: Date;
 
-  @Prop({ type: Number, required: false })
+  @Prop({ type: Number })
   snoozeDuration: number;
 
   @Prop({ type: Date })

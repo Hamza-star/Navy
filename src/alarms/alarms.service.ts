@@ -634,6 +634,9 @@ export class AlarmsService {
       alarmRulesetId: rules._id ?? undefined,
       alarmTypeId: alarmConfig.alarmTypeId?._id,
       alarmAcknowledgmentType: alarmConfig.alarmTypeId?.acknowledgeType,
+      alarmSnooze: false,
+      snoozeAt: null,
+      snoozeDuration: null,
     });
 
     if (event) {
@@ -765,6 +768,7 @@ export class AlarmsService {
       activeConfigIds.add(alarm._id.toString());
 
       triggeredAlarms.push({
+        alarmOccurenceId: occurrence._id,
         alarmId: occurrence.alarmID,
         alarmName: alarm.alarmName,
         Location: alarm.alarmLocation,
@@ -778,6 +782,9 @@ export class AlarmsService {
         priority: alarm.alarmTypeId?.priority,
         color: alarm.alarmTypeId?.color,
         code: alarm.alarmTypeId?.code,
+        alarmSnoozeStatus: occurrence.alarmSnooze,
+        alarmSnoozeDuration: occurrence.snoozeDuration,
+        alarmSnoozeAt: occurrence.snoozeAt,
       });
     }
 

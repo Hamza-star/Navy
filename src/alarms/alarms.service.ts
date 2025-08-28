@@ -329,6 +329,18 @@ export class AlarmsService {
 
     const objectId = new Types.ObjectId(alarmConfigId);
 
+    // 🔎 First check if any event/occurrence exists for this config
+    const existingEvent = await this.alarmsEventModel
+      .findOne({ alarmConfigId: objectId })
+      .populate('alarmOccurrences')
+      .lean();
+
+    if (existingEvent && existingEvent.alarmOccurrences?.length > 0) {
+      throw new BadRequestException(
+        `Cannot delete: AlarmConfig has ${existingEvent.alarmOccurrences.length} related occurrences`,
+      );
+    }
+
     const deleted = await this.alarmsModel.findByIdAndDelete(objectId).lean();
 
     if (!deleted) {
@@ -336,7 +348,7 @@ export class AlarmsService {
     }
 
     return {
-      message: 'Alarm deleted successfully',
+      message: 'Alarm Configuration deleted successfully',
       data: deleted,
     };
   }

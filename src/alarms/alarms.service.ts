@@ -601,78 +601,78 @@ export class AlarmsService {
     alarmConfig: AlarmConfigWithPopulate,
     rules: AlarmRulesSet,
     value: number,
-  ): Promise<{ event: any; occurrence: any } | null> {
+  ): Promise<{ event: any; occurrence: AlarmsOccurrenceDocument } | null> {
     const now = new Date();
     const configId = alarmConfig._id;
 
     const triggered = this.getTriggeredThreshold(value, rules);
     if (!triggered) return null;
 
-    // ✅ Generate ID only if we need to insert
-    const customId = await this.generateCustomAlarmId();
-    if (!customId) {
-      throw new Error('Alarm ID limit reached (ALM99-999)');
+    // Step 0: Check if there's an active occurrence
+    let occurrence = await this.alarmOccurrenceModel.findOne({
+      alarmConfigId: configId,
+      alarmStatus: true, // only active occurrences
+    });
+
+    let isNewOccurrence = false;
+
+    if (!occurrence) {
+      // Step 1: Create a new occurrence
+      const customId = await this.generateCustomAlarmId();
+      if (!customId) throw new Error('Alarm ID limit reached (ALM99-999)');
+
+      occurrence = await this.alarmOccurrenceModel.create({
+        alarmID: customId,
+        date: now,
+        alarmConfigId: configId,
+        alarmRulesetId: rules._id,
+        alarmTypeId: alarmConfig.alarmTypeId?._id,
+        alarmAcknowledgeStatus: 'Unacknowledged',
+        alarmAcknowledgmentAction: '',
+        alarmAcknowledgedBy: null,
+        alarmAcknowledgedDelay: 0,
+        alarmAge: 0,
+        alarmDuration: 0,
+        alarmAcknowledgmentType: alarmConfig.alarmTypeId?.acknowledgeType,
+        alarmSnooze: false,
+        snoozeAt: null,
+        snoozeDuration: null,
+        alarmPresentValue: value,
+        alarmThresholdValue: triggered.value,
+        alarmThresholdOperator: triggered.operator,
+        alarmStatus: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      isNewOccurrence = true;
+    } else {
+      // Step 2: Update existing occurrence
+      occurrence.alarmPresentValue = value;
+      occurrence.alarmThresholdValue = triggered.value;
+      occurrence.alarmThresholdOperator = triggered.operator;
+
+      // Update duration if needed
+      occurrence.alarmDuration = now.getTime() - occurrence.date.getTime();
+      occurrence.updatedAt = now;
+
+      await occurrence.save();
     }
 
-    // ✅ Step 1: Atomic upsert with marker field
-    const occurrence = await this.alarmOccurrenceModel.findOneAndUpdate(
-      {
-        alarmConfigId: configId,
-        alarmStatus: true, // only 1 active per config
-      },
-      {
-        $setOnInsert: {
-          alarmID: customId,
-          date: now,
-          alarmConfigId: configId,
-          alarmRulesetId: rules._id,
-          alarmTypeId: alarmConfig.alarmTypeId?._id,
-          alarmAcknowledgeStatus: 'Unacknowledged',
-          alarmAcknowledgmentAction: '',
-          alarmAcknowledgedBy: '',
-          alarmAcknowledgedDelay: 0,
-          alarmAge: 0,
-          alarmDuration: 0,
-          alarmAcknowledgmentType: alarmConfig.alarmTypeId?.acknowledgeType,
-          alarmSnooze: false,
-          snoozeAt: null,
-          snoozeDuration: null,
-          createdAt: now,
-
-          __justCreated: true, // 👈 marker to detect new insert
-        },
-        $set: {
-          alarmPresentValue: value,
-          alarmThresholdValue: triggered.value,
-          alarmThresholdOperator: triggered.operator,
-          updatedAt: now,
-        },
-      },
-      { new: true, upsert: true },
-    );
-
-    // ✅ Step 2: Prepare event update
-    const updateEvent: any = {
+    // Step 3: Update / upsert the event
+    const eventUpdate: any = {
       $set: { alarmLastOccurrence: now },
       $setOnInsert: { alarmFirstOccurrence: now },
       $addToSet: { alarmOccurrences: occurrence._id },
     };
 
-    // Only increment count if this was a new occurrence
-    if ((occurrence as any).__justCreated) {
-      updateEvent.$inc = { alarmOccurrenceCount: 1 };
-
-      // Cleanup the marker field
-      await this.alarmOccurrenceModel.updateOne(
-        { _id: occurrence._id },
-        { $unset: { __justCreated: 1 } },
-      );
+    if (isNewOccurrence) {
+      eventUpdate.$inc = { alarmOccurrenceCount: 1 };
     }
 
-    // ✅ Step 3: Update / upsert the event
     const event = await this.alarmsEventModel.findOneAndUpdate(
       { alarmConfigId: configId },
-      updateEvent,
+      eventUpdate,
       { new: true, upsert: true },
     );
 
@@ -780,32 +780,39 @@ export class AlarmsService {
 
       const triggered = this.getTriggeredThreshold(value, rules);
 
+      // inside processActiveAlarms loop, when !triggered:
       if (!triggered) {
-        // 🔴 No threshold triggered → close any active alarm for this config
-        const activeOccurrence =
-          await this.alarmOccurrenceModel.findOneAndUpdate(
-            { alarmConfigId: alarm._id, alarmStatus: true },
+        const now = new Date();
+        // fetch the active occurrence to get its start time
+        const activeOccurrence = await this.alarmOccurrenceModel
+          .findOne({ alarmConfigId: alarm._id, alarmStatus: true })
+          .sort({ date: -1 }); // in case you ever have more than one
+
+        if (activeOccurrence) {
+          const durationSec = Math.floor(
+            (now.getTime() - new Date(activeOccurrence.date).getTime()) / 1000,
+          );
+
+          await this.alarmOccurrenceModel.updateOne(
+            { _id: activeOccurrence._id },
             {
               $set: {
                 alarmStatus: false,
-                alarmDuration: Math.floor(
-                  (Date.now() - new Date().getTime()) / 1000,
-                ), // you can refine with occurrence.date
-                updatedAt: new Date(),
+                alarmDuration: durationSec,
+                updatedAt: now,
               },
             },
-            { new: true },
           );
 
-        if (activeOccurrence) {
-          await this.alarmsEventModel.findOneAndUpdate(
+          await this.alarmsEventModel.updateOne(
             { alarmConfigId: alarm._id },
-            { $set: { alarmLastOccurrence: new Date() } },
+            { $set: { alarmLastOccurrence: now } },
           );
         }
 
-        continue; // skip to next alarm
+        continue;
       }
+
       const result = await this.upsertTriggeredAlarm(alarm, rules, value);
       if (!result) continue;
 
@@ -850,7 +857,7 @@ export class AlarmsService {
       match['alarmOccurrences.alarmStatus'] = filters.alarmStatus;
     }
 
-    // Time range filter (range, from-to, date sab handle ho jaye)
+    // Time range filter (range, from-to, date)
     if (filters.range || filters.from || filters.to || filters.date) {
       const { start, end } = getTimeRange(filters as TimeRangePayload);
 
@@ -861,7 +868,7 @@ export class AlarmsService {
     }
 
     const results = await this.alarmsEventModel.aggregate([
-      // populate occurrences
+      // Populate alarmOccurrences
       {
         $lookup: {
           from: 'alarmsOccurrence',
@@ -871,7 +878,32 @@ export class AlarmsService {
         },
       },
 
-      // populate config
+      // Populate alarmAcknowledgedBy inside alarmOccurrences
+      {
+        $unwind: {
+          path: '$alarmOccurrences',
+          preserveNullAndEmptyArrays: false,
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          let: { userId: '$alarmOccurrences.alarmAcknowledgedBy' },
+          pipeline: [
+            { $match: { $expr: { $eq: ['$_id', '$$userId'] } } },
+            { $project: { password: 0 } }, // exclude password
+          ],
+          as: 'alarmOccurrences.alarmAcknowledgedBy',
+        },
+      },
+      {
+        $unwind: {
+          path: '$alarmOccurrences.alarmAcknowledgedBy',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // Populate alarmConfigure
       {
         $lookup: {
           from: 'alarmsConfiguration',
@@ -884,10 +916,10 @@ export class AlarmsService {
         $unwind: { path: '$alarmConfigure', preserveNullAndEmptyArrays: true },
       },
 
-      // 🔥 populate alarmTypeId inside alarmConfigure
+      // Populate alarmType inside alarmConfigure
       {
         $lookup: {
-          from: 'alarmsType', // 👈 your collection name for alarm types
+          from: 'alarmsType',
           localField: 'alarmConfigure.alarmTypeId',
           foreignField: '_id',
           as: 'alarmConfigure.alarmType',
@@ -900,18 +932,10 @@ export class AlarmsService {
         },
       },
 
-      // unwind alarmOccurrences (mandatory for filtering)
-      {
-        $unwind: {
-          path: '$alarmOccurrences',
-          preserveNullAndEmptyArrays: false,
-        },
-      },
-
-      // apply filters
+      // Apply filters
       { $match: match },
 
-      // regroup back to arrays
+      // Regroup occurrences back into array
       {
         $group: {
           _id: '$_id',

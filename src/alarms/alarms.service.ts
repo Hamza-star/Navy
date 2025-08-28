@@ -177,6 +177,11 @@ export class AlarmsService {
    * @returns The created alarm type.
    */
   async addAlarmType(dto: AlarmsTypeDto) {
+    // 🔹 Force uppercase on name (or whatever field you mean)
+    if (dto.type) {
+      dto.type = dto.type.toUpperCase();
+    }
+
     const alarmType = new this.alarmTypeModel(dto);
     await alarmType.save();
 
@@ -201,6 +206,10 @@ export class AlarmsService {
    * @returns The updated alarm type.
    */
   async updateAlarmType(id: string, dto: AlarmsTypeDto) {
+    if (dto.type) {
+      dto.type = dto.type.toUpperCase();
+    }
+
     const updated = await this.alarmTypeModel.findByIdAndUpdate(id, dto, {
       new: true,
       runValidators: true,
@@ -366,17 +375,18 @@ export class AlarmsService {
       .lean();
 
     if (relatedAlarms.length > 0) {
-      return {
+      throw new BadRequestException({
         message: `Cannot delete AlarmType. It is used in ${relatedAlarms.length} alarms.`,
         count: relatedAlarms.length,
         alarms: relatedAlarms.map((a) => a.alarmName),
-      };
+      });
     }
     console.log('alarms with type');
     // 2. Check if any alarms reference this alarmType
     const alarmsWithType = await this.alarmsModel.findOne({ alarmTypeId: id });
     if (alarmsWithType) {
       return {
+        error: 404,
         message: `Cannot delete: alarms exist with this alarm type.`,
         data: null,
       };

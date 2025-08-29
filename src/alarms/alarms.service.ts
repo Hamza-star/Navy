@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-base-to-string */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -822,6 +823,7 @@ export class AlarmsService {
       triggeredAlarms.push({
         alarmOccurenceId: occurrence._id,
         alarmId: occurrence.alarmID,
+        alarmStatus: occurrence.alarmStatus,
         alarmName: alarm.alarmName,
         Location: alarm.alarmLocation,
         subLocation: alarm.alarmSubLocation,
@@ -971,7 +973,7 @@ export class AlarmsService {
   async acknowledgeOne(
     occurrenceId: string,
     action: string,
-    acknowledgedBy: string, // frontend still passes string id
+    acknowledgedBy: string,
   ) {
     const occurrence = await this.alarmOccurrenceModel.findById(occurrenceId);
     if (!occurrence) throw new NotFoundException('Occurrence not found');
@@ -986,21 +988,16 @@ export class AlarmsService {
     // ✅ Update occurrence
     occurrence.alarmAcknowledgeStatus = 'Acknowledged';
     occurrence.alarmAcknowledgmentAction = action;
-
-    // 👇 Cast to ObjectId safely
     occurrence.alarmAcknowledgedBy = new Types.ObjectId(acknowledgedBy);
-
     occurrence.alarmAcknowledgedDelay = delay;
-
     await occurrence.save();
 
-    // ✅ Find parent AlarmEvent that has this occurrence
+    // ✅ Update parent alarm
     const parentAlarm = await this.alarmsEventModel.findOne({
       alarmOccurrences: occurrence._id,
     });
 
     if (parentAlarm) {
-      // Count acknowledged occurrences
       const acknowledgedCount = await this.alarmOccurrenceModel.countDocuments({
         _id: { $in: parentAlarm.alarmOccurrences },
         alarmAcknowledgeStatus: 'Acknowledged',
@@ -1009,7 +1006,26 @@ export class AlarmsService {
       parentAlarm.alarmAcknowledgementStatusCount = acknowledgedCount;
       await parentAlarm.save();
     }
+
+    // ✅ Fetch populated occurrence
+    const populatedOccurrence = await this.alarmOccurrenceModel
+      .findById(occurrence._id)
+      .populate('alarmAcknowledgedBy', 'name email');
+
+    // ✅ Fetch parent alarm with populated occurrences + acknowledgedBy
+    const populatedParentAlarm = parentAlarm
+      ? await this.alarmsEventModel.findById(parentAlarm._id).populate({
+          path: 'alarmOccurrences',
+          populate: { path: 'alarmAcknowledgedBy', select: 'name email' },
+        })
+      : null;
+
+    return {
+      updatedOccurrences: [populatedOccurrence], // 🔹 same shape as acknowledgeMany
+      parentAlarms: populatedParentAlarm ? [populatedParentAlarm] : [],
+    };
   }
+
   /**
    * Acknowledge multiple occurrences at once
    */
@@ -1056,7 +1072,7 @@ export class AlarmsService {
       await parentAlarm.save();
     }
 
-    return { updated: objectIds.length };
+    return { updatedOccurrences: occurrences, parentAlarms };
   }
 
   // alarms-occurrence.service.ts

@@ -30,8 +30,7 @@ import { UpdateAlarmDto } from './dto/update-alarm.dto';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { getTimeRange, TimeRangePayload } from 'src/helpers/generalTimeFilter';
-// Local type to represent an alarm config document with populated refs
-// (keeps this file lightweight rather than changing global schema types)
+
 type AlarmConfigWithPopulate = alarmsConfiguration & {
   _id?: any;
   alarmTriggerConfig?: AlarmRulesSet | null;
@@ -130,15 +129,12 @@ export class AlarmsService {
         'PowerFactor_C',
         'PowerFactor_Total',
       ],
-      // Add more here as needed...
     };
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await
   async DevicesDropdownList() {
     const mapping = this.meterSuffixMapping();
 
-    // Create dropdown-friendly format
     return Object.keys(mapping).map((meterId) => ({
       meterId,
       suffixes: mapping[meterId],
@@ -178,7 +174,6 @@ export class AlarmsService {
    * @returns The created alarm type.
    */
   async addAlarmType(dto: AlarmsTypeDto) {
-    // 🔹 Force uppercase on name (or whatever field you mean)
     if (dto.type) {
       dto.type = dto.type.toUpperCase();
     }
@@ -240,12 +235,10 @@ export class AlarmsService {
       ...restUpdateData
     } = dto;
 
-    // 1️⃣ Validate alarmConfigId
     if (!Types.ObjectId.isValid(alarmConfigId)) {
       throw new BadRequestException('Invalid alarmConfigId');
     }
 
-    // 2️⃣ Fetch existing alarm
     const existingAlarm = await this.alarmsModel.findById(alarmConfigId);
     if (!existingAlarm) {
       throw new NotFoundException(`Alarm with ID ${alarmConfigId} not found`);
@@ -253,7 +246,6 @@ export class AlarmsService {
 
     const updateData: any = { ...restUpdateData };
 
-    // 3️⃣ Handle alarmTypeId
     if (alarmTypeId) {
       if (!Types.ObjectId.isValid(alarmTypeId)) {
         throw new BadRequestException('Invalid alarmTypeId');
@@ -261,10 +253,8 @@ export class AlarmsService {
       updateData.alarmTypeId = new Types.ObjectId(alarmTypeId);
     }
 
-    // 4️⃣ Handle alarmTriggerConfig (update existing instead of creating new)
     if (alarmTriggerConfig) {
       if (typeof alarmTriggerConfig === 'object') {
-        // Pick _id from DTO or fallback to existing alarm's ruleset
         let rulesetId =
           alarmTriggerConfig._id?.toString() ??
           existingAlarm.alarmTriggerConfig?.toString();
@@ -272,14 +262,11 @@ export class AlarmsService {
         if (rulesetId && Types.ObjectId.isValid(rulesetId)) {
           const { thresholds, ...restRuleset } = alarmTriggerConfig;
 
-          // Build update object
           const rulesetUpdate: any = { ...restRuleset };
           if (Array.isArray(thresholds)) {
-            // overwrite thresholds instead of merging
             rulesetUpdate.thresholds = thresholds;
           }
 
-          // Update existing ruleset
           await this.alarmsRulesSetModel.findByIdAndUpdate(
             rulesetId,
             { $set: rulesetUpdate },
@@ -299,7 +286,6 @@ export class AlarmsService {
       }
     }
 
-    // 5️⃣ Perform update
     const updated = await this.alarmsModel
       .findByIdAndUpdate(alarmConfigId, { $set: updateData }, { new: true })
       .populate('alarmTypeId')
@@ -312,7 +298,6 @@ export class AlarmsService {
       );
     }
 
-    // 6️⃣ Ensure previous values are preserved in response if missing
     if (!updated.alarmTypeId) {
       updated.alarmTypeId = existingAlarm.alarmTypeId;
     }
@@ -339,7 +324,6 @@ export class AlarmsService {
 
     const objectId = new Types.ObjectId(alarmConfigId);
 
-    // 🔎 First check if any event/occurrence exists for this config
     const existingEvent = await this.alarmsEventModel
       .findOne({ alarmConfigId: objectId })
       .populate('alarmOccurrences')
@@ -383,7 +367,7 @@ export class AlarmsService {
       });
     }
     console.log('alarms with type');
-    // 2. Check if any alarms reference this alarmType
+
     const alarmsWithType = await this.alarmsModel.findOne({ alarmTypeId: id });
     if (alarmsWithType) {
       return {
@@ -393,7 +377,6 @@ export class AlarmsService {
       };
     }
 
-    // 3. Delete if safe
     const deleted = await this.alarmTypeModel.findByIdAndDelete(id);
 
     return {
@@ -408,15 +391,13 @@ export class AlarmsService {
    * @returns The created alarm.
    */
   async addAlarm(dto: ConfigAlarmDto) {
-    // 1️⃣ Save ruleset separately
     const ruleset = new this.alarmsRulesSetModel(dto.alarmTriggerConfig);
     await ruleset.save();
 
-    // 2️⃣ Create alarm with correct ObjectIds
     const alarm = new this.alarmsModel({
       ...dto,
-      alarmTypeId: new Types.ObjectId(dto.alarmTypeId), // ✅ force ObjectId
-      alarmTriggerConfig: ruleset._id, // ✅ ObjectId from saved ruleset
+      alarmTypeId: new Types.ObjectId(dto.alarmTypeId),
+      alarmTriggerConfig: ruleset._id,
     });
 
     await alarm.save();
@@ -554,21 +535,18 @@ export class AlarmsService {
   }
 
   private async generateCustomAlarmId(): Promise<string | null> {
-    // Get last occurrence sorted by alarmID
     const last = await this.alarmOccurrenceModel
       .findOne({}, { alarmID: 1 })
       .sort({ createdAt: -1 })
       .lean();
 
     if (!last || !last.alarmID) {
-      return 'ALM01-001'; // First ever alarm
+      return 'ALM01-001';
     }
 
     const match = last.alarmID.match(/ALM(\d+)-(\d+)/);
 
     if (!match) {
-      // agar purane format wali ID milti hai (ALM_configId_timestamp)
-      // to phir se naya sequence shuru karo
       return 'ALM01-001';
     }
 
@@ -584,7 +562,7 @@ export class AlarmsService {
     }
 
     if (major > 99) {
-      return null; // 🚫 limit reached, no more alarms allowed
+      return null;
     }
 
     const newMajor = major.toString().padStart(2, '0');
@@ -609,16 +587,14 @@ export class AlarmsService {
     const triggered = this.getTriggeredThreshold(value, rules);
     if (!triggered) return null;
 
-    // Step 0: Check if there's an active occurrence
     let occurrence = await this.alarmOccurrenceModel.findOne({
       alarmConfigId: configId,
-      alarmStatus: true, // only active occurrences
+      alarmStatus: true,
     });
 
     let isNewOccurrence = false;
 
     if (!occurrence) {
-      // Step 1: Create a new occurrence
       const customId = await this.generateCustomAlarmId();
       if (!customId) throw new Error('Alarm ID limit reached (ALM99-999)');
 
@@ -648,19 +624,16 @@ export class AlarmsService {
 
       isNewOccurrence = true;
     } else {
-      // Step 2: Update existing occurrence
       occurrence.alarmPresentValue = value;
       occurrence.alarmThresholdValue = triggered.value;
       occurrence.alarmThresholdOperator = triggered.operator;
 
-      // Update duration if needed
       occurrence.alarmDuration = now.getTime() - occurrence.date.getTime();
       occurrence.updatedAt = now;
 
       await occurrence.save();
     }
 
-    // Step 3: Update / upsert the event
     const eventUpdate: any = {
       $set: { alarmLastOccurrence: now },
       $setOnInsert: { alarmFirstOccurrence: now },
@@ -687,11 +660,11 @@ export class AlarmsService {
     const now = new Date();
 
     const activeEvents = await this.alarmsEventModel
-      .find({}) // no alarmStatus here
+      .find({})
       .populate({
         path: 'alarmOccurrences',
         model: AlarmOccurrence.name,
-        match: { alarmStatus: true }, // ✅ only pull active ones
+        match: { alarmStatus: true },
       })
       .exec();
 
@@ -1046,12 +1019,11 @@ export class AlarmsService {
           alarmAcknowledgeStatus: 'Acknowledged',
           alarmAcknowledgmentAction: 'Auto Mass Acknowledged',
           alarmAcknowledgedBy: new Types.ObjectId(acknowledgedBy),
-          alarmAcknowledgedDelay: 0, // you could calculate per-occurrence if needed
+          alarmAcknowledgedDelay: 0,
         },
       },
     );
 
-    // ✅ Get all parent alarms that have these occurrences
     const occurrences = await this.alarmOccurrenceModel.find({
       _id: { $in: objectIds },
     });
@@ -1062,7 +1034,6 @@ export class AlarmsService {
     });
 
     for (const parentAlarm of parentAlarms) {
-      // Recalculate acknowledged count for this parent
       const acknowledgedCount = await this.alarmOccurrenceModel.countDocuments({
         _id: { $in: parentAlarm.alarmOccurrences },
         alarmAcknowledgeStatus: 'Acknowledged',
@@ -1080,7 +1051,7 @@ export class AlarmsService {
     const { ids, alarmSnooze, snoozeDuration, snoozeAt } = snoozeDto;
 
     const updated = await this.alarmOccurrenceModel.updateMany(
-      { _id: { $in: ids } }, // 👈 multiple ids filter
+      { _id: { $in: ids } },
       {
         $set: {
           alarmSnooze,
@@ -1095,6 +1066,6 @@ export class AlarmsService {
       throw new NotFoundException('No alarm occurrences updated');
     }
 
-    return { message: `${updated.modifiedCount} alarms updated successfully` };
+    return { message: `Alarms snoozed successfully` };
   }
 }

@@ -1,4 +1,3 @@
-
 // towerdataformulating-utils.ts
 import {
   addDays,
@@ -1097,6 +1096,7 @@ export class TowerDataProcessor {
 
     return { grouped, overallAverage };
   }
+
   static calculateWaterEfficiencyIndex(
     data: any[],
     towerType: 'CHCT' | 'CT' | 'all',
@@ -1105,9 +1105,13 @@ export class TowerDataProcessor {
     endDate: Date,
   ): { grouped: { label: string; value: number }[]; overallAverage: number } {
     if (data.length === 0) {
+      console.log('Input data is empty.');
       return { grouped: [], overallAverage: 0 };
     }
 
+    const REFERENCE_EFFICIENCY = 0.001; // 1 kWh per 1000 liters = 100%
+
+    // Helper: get date from doc
     const getDocumentDate = (doc: any): Date => {
       if (doc.timestamp?.$date) return new Date(doc.timestamp.$date);
       if (typeof doc.timestamp === 'string') return new Date(doc.timestamp);
@@ -1123,12 +1127,13 @@ export class TowerDataProcessor {
       return new Date();
     };
 
-    const Cp = 4.186; // kJ/kg°C
+    const Cp = 4.186;
 
+    // Calculate capacity in kW for a single doc
     const calcCapacity_kW = (doc: any): number | null => {
       const arr: number[] = [];
       const compute = (flow: number, hot: number, cold: number) =>
-        (Cp * flow * (hot - cold)) / 3600; // convert kJ/h to kWh
+        (Cp * flow * (hot - cold)) / 3600;
 
       const checkAndPush = (
         flowTag: string,
@@ -1140,7 +1145,11 @@ export class TowerDataProcessor {
           typeof doc[hotTag] === 'number' &&
           typeof doc[coldTag] === 'number'
         ) {
-          arr.push(compute(doc[flowTag], doc[hotTag], doc[coldTag]));
+          const result = compute(doc[flowTag], doc[hotTag], doc[coldTag]);
+          console.log(
+            `calcCapacity_kW: flow=${doc[flowTag]}, hot=${doc[hotTag]}, cold=${doc[coldTag]}, result=${result}`,
+          );
+          arr.push(result);
         }
       };
 
@@ -1169,19 +1178,25 @@ export class TowerDataProcessor {
         );
       }
 
-      return arr.length > 0
-        ? arr.reduce((a, b) => a + b, 0) / arr.length
-        : null;
+      if (arr.length === 0) {
+        console.log('calcCapacity_kW: No valid data found in doc.');
+        return null;
+      }
+
+      const avgCapacity = arr.reduce((a, b) => a + b, 0) / arr.length;
+      console.log(`calcCapacity_kW: average capacity = ${avgCapacity}`);
+      return avgCapacity;
     };
 
+    // Calculate makeup water losses in m3/h for a single doc
     const calcMakeup_m3h = (doc: any): number | null => {
       const arr: number[] = [];
-      const constant = 0.00085 * 1.8; // m³/h formula factor
+      const constant = 0.00085 * 1.8;
       const computeLosses = (flow: number, hot: number, cold: number) => {
         const evap = constant * flow * (hot - cold);
         const blowdown = evap / 6;
         const drift = 0.0005 * flow;
-        return evap + blowdown + drift; // m³/h
+        return evap + blowdown + drift;
       };
 
       const checkAndPush = (
@@ -1194,7 +1209,11 @@ export class TowerDataProcessor {
           typeof doc[hotTag] === 'number' &&
           typeof doc[coldTag] === 'number'
         ) {
-          arr.push(computeLosses(doc[flowTag], doc[hotTag], doc[coldTag]));
+          const result = computeLosses(doc[flowTag], doc[hotTag], doc[coldTag]);
+          console.log(
+            `calcMakeup_m3h: flow=${doc[flowTag]}, hot=${doc[hotTag]}, cold=${doc[coldTag]}, result=${result}`,
+          );
+          arr.push(result);
         }
       };
 
@@ -1223,66 +1242,129 @@ export class TowerDataProcessor {
         );
       }
 
-      return arr.length > 0
-        ? arr.reduce((a, b) => a + b, 0) / arr.length
-        : null;
-    };
-
-    // Group data
-    const groupMap = new Map<string, { total_kWh: number; total_L: number }>();
-
-    for (const doc of data) {
-      const capacity_kW = calcCapacity_kW(doc);
-      const makeup_m3h = calcMakeup_m3h(doc);
-      if (capacity_kW === null || makeup_m3h === null) continue;
-
-      const docDate = getDocumentDate(doc);
-
-      let groupKey = '';
-      switch (groupBy) {
-        case 'hour':
-          groupKey = format(docDate, 'yyyy-MM-dd HH:00');
-          break;
-        case 'day':
-          groupKey = format(docDate, 'yyyy-MM-dd');
-          break;
-        case 'week':
-          groupKey = `${getYear(docDate)}-W${String(getWeek(docDate)).padStart(2, '0')}`;
-          break;
-        case 'month':
-          groupKey = format(docDate, 'yyyy-MM');
-          break;
+      if (arr.length === 0) {
+        console.log('calcMakeup_m3h: No valid data found in doc.');
+        return null;
       }
 
-      const hrs = 1; // assume each doc = 1h interval
+      const avgMakeup = arr.reduce((a, b) => a + b, 0) / arr.length;
+      console.log(`calcMakeup_m3h: average makeup = ${avgMakeup}`);
+      return avgMakeup;
+    };
+
+    // Grouping container: key => {total_kWh, total_L, count}
+    const groups: Record<
+      string,
+      { total_kWh: number; total_L: number; count: number }
+    > = {};
+
+    // Helper to get group key by groupBy
+    const getGroupKey = (date: Date) => {
+      switch (groupBy) {
+        case 'hour':
+          return format(date, 'yyyy-MM-dd HH:00');
+        case 'day':
+          return format(date, 'yyyy-MM-dd');
+        case 'week':
+          // ISO week, year-weekNumber
+          const weekNum = format(date, 'II');
+          const year = format(date, 'yyyy');
+          return `${year}-W${weekNum}`;
+        case 'month':
+          return format(date, 'yyyy-MM');
+        default:
+          return format(date, 'yyyy-MM-dd');
+      }
+    };
+
+    let total_kWh_overall = 0;
+    let total_L_overall = 0;
+    let validCount = 0;
+
+    for (const doc of data) {
+      const docDate = getDocumentDate(doc);
+
+      if (docDate < startDate || docDate > endDate) {
+        console.log(`Skipping doc outside date range: ${docDate}`);
+        continue;
+      }
+
+      const capacity_kW = calcCapacity_kW(doc);
+      const makeup_m3h = calcMakeup_m3h(doc);
+
+      if (capacity_kW === null || makeup_m3h === null) {
+        console.log('Skipping doc due to null capacity or makeup');
+        continue;
+      }
+
+      // Assuming each doc represents 1 hour interval
+      const hrs = 1;
       const kWh = capacity_kW * hrs;
       const liters = makeup_m3h * hrs * 1000;
 
-      if (!groupMap.has(groupKey)) {
-        groupMap.set(groupKey, { total_kWh: 0, total_L: 0 });
+      const groupKey = getGroupKey(docDate);
+
+      if (!groups[groupKey]) {
+        groups[groupKey] = { total_kWh: 0, total_L: 0, count: 0 };
       }
-      const g = groupMap.get(groupKey)!;
-      g.total_kWh += kWh;
-      g.total_L += liters;
+
+      groups[groupKey].total_kWh += kWh;
+      groups[groupKey].total_L += liters;
+      groups[groupKey].count += 1;
+
+      total_kWh_overall += kWh;
+      total_L_overall += liters;
+      validCount++;
+
+      console.log(`Doc date: ${docDate}`);
+      console.log(`  Group key: ${groupKey}`);
+      console.log(`  Capacity kW: ${capacity_kW}`);
+      console.log(`  Makeup m3/h: ${makeup_m3h}`);
+      console.log(`  kWh (per hour): ${kWh}`);
+      console.log(`  Liters (per hour): ${liters}`);
     }
 
-    // Build grouped output
-    let totalValueSum = 0;
-    let totalValueCount = 0;
+    if (validCount === 0 || total_L_overall === 0) {
+      console.log('No valid data found or total liters is zero.');
+      return { grouped: [], overallAverage: 0 };
+    }
 
-    const grouped = Array.from(groupMap.entries()).map(([label, g]) => {
-      if (g.total_L === 0) return { label, value: 0 };
-      const wei = g.total_kWh / g.total_L; // kWh per liter
-      totalValueSum += wei;
-      totalValueCount++;
-      return { label, value: wei };
-    });
+    const groupedResults: { label: string; value: number }[] = [];
 
-    const overallAverage =
-      totalValueCount > 0 ? totalValueSum / totalValueCount : 0;
+    // Calculate efficiency per group
+    for (const key in groups) {
+      const { total_kWh, total_L } = groups[key];
+      if (total_L === 0) {
+        console.log(`Group ${key} has zero liters, skipping.`);
+        continue;
+      }
 
-    return { grouped, overallAverage };
+      const actualEfficiency = total_kWh / total_L;
+      const efficiencyPercent = (actualEfficiency / REFERENCE_EFFICIENCY) * 100;
+
+      console.log(
+        `Group ${key}: Total kWh=${total_kWh}, Total Liters=${total_L}, Efficiency=${efficiencyPercent}%`,
+      );
+
+      groupedResults.push({
+        label: key,
+        value: parseFloat(efficiencyPercent.toFixed(2)),
+      });
+    }
+
+    const overallEfficiencyPercent =
+      (total_kWh_overall / total_L_overall / REFERENCE_EFFICIENCY) * 100;
+
+    console.log(`Overall Total kWh: ${total_kWh_overall}`);
+    console.log(`Overall Total Liters: ${total_L_overall}`);
+    console.log(`Overall Efficiency Percent: ${overallEfficiencyPercent}%`);
+
+    return {
+      grouped: groupedResults,
+      overallAverage: parseFloat(overallEfficiencyPercent.toFixed(2)),
+    };
   }
+
   static calculateFanPowerConsumption(
     data: any[],
     towerType: 'CHCT' | 'CT' | 'all',

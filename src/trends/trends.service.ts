@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { trendsData } from './schemas/trends.schema';
+import * as moment from 'moment-timezone';
 
 @Injectable()
 export class TrendsService {
@@ -25,22 +26,19 @@ export class TrendsService {
       },
     };
 
-    // Handle ALL areas
     if (area === 'ALL') {
       if (LT_selections === 'ALL') {
-        // Merge ALL from both Process and Chiller
         return [...mapping.Process.ALL, ...mapping.Chiller.ALL];
       } else {
-        // Merge specific LT selection from both areas (if exists)
         const fromProcess = mapping.Process[LT_selections] || [];
         const fromChiller = mapping.Chiller[LT_selections] || [];
         return [...fromProcess, ...fromChiller];
       }
     }
 
-    // Handle single area normally
     return mapping[area]?.[LT_selections] || [];
   }
+
   private meterSuffixMapping(): Record<string, string[]> {
     return {
       FM_01: ['FR', 'TOT'],
@@ -117,19 +115,18 @@ export class TrendsService {
         'PowerFactor_C',
         'PowerFactor_Total',
       ],
-      // Add more here as needed...
     };
   }
 
   async TrendsDropdownList() {
     const mapping = this.meterSuffixMapping();
 
-    // Create dropdown-friendly format
     return Object.keys(mapping).map((meterId) => ({
       meterId,
       suffixes: mapping[meterId],
     }));
   }
+
   async getTrendData(
     startDate: string,
     endDate: string,
@@ -138,21 +135,32 @@ export class TrendsService {
     area: string,
     LT_selections: string,
   ) {
-    const start = `${startDate}T00:00:00.000+05:00`;
-    const end = `${endDate}T23:59:59.999+05:00`;
+    // ✅ Start at 6 AM Asia/Karachi
+    const start = moment
+      .tz(startDate, 'Asia/Karachi')
+      .hour(6)
+      .minute(0)
+      .second(0)
+      .millisecond(0)
+      .format('YYYY-MM-DDTHH:mm:ss.SSSZ');
+
+    // ✅ End next day at 6 AM Asia/Karachi
+    const end = moment
+      .tz(endDate, 'Asia/Karachi')
+      .add(1, 'day')
+      .hour(6)
+      .minute(0)
+      .second(0)
+      .millisecond(0)
+      .format('YYYY-MM-DDTHH:mm:ss.SSSZ');
 
     console.log('==== Trend Data Query Debug ====');
-    console.log('Start Date (ISO):', start);
-    console.log('End Date (ISO):', end);
-    console.log('Meter IDs (raw):', meterIds);
-    console.log('Suffixes:', suffixes);
-    console.log('Area:', area);
-    console.log('LT Selection:', LT_selections);
+    console.log('Start Date (PKT):', start);
+    console.log('End Date   (PKT):', end);
 
     const allowedPrefixes = this.getMeterPrefixes(area, LT_selections);
     console.log('Allowed Prefixes:', allowedPrefixes);
 
-    // If multiple prefixes exist (e.g., ALL), we will generate combinations
     const fullMeterIds: string[] = [];
     allowedPrefixes.forEach((prefix) => {
       meterIds.forEach((id) => {
@@ -169,7 +177,6 @@ export class TrendsService {
       if (!suffixes || suffixes.length === 0) {
         projection[meterId] = 1;
         validFields.push(meterId);
-        console.log('Added (no suffix mode):', meterId);
       } else {
         suffixes.forEach((suffix) => {
           const fieldName = meterId.endsWith(`_${suffix}`)
@@ -177,27 +184,19 @@ export class TrendsService {
             : `${meterId}${suffix.startsWith('_') ? suffix : `_${suffix}`}`;
           projection[fieldName] = 1;
           validFields.push(fieldName);
-          console.log('Added (suffix mode):', fieldName);
         });
       }
     });
 
-    console.log('Final Projection:', projection);
-    console.log('Valid Fields for Query:', validFields);
-
     if (validFields.length === 0) {
-      console.warn('⚠ No valid fields found — returning empty array.');
       return [];
     }
 
-    console.log('Executing Mongo Query...');
     const rawData = await this.trendsModel
       .find({ timestamp: { $gte: start, $lte: end } }, projection)
       .lean();
 
-    console.log(`Mongo returned ${rawData.length} records`);
-
-    const formatted = rawData.map((doc, idx) => {
+    const formatted = rawData.map((doc) => {
       const flat: Record<string, any> = { timestamp: doc.timestamp };
       validFields.forEach((field) => {
         const value = doc[field];
@@ -206,11 +205,9 @@ export class TrendsService {
             ? 0
             : (value ?? 0);
       });
-      console.log(`Record ${idx + 1}:`, flat);
       return flat;
     });
 
-    console.log('==== Query Debug Complete ====');
     return formatted.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
   }
 }

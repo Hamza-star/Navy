@@ -135,18 +135,20 @@ export class TrendsService {
     area: string,
     LT_selections: string,
   ) {
-    // ✅ Start at 6 AM Asia/Karachi
+    const tz = 'Asia/Karachi';
+
+    // ✅ Define start at 6 AM of startDate
     const start = moment
-      .tz(startDate, 'Asia/Karachi')
+      .tz(startDate, tz)
       .hour(6)
       .minute(0)
       .second(0)
       .millisecond(0)
       .format('YYYY-MM-DDTHH:mm:ss.SSSZ');
 
-    // ✅ End next day at 6 AM Asia/Karachi
+    // ✅ Define end at 6 AM of the next day after endDate (exclusive)
     const end = moment
-      .tz(endDate, 'Asia/Karachi')
+      .tz(endDate, tz)
       .add(1, 'day')
       .hour(6)
       .minute(0)
@@ -158,18 +160,16 @@ export class TrendsService {
     console.log('Start Date (PKT):', start);
     console.log('End Date   (PKT):', end);
 
+    // Allowed meter prefixes
     const allowedPrefixes = this.getMeterPrefixes(area, LT_selections);
-    console.log('Allowed Prefixes:', allowedPrefixes);
 
+    // Construct full meter IDs
     const fullMeterIds: string[] = [];
     allowedPrefixes.forEach((prefix) => {
-      meterIds.forEach((id) => {
-        fullMeterIds.push(`${prefix}${id}`);
-      });
+      meterIds.forEach((id) => fullMeterIds.push(`${prefix}${id}`));
     });
 
-    console.log('Full Meter IDs (with prefix):', fullMeterIds);
-
+    // Projection and valid fields
     const projection: Record<string, 1> = { timestamp: 1 };
     const validFields: string[] = [];
 
@@ -188,15 +188,20 @@ export class TrendsService {
       }
     });
 
-    if (validFields.length === 0) {
-      return [];
-    }
+    if (validFields.length === 0) return [];
 
+    // Mongo query
     const rawData = await this.trendsModel
-      .find({ timestamp: { $gte: start, $lte: end } }, projection)
+      .find({ timestamp: { $gte: start, $lt: end } }, projection)
       .lean();
 
-    const formatted = rawData.map((doc) => {
+    // Filter again just in case of malformed timestamps
+    const filteredData = rawData.filter(
+      (doc) => doc.timestamp >= start && doc.timestamp < end,
+    );
+
+    // Format data
+    const formatted = filteredData.map((doc) => {
       const flat: Record<string, any> = { timestamp: doc.timestamp };
       validFields.forEach((field) => {
         const value = doc[field];
@@ -208,6 +213,7 @@ export class TrendsService {
       return flat;
     });
 
+    // Sort by timestamp string
     return formatted.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
   }
 }

@@ -20,6 +20,6 @@ async function bootstrap() {
     allowedDevOrigins: true,
   });
 
-  await app.listen(process.env.PORT ?? 5001);
+  await app.listen(process.env.PORT ?? 5000);
 }
 bootstrap();

@@ -8,7 +8,16 @@ export class ReportsController {
 
   @Post()
   async getReport(@Body() dto: ReportsDto) {
-    const data = await this.ReportsService.getReport(dto);
+    const data = await this.ReportsService.getReport(
+      dto as {
+        fromDate: string;
+        toDate: string;
+        startTime?: string;
+        endTime?: string;
+        towerType: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
+        reportType: 'realtime' | 'efficiency';
+      },
+    );
     return { message: 'Realtime Data', data };
   }
 }

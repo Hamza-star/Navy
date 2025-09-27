@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsDateString } from 'class-validator';
+import { IsOptional, IsString, IsDateString, IsIn } from 'class-validator';
 
 export class ReportsDto {
   @IsOptional()
@@ -7,7 +7,7 @@ export class ReportsDto {
 
   @IsOptional()
   @IsString()
-  range?: string; // 'today', 'week', 'lastMonth', etc.
+  range?: string;
 
   @IsOptional()
   @IsDateString()
@@ -19,9 +19,18 @@ export class ReportsDto {
 
   @IsOptional()
   @IsString()
-  startTime?: string; // Format: 'HH:MM:SS'
+  startTime?: string;
 
   @IsOptional()
   @IsString()
-  endTime?: string; // Format: 'HH:MM:SS'
+  endTime?: string;
+
+  // ✅ Add these mandatory fields
+  @IsString()
+  @IsIn(['CHCT1', 'CHCT2', 'CT1', 'CT2'])
+  towerType!: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
+
+  @IsString()
+  @IsIn(['realtime', 'efficiency'])
+  reportType!: 'realtime' | 'efficiency';
 }

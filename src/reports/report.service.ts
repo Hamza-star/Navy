@@ -493,6 +493,155 @@ export class ReportsService {
   //     return { message: 'Report (15-min rounded intervals)', data: finalData };
   //   }
 
+  // async getReport(dto: {
+  //   fromDate: string;
+  //   toDate: string;
+  //   startTime?: string;
+  //   endTime?: string;
+  //   towerType: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
+  //   reportType: 'realtime' | 'efficiency';
+  // }) {
+  //   // 1️⃣ Build date filter query using regex
+  //   const query: any = {};
+  //   if (dto.fromDate && dto.toDate) {
+  //     if (dto.fromDate === dto.toDate) {
+  //       query.timestamp = { $regex: `^${dto.fromDate}` };
+  //     } else {
+  //       const dateRange = this.generateDateRange(dto.fromDate, dto.toDate);
+  //       query.$or = dateRange.map((d) => ({ timestamp: { $regex: `^${d}` } }));
+  //     }
+  //   }
+
+  //   // 2️⃣ Projection for towerType
+  //   let projection: Record<string, number> | undefined;
+  //   const sampleDoc = await this.usageModel.findOne().lean();
+  //   if (sampleDoc) {
+  //     const towerFields = Object.keys(sampleDoc).filter((k) =>
+  //       k.startsWith(dto.towerType),
+  //     );
+  //     const commonFields = ['_id', 'timestamp', 'Time', 'UNIXtimestamp'];
+  //     const fieldsToInclude = [...commonFields, ...towerFields];
+  //     projection = fieldsToInclude.reduce(
+  //       (acc, f) => ({ ...acc, [f]: 1 }),
+  //       {} as Record<string, number>,
+  //     );
+  //   }
+
+  //   // 3️⃣ Fetch data
+  //   const data = await this.usageModel.find(query, projection).lean();
+
+  //   // 4️⃣ Convert HH:MM:SS string to seconds
+  //   const timeStrToSeconds = (tsString: string) => {
+  //     const timePart = tsString.substring(11, 19); // "HH:MM:SS"
+  //     const [h, m, s] = timePart.split(':').map(Number);
+  //     return (h || 0) * 3600 + (m || 0) * 60 + (s || 0);
+  //   };
+
+  //   const startSeconds = dto.startTime
+  //     ? timeStrToSeconds(dto.fromDate + 'T' + dto.startTime)
+  //     : 0;
+  //   const endSeconds = dto.endTime
+  //     ? timeStrToSeconds(dto.toDate + 'T' + dto.endTime)
+  //     : 86400;
+
+  //   // 5️⃣ Strict filtering for fromDate, toDate, and intermediate days
+  //   const filteredData = data.filter((doc) => {
+  //     const docDate = doc.timestamp.substring(0, 10);
+  //     const docSeconds = timeStrToSeconds(doc.timestamp);
+
+  //     if (docDate === dto.fromDate && docDate === dto.toDate) {
+  //       return docSeconds >= startSeconds && docSeconds <= endSeconds;
+  //     }
+
+  //     if (docDate === dto.fromDate) {
+  //       return docSeconds >= startSeconds && docSeconds <= endSeconds;
+  //     }
+
+  //     if (docDate === dto.toDate) {
+  //       return docSeconds >= 0 && docSeconds <= endSeconds;
+  //     }
+
+  //     if (docDate > dto.fromDate && docDate < dto.toDate) {
+  //       return true;
+  //     }
+
+  //     return false;
+  //   });
+
+  //   // 6️⃣ Round timestamps to nearest 15-min interval
+  //   const pad = (n: number) => n.toString().padStart(2, '0');
+  //   const intervalMap = new Map<string, any>();
+
+  //   for (const doc of filteredData) {
+  //     const h = parseInt(doc.timestamp.substring(11, 13), 10);
+  //     let m =
+  //       Math.round(parseInt(doc.timestamp.substring(14, 16), 10) / 15) * 15;
+  //     let hh = h;
+  //     let dayStr = doc.timestamp.substring(0, 10);
+
+  //     if (m === 60) {
+  //       m = 0;
+  //       hh += 1;
+  //       if (hh === 24) {
+  //         hh = 0;
+  //         // next day
+  //         const nextDay = new Date(dayStr);
+  //         nextDay.setDate(nextDay.getDate() + 1);
+  //         dayStr = nextDay.toISOString().substring(0, 10);
+  //       }
+  //     }
+
+  //     const intervalKey = `${dayStr}T${pad(hh)}:${pad(m)}`;
+  //     const existing = intervalMap.get(intervalKey);
+  //     if (!existing || new Date(doc.timestamp) < new Date(existing.timestamp)) {
+  //       intervalMap.set(intervalKey, doc);
+  //     }
+  //   }
+
+  //   const sortedData = Array.from(intervalMap.values()).sort(
+  //     (a, b) =>
+  //       new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+  //   );
+
+  //   // 7️⃣ Prepare final report
+  //   const ambientAirTemp = 30;
+  //   const wetBulbTemp = 25;
+  //   const fanAmpere = 15;
+
+  //   if (dto.reportType === 'realtime') {
+  //     return {
+  //       message:
+  //         'Report (15-min intervals, exact start/end times, string timestamps)',
+  //       data: sortedData.map((doc) => ({
+  //         timestamp: doc.timestamp,
+  //         supplyTemp: doc[`${dto.towerType}_TEMP_RTD_01_AI`] ?? null,
+  //         returnTemp: doc[`${dto.towerType}_TEMP_RTD_02_AI`] ?? null,
+  //         deltaTemp:
+  //           doc[`${dto.towerType}_TEMP_RTD_01_AI`] !== undefined &&
+  //           doc[`${dto.towerType}_TEMP_RTD_02_AI`] !== undefined
+  //             ? doc[`${dto.towerType}_TEMP_RTD_02_AI`] -
+  //               doc[`${dto.towerType}_TEMP_RTD_01_AI`]
+  //             : null,
+  //         ambientAirTemp,
+  //         wetBulbTemp,
+  //         fanSpeed: doc[`${dto.towerType}_INV_01_SPD_AI`] ?? null,
+  //         returnWaterFlow: doc[`${dto.towerType}_FM_02_FR`] ?? null,
+  //         fanAmpere,
+  //         fanPowerConsumption:
+  //           doc[`${dto.towerType}_EM01_ActivePower_A_kW`] !== undefined &&
+  //           doc[`${dto.towerType}_EM01_ActivePower_B_kW`] !== undefined &&
+  //           doc[`${dto.towerType}_EM01_ActivePower_C_kW`] !== undefined
+  //             ? doc[`${dto.towerType}_EM01_ActivePower_A_kW`] +
+  //               doc[`${dto.towerType}_EM01_ActivePower_B_kW`] +
+  //               doc[`${dto.towerType}_EM01_ActivePower_C_kW`]
+  //             : null,
+  //       })),
+  //     };
+  //   }
+
+  //   return { message: 'Report type not implemented', data: sortedData };
+  // }
+
   async getReport(dto: {
     fromDate: string;
     toDate: string;
@@ -501,7 +650,7 @@ export class ReportsService {
     towerType: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
     reportType: 'realtime' | 'efficiency';
   }) {
-    // 1️⃣ Build date filter query using regex
+    // 1️⃣ Build regex query (day-level filtering first)
     const query: any = {};
     if (dto.fromDate && dto.toDate) {
       if (dto.fromDate === dto.toDate) {
@@ -520,49 +669,61 @@ export class ReportsService {
         k.startsWith(dto.towerType),
       );
       const commonFields = ['_id', 'timestamp', 'Time', 'UNIXtimestamp'];
-      const fieldsToInclude = [...commonFields, ...towerFields];
-      projection = fieldsToInclude.reduce(
+      projection = [...commonFields, ...towerFields].reduce(
         (acc, f) => ({ ...acc, [f]: 1 }),
         {} as Record<string, number>,
       );
     }
 
-    // 3️⃣ Fetch data
+    // 3️⃣ Fetch all docs
     const data = await this.usageModel.find(query, projection).lean();
 
-    // 4️⃣ Convert HH:MM:SS string to seconds
+    // 4️⃣ Time helpers
     const timeStrToSeconds = (tsString: string) => {
       const timePart = tsString.substring(11, 19); // "HH:MM:SS"
       const [h, m, s] = timePart.split(':').map(Number);
       return (h || 0) * 3600 + (m || 0) * 60 + (s || 0);
     };
 
-    const startSeconds = dto.startTime
-      ? timeStrToSeconds(dto.fromDate + 'T' + dto.startTime)
-      : 0;
-    const endSeconds = dto.endTime
-      ? timeStrToSeconds(dto.toDate + 'T' + dto.endTime)
-      : 86400;
+    const roundTo15 = (sec: number, roundUp = false) => {
+      const interval = 900; // 15min in seconds
+      return roundUp
+        ? Math.ceil(sec / interval) * interval
+        : Math.floor(sec / interval) * interval;
+    };
 
-    // 5️⃣ Strict filtering for fromDate, toDate, and intermediate days
+    const hmsToSeconds = (hms: string) => {
+      const [h, m, s = '0'] = hms.split(':');
+      return Number(h) * 3600 + Number(m) * 60 + Number(s);
+    };
+
+    // Convert boundaries to seconds
+    const startSec = dto.startTime ? hmsToSeconds(dto.startTime) : 0;
+    const endSec = dto.endTime ? hmsToSeconds(dto.endTime) : 86399;
+
+    // 5️⃣ Apply strict filtering based on fromDate/toDate rules
     const filteredData = data.filter((doc) => {
       const docDate = doc.timestamp.substring(0, 10);
       const docSeconds = timeStrToSeconds(doc.timestamp);
 
-      if (docDate === dto.fromDate && docDate === dto.toDate) {
-        return docSeconds >= startSeconds && docSeconds <= endSeconds;
+      if (dto.fromDate === dto.toDate) {
+        return (
+          docDate === dto.fromDate &&
+          docSeconds >= roundTo15(startSec) &&
+          docSeconds <= roundTo15(endSec, true)
+        );
       }
 
       if (docDate === dto.fromDate) {
-        return docSeconds >= startSeconds && docSeconds <= endSeconds;
+        return docSeconds >= roundTo15(startSec);
       }
 
       if (docDate === dto.toDate) {
-        return docSeconds >= 0 && docSeconds <= endSeconds;
+        return docSeconds <= roundTo15(endSec, true);
       }
 
       if (docDate > dto.fromDate && docDate < dto.toDate) {
-        return true;
+        return true; // intermediate = full day
       }
 
       return false;
@@ -584,7 +745,6 @@ export class ReportsService {
         hh += 1;
         if (hh === 24) {
           hh = 0;
-          // next day
           const nextDay = new Date(dayStr);
           nextDay.setDate(nextDay.getDate() + 1);
           dayStr = nextDay.toISOString().substring(0, 10);
@@ -611,7 +771,7 @@ export class ReportsService {
     if (dto.reportType === 'realtime') {
       return {
         message:
-          'Report (15-min intervals, exact start/end times, string timestamps)',
+          'Report (15-min intervals, exact start/end times, aligned with 15-min rounding)',
         data: sortedData.map((doc) => ({
           timestamp: doc.timestamp,
           supplyTemp: doc[`${dto.towerType}_TEMP_RTD_01_AI`] ?? null,

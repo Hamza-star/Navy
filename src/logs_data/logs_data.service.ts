@@ -40,6 +40,63 @@ export class LogsDataService {
     @InjectModel('LogEntry') private readonly logEntryModel: Model<LogEntry>,
   ) {}
 
+  // async fetchLogs(query: LogsQueryDto) {
+  //   const { type, meters, start_date, end_date } = query;
+
+  //   const baseTags = this.tagGroups[type];
+  //   if (!baseTags) {
+  //     return { success: false, message: 'Invalid type specified.' };
+  //   }
+
+  //   const meterIds = meters.split(',').map((m) => m.trim());
+
+  //   // Format start and end date as strings matching your DB format with milliseconds and Z
+  //   const startStr = moment(start_date)
+  //     .startOf('day')
+  //     .format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
+  //   const endStr = moment(end_date)
+  //     .endOf('day')
+  //     .format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
+
+  //   // Query for string timestamps
+  //   const dbQuery = {
+  //     timestamp: {
+  //       $gte: startStr,
+  //       $lte: endStr,
+  //     },
+  //   };
+
+  //   const data = await this.logEntryModel.find(dbQuery).lean().exec();
+
+  //   const results: any[] = [];
+
+  //   for (const item of data) {
+  //     for (const meterId of meterIds) {
+  //       const entry: any = {
+  //         time: item.timestamp
+  //           ? moment(item.timestamp)
+  //               .tz('Asia/Karachi')
+  //               .format('YYYY-MM-DDTHH:mm:ss.SSSZ')
+  //           : null,
+  //         meterId,
+  //       };
+
+  //       for (const tag of baseTags) {
+  //         const field = `${meterId}_EM01_${tag}`;
+  //         if (item[field] !== undefined) {
+  //           entry[tag] = item[field];
+  //         }
+  //       }
+
+  //       if (Object.keys(entry).length > 2) {
+  //         results.push(entry);
+  //       }
+  //     }
+  //   }
+
+  //   return { success: true, data: results };
+  // }
+
   async fetchLogs(query: LogsQueryDto) {
     const { type, meters, start_date, end_date } = query;
 
@@ -50,15 +107,17 @@ export class LogsDataService {
 
     const meterIds = meters.split(',').map((m) => m.trim());
 
-    // Format start and end date as strings matching your DB format with milliseconds and Z
+    // 6 AM start, next day 6 AM end
     const startStr = moment(start_date)
       .startOf('day')
-      .format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
-    const endStr = moment(end_date)
-      .endOf('day')
+      .add(6, 'hours') // 06:00 se start
       .format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
 
-    // Query for string timestamps
+    const endStr = moment(end_date)
+      .startOf('day')
+      .add(30, 'hours') // agle din 06:00 tak (24 + 6)
+      .format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
+
     const dbQuery = {
       timestamp: {
         $gte: startStr,

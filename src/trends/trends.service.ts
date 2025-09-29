@@ -127,6 +127,96 @@ export class TrendsService {
     }));
   }
 
+  // async getTrendData(
+  //   startDate: string,
+  //   endDate: string,
+  //   meterIds: string[],
+  //   suffixes: string[],
+  //   area: string,
+  //   LT_selections: string,
+  // ) {
+  //   const tz = 'Asia/Karachi';
+
+  //   // ✅ Define start at 6 AM of startDate
+  //   const start = moment
+  //     .tz(startDate, tz)
+  //     .hour(6)
+  //     .minute(0)
+  //     .second(0)
+  //     .millisecond(0)
+  //     .format('YYYY-MM-DDTHH:mm:ss.SSSZ');
+
+  //   // ✅ Define end at 6 AM of the next day after endDate (exclusive)
+  //   const end = moment
+  //     .tz(endDate, tz)
+  //     .add(1, 'day')
+  //     .hour(6)
+  //     .minute(0)
+  //     .second(0)
+  //     .millisecond(0)
+  //     .format('YYYY-MM-DDTHH:mm:ss.SSSZ');
+
+  //   console.log('==== Trend Data Query Debug ====');
+  //   console.log('Start Date (PKT):', start);
+  //   console.log('End Date   (PKT):', end);
+
+  //   // Allowed meter prefixes
+  //   const allowedPrefixes = this.getMeterPrefixes(area, LT_selections);
+
+  //   // Construct full meter IDs
+  //   const fullMeterIds: string[] = [];
+  //   allowedPrefixes.forEach((prefix) => {
+  //     meterIds.forEach((id) => fullMeterIds.push(`${prefix}${id}`));
+  //   });
+
+  //   // Projection and valid fields
+  //   const projection: Record<string, 1> = { timestamp: 1 };
+  //   const validFields: string[] = [];
+
+  //   fullMeterIds.forEach((meterId) => {
+  //     if (!suffixes || suffixes.length === 0) {
+  //       projection[meterId] = 1;
+  //       validFields.push(meterId);
+  //     } else {
+  //       suffixes.forEach((suffix) => {
+  //         const fieldName = meterId.endsWith(`_${suffix}`)
+  //           ? meterId
+  //           : `${meterId}${suffix.startsWith('_') ? suffix : `_${suffix}`}`;
+  //         projection[fieldName] = 1;
+  //         validFields.push(fieldName);
+  //       });
+  //     }
+  //   });
+
+  //   if (validFields.length === 0) return [];
+
+  //   // Mongo query
+  //   const rawData = await this.trendsModel
+  //     .find({ timestamp: { $gte: start, $lt: end } }, projection)
+  //     .lean();
+
+  //   // Filter again just in case of malformed timestamps
+  //   const filteredData = rawData.filter(
+  //     (doc) => doc.timestamp >= start && doc.timestamp < end,
+  //   );
+
+  //   // Format data
+  //   const formatted = filteredData.map((doc) => {
+  //     const flat: Record<string, any> = { timestamp: doc.timestamp };
+  //     validFields.forEach((field) => {
+  //       const value = doc[field];
+  //       flat[field] =
+  //         typeof value === 'number' && Math.abs(value) < 0.001
+  //           ? 0
+  //           : (value ?? 0);
+  //     });
+  //     return flat;
+  //   });
+
+  //   // Sort by timestamp string
+  //   return formatted.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  // }
+
   async getTrendData(
     startDate: string,
     endDate: string,
@@ -137,7 +227,7 @@ export class TrendsService {
   ) {
     const tz = 'Asia/Karachi';
 
-    // ✅ Define start at 6 AM of startDate
+    // ✅ Start: 6 AM (string format with offset)
     const start = moment
       .tz(startDate, tz)
       .hour(6)
@@ -146,19 +236,15 @@ export class TrendsService {
       .millisecond(0)
       .format('YYYY-MM-DDTHH:mm:ss.SSSZ');
 
-    // ✅ Define end at 6 AM of the next day after endDate (exclusive)
+    // ✅ End: Next day 6:00:59.999 (string format with offset)
     const end = moment
       .tz(endDate, tz)
       .add(1, 'day')
       .hour(6)
       .minute(0)
-      .second(0)
-      .millisecond(0)
+      .second(59)
+      .millisecond(999)
       .format('YYYY-MM-DDTHH:mm:ss.SSSZ');
-
-    console.log('==== Trend Data Query Debug ====');
-    console.log('Start Date (PKT):', start);
-    console.log('End Date   (PKT):', end);
 
     // Allowed meter prefixes
     const allowedPrefixes = this.getMeterPrefixes(area, LT_selections);
@@ -190,30 +276,34 @@ export class TrendsService {
 
     if (validFields.length === 0) return [];
 
-    // Mongo query
+    // ✅ Mongo query (string comparison, since DB has string timestamps)
     const rawData = await this.trendsModel
-      .find({ timestamp: { $gte: start, $lt: end } }, projection)
+      .find({ timestamp: { $gte: start, $lte: end } }, projection)
       .lean();
 
-    // Filter again just in case of malformed timestamps
-    const filteredData = rawData.filter(
-      (doc) => doc.timestamp >= start && doc.timestamp < end,
+    // ✅ Remove duplicates by minute (keep first entry of each minute)
+    const uniqueByMinute = new Map<string, any>();
+
+    for (const doc of rawData) {
+      const minuteKey = moment(doc.timestamp).format('YYYY-MM-DD HH:mm');
+      if (!uniqueByMinute.has(minuteKey)) {
+        const flat: Record<string, any> = { timestamp: doc.timestamp };
+        validFields.forEach((field) => {
+          const value = doc[field];
+          flat[field] =
+            typeof value === 'number' && Math.abs(value) < 0.001
+              ? 0
+              : (value ?? 0);
+        });
+        uniqueByMinute.set(minuteKey, flat);
+      }
+    }
+
+    // ✅ Convert to array and sort by timestamp
+    const filteredData = Array.from(uniqueByMinute.values()).sort((a, b) =>
+      a.timestamp.localeCompare(b.timestamp),
     );
 
-    // Format data
-    const formatted = filteredData.map((doc) => {
-      const flat: Record<string, any> = { timestamp: doc.timestamp };
-      validFields.forEach((field) => {
-        const value = doc[field];
-        flat[field] =
-          typeof value === 'number' && Math.abs(value) < 0.001
-            ? 0
-            : (value ?? 0);
-      });
-      return flat;
-    });
-
-    // Sort by timestamp string
-    return formatted.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+    return filteredData;
   }
 }

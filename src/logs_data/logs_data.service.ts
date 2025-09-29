@@ -97,6 +97,66 @@ export class LogsDataService {
   //   return { success: true, data: results };
   // }
 
+  // async fetchLogs(query: LogsQueryDto) {
+  //   const { type, meters, start_date, end_date } = query;
+
+  //   const baseTags = this.tagGroups[type];
+  //   if (!baseTags) {
+  //     return { success: false, message: 'Invalid type specified.' };
+  //   }
+
+  //   const meterIds = meters.split(',').map((m) => m.trim());
+
+  //   const startStr = moment(start_date)
+  //     .startOf('day')
+  //     .add(6, 'hours') // 06:00:00.000
+  //     .format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
+
+  //   const endStr = moment(end_date)
+  //     .startOf('day')
+  //     .add(30, 'hours') // agle din 06:00:00.000
+  //     .add(59, 'seconds') // 06:00:59.000 tak extend
+  //     .add(999, 'milliseconds') // 06:00:59.999 tak extend
+  //     .format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
+
+  //   const dbQuery = {
+  //     timestamp: {
+  //       $gte: startStr,
+  //       $lte: endStr,
+  //     },
+  //   };
+
+  //   const data = await this.logEntryModel.find(dbQuery).lean().exec();
+
+  //   const results: any[] = [];
+
+  //   for (const item of data) {
+  //     for (const meterId of meterIds) {
+  //       const entry: any = {
+  //         time: item.timestamp
+  //           ? moment(item.timestamp)
+  //               .tz('Asia/Karachi')
+  //               .format('YYYY-MM-DDTHH:mm:ss.SSSZ')
+  //           : null,
+  //         meterId,
+  //       };
+
+  //       for (const tag of baseTags) {
+  //         const field = `${meterId}_EM01_${tag}`;
+  //         if (item[field] !== undefined) {
+  //           entry[tag] = item[field];
+  //         }
+  //       }
+
+  //       if (Object.keys(entry).length > 2) {
+  //         results.push(entry);
+  //       }
+  //     }
+  //   }
+
+  //   return { success: true, data: results };
+  // }
+
   async fetchLogs(query: LogsQueryDto) {
     const { type, meters, start_date, end_date } = query;
 
@@ -107,33 +167,17 @@ export class LogsDataService {
 
     const meterIds = meters.split(',').map((m) => m.trim());
 
-    // // 6 AM start, next day 6 AM end
-    // const startStr = moment(start_date)
-    //   .startOf('day')
-    //   .add(6, 'hours') // 06:00 se start
-    //   .format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
-
-    // const endStr = moment(end_date)
-    //   .startOf('day')
-    //   .add(30, 'hours') // agle din 06:00 tak (24 + 6)
-    //   .format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
-
-    // const endStr = moment(end_date)
-    //   .startOf('day')
-    //   .add(30, 'hours') // agle din 06:00
-    //   .subtract(1, 'millisecond') // 05:59:59.999 se lekar 06:00:59.999 tak allow karega
-    //   .format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
-
+    // ✅ Time range 6:00 to next day 6:00:59.999
     const startStr = moment(start_date)
       .startOf('day')
-      .add(6, 'hours') // 06:00:00.000
+      .add(6, 'hours') // 06:00:00
       .format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
 
     const endStr = moment(end_date)
       .startOf('day')
-      .add(30, 'hours') // agle din 06:00:00.000
-      .add(59, 'seconds') // 06:00:59.000 tak extend
-      .add(999, 'milliseconds') // 06:00:59.999 tak extend
+      .add(30, 'hours') // agle din 06:00
+      .add(59, 'seconds')
+      .add(999, 'milliseconds')
       .format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
 
     const dbQuery = {
@@ -143,11 +187,12 @@ export class LogsDataService {
       },
     };
 
-    const data = await this.logEntryModel.find(dbQuery).lean().exec();
+    const rawData = await this.logEntryModel.find(dbQuery).lean().exec();
 
-    const results: any[] = [];
+    // ✅ Deduplicate by (minute + meterId)
+    const uniqueByMinute = new Map<string, any>();
 
-    for (const item of data) {
+    for (const item of rawData) {
       for (const meterId of meterIds) {
         const entry: any = {
           time: item.timestamp
@@ -166,10 +211,21 @@ export class LogsDataService {
         }
 
         if (Object.keys(entry).length > 2) {
-          results.push(entry);
+          // ✅ make key by minute + meter
+          const minuteKey =
+            meterId + '_' + moment(entry.time).format('YYYY-MM-DD HH:mm');
+
+          if (!uniqueByMinute.has(minuteKey)) {
+            uniqueByMinute.set(minuteKey, entry);
+          }
         }
       }
     }
+
+    // ✅ Convert back to array sorted by timestamp
+    const results = Array.from(uniqueByMinute.values()).sort((a, b) =>
+      a.time.localeCompare(b.time),
+    );
 
     return { success: true, data: results };
   }

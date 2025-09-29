@@ -107,15 +107,33 @@ export class LogsDataService {
 
     const meterIds = meters.split(',').map((m) => m.trim());
 
-    // 6 AM start, next day 6 AM end
+    // // 6 AM start, next day 6 AM end
+    // const startStr = moment(start_date)
+    //   .startOf('day')
+    //   .add(6, 'hours') // 06:00 se start
+    //   .format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
+
+    // const endStr = moment(end_date)
+    //   .startOf('day')
+    //   .add(30, 'hours') // agle din 06:00 tak (24 + 6)
+    //   .format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
+
+    // const endStr = moment(end_date)
+    //   .startOf('day')
+    //   .add(30, 'hours') // agle din 06:00
+    //   .subtract(1, 'millisecond') // 05:59:59.999 se lekar 06:00:59.999 tak allow karega
+    //   .format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
+
     const startStr = moment(start_date)
       .startOf('day')
-      .add(6, 'hours') // 06:00 se start
+      .add(6, 'hours') // 06:00:00.000
       .format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
 
     const endStr = moment(end_date)
       .startOf('day')
-      .add(30, 'hours') // agle din 06:00 tak (24 + 6)
+      .add(30, 'hours') // agle din 06:00:00.000
+      .add(59, 'seconds') // 06:00:59.000 tak extend
+      .add(999, 'milliseconds') // 06:00:59.999 tak extend
       .format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
 
     const dbQuery = {

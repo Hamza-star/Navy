@@ -650,6 +650,169 @@ export class DashboardService {
     };
   }
 
+  // async getDashboardDataChart8(dto: {
+  //   date?: string;
+  //   range?: string;
+  //   fromDate?: string;
+  //   toDate?: string;
+  //   startTime?: string;
+  //   endTime?: string;
+  //   towerType?: 'CHCT' | 'CT' | 'all';
+  // }) {
+  //   const match: any = {};
+  //   let startDate: Date;
+  //   let endDate: Date;
+
+  //   if (dto.range && dto.fromDate && dto.toDate) {
+  //     startDate = new Date(dto.fromDate);
+  //     endDate = new Date(dto.toDate);
+  //   } else if (dto.date) {
+  //     const date = new Date(dto.date);
+  //     startDate = new Date(date.setHours(0, 0, 0, 0));
+  //     endDate = new Date(date.setHours(23, 59, 59, 999));
+  //   } else {
+  //     throw new Error('Date or range is required');
+  //   }
+
+  //   const groupByFormat = dto.range?.includes('year')
+  //     ? '%Y-%m'
+  //     : dto.range?.includes('month')
+  //       ? '%Y-%m-%d'
+  //       : '%Y-%m-%d %H:00';
+
+  //   const pipeline: any[] = [
+  //     {
+  //       $addFields: {
+  //         parsedTimestamp: { $toDate: '$timestamp' },
+  //       },
+  //     },
+  //     {
+  //       $match: {
+  //         parsedTimestamp: { $gte: startDate, $lte: endDate },
+  //       },
+  //     },
+  //     {
+  //       $project: {
+  //         timestamp: '$parsedTimestamp',
+  //         CHCT1_flow: '$CHCT1_FM_02_FR',
+  //         CHCT1_hot: '$CHCT1_TEMP_RTD_02_AI',
+  //         CHCT1_cold: '$CHCT1_TEMP_RTD_01_AI',
+  //         CHCT1_speed: '$CHCT1_INV_01_SPD_AI',
+  //         CHCT2_flow: '$CHCT2_FM_02_FR',
+  //         CHCT2_hot: '$CHCT2_TEMP_RTD_02_AI',
+  //         CHCT2_cold: '$CHCT2_TEMP_RTD_01_AI',
+  //         CHCT2_speed: '$CHCT2_INV_01_SPD_AI',
+  //         CT1_flow: '$CT1_FM_02_FR',
+  //         CT1_hot: '$CT1_TEMP_RTD_02_AI',
+  //         CT1_cold: '$CT1_TEMP_RTD_01_AI',
+  //         CT1_speed: '$CT1_INV_01_SPD_AI',
+  //         CT2_flow: '$CT2_FM_02_FR',
+  //         CT2_hot: '$CT2_TEMP_RTD_02_AI',
+  //         CT2_cold: '$CT2_TEMP_RTD_01_AI',
+  //         CT2_speed: '$CT2_INV_01_SPD_AI',
+  //       },
+  //     },
+  //     {
+  //       $addFields: {
+  //         CHCT1_heat: {
+  //           $multiply: [
+  //             1000,
+  //             4.186,
+  //             '$CHCT1_flow',
+  //             { $subtract: ['$CHCT1_hot', '$CHCT1_cold'] },
+  //           ],
+  //         },
+  //         CHCT2_heat: {
+  //           $multiply: [
+  //             1000,
+  //             4.186,
+  //             '$CHCT2_flow',
+  //             { $subtract: ['$CHCT2_hot', '$CHCT2_cold'] },
+  //           ],
+  //         },
+  //         CT1_heat: {
+  //           $multiply: [
+  //             1000,
+  //             4.186,
+  //             '$CT1_flow',
+  //             { $subtract: ['$CT1_hot', '$CT1_cold'] },
+  //           ],
+  //         },
+  //         CT2_heat: {
+  //           $multiply: [
+  //             1000,
+  //             4.186,
+  //             '$CT2_flow',
+  //             { $subtract: ['$CT2_hot', '$CT2_cold'] },
+  //           ],
+  //         },
+  //       },
+  //     },
+  //     {
+  //       $group: {
+  //         _id: { $dateToString: { format: groupByFormat, date: '$timestamp' } },
+  //         heat_CHCT: { $avg: { $add: ['$CHCT1_heat', '$CHCT2_heat'] } },
+  //         heat_CT: { $avg: { $add: ['$CT1_heat', '$CT2_heat'] } },
+  //         speed_CHCT: { $avg: { $avg: ['$CHCT1_speed', '$CHCT2_speed'] } },
+  //         speed_CT: { $avg: { $avg: ['$CT1_speed', '$CT2_speed'] } },
+  //       },
+  //     },
+  //     {
+  //       $project: {
+  //         label: '$_id',
+  //         heatRejectionRate: {
+  //           $switch: {
+  //             branches: [
+  //               { case: { $eq: [dto.towerType, 'CHCT'] }, then: '$heat_CHCT' },
+  //               { case: { $eq: [dto.towerType, 'CT'] }, then: '$heat_CT' },
+  //             ],
+  //             default: { $add: ['$heat_CHCT', '$heat_CT'] },
+  //           },
+  //         },
+  //         towerUtilization: {
+  //           $switch: {
+  //             branches: [
+  //               { case: { $eq: [dto.towerType, 'CHCT'] }, then: '$speed_CHCT' },
+  //               { case: { $eq: [dto.towerType, 'CT'] }, then: '$speed_CT' },
+  //             ],
+  //             default: { $avg: ['$speed_CHCT', '$speed_CT'] },
+  //           },
+  //         },
+  //       },
+  //     },
+  //     { $sort: { label: 1 } },
+  //   ];
+
+  //   const result = await this.DashboardModel.aggregate(pipeline);
+
+  //   const heatRejectionRate = result.map((r) => ({
+  //     label: r.label,
+  //     value: r.heatRejectionRate ? +r.heatRejectionRate.toFixed(2) : 0,
+  //   }));
+
+  //   const towerUtilizationRate = {
+  //     grouped: result.map((r) => ({
+  //       label: r.label,
+  //       value: r.towerUtilization ? +r.towerUtilization.toFixed(2) : 0,
+  //     })),
+  //     overallAverage:
+  //       result.length > 0
+  //         ? +(
+  //             result.reduce((sum, r) => sum + (r.towerUtilization || 0), 0) /
+  //             result.length
+  //           ).toFixed(2)
+  //         : 0,
+  //   };
+
+  //   return {
+  //     message: 'Heat Rejection and Tower Utilization Rate',
+  //     data: {
+  //       heatRejectionRate,
+  //       towerUtilizationRate,
+  //     },
+  //   };
+  // }
+
   async getDashboardDataChart8(dto: {
     date?: string;
     range?: string;
@@ -659,7 +822,6 @@ export class DashboardService {
     endTime?: string;
     towerType?: 'CHCT' | 'CT' | 'all';
   }) {
-    const match: any = {};
     let startDate: Date;
     let endDate: Date;
 
@@ -670,15 +832,68 @@ export class DashboardService {
       const date = new Date(dto.date);
       startDate = new Date(date.setHours(0, 0, 0, 0));
       endDate = new Date(date.setHours(23, 59, 59, 999));
+    } else if (dto.range) {
+      const now = new Date();
+      switch (dto.range.toLowerCase()) {
+        case 'today':
+          startDate = new Date(now.setHours(0, 0, 0, 0));
+          endDate = new Date(new Date().setHours(23, 59, 59, 999));
+          break;
+
+        case 'yesterday':
+          const y = new Date();
+          y.setDate(y.getDate() - 1);
+          startDate = new Date(y.setHours(0, 0, 0, 0));
+          endDate = new Date(y.setHours(23, 59, 59, 999));
+          break;
+
+        case 'this week':
+          const d = now.getDay(); // 0 = Sunday
+          const diff = now.getDate() - d + (d === 0 ? -6 : 1); // Monday as start
+          startDate = new Date(now.setDate(diff));
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date();
+          endDate.setHours(23, 59, 59, 999);
+          break;
+
+        case 'this month':
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date();
+          endDate.setHours(23, 59, 59, 999);
+          break;
+
+        case 'this year':
+          startDate = new Date(now.getFullYear(), 0, 1);
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date();
+          endDate.setHours(23, 59, 59, 999);
+          break;
+
+        default:
+          throw new Error(`Unsupported range: ${dto.range}`);
+      }
     } else {
       throw new Error('Date or range is required');
     }
 
-    const groupByFormat = dto.range?.includes('year')
-      ? '%Y-%m'
-      : dto.range?.includes('month')
-        ? '%Y-%m-%d'
-        : '%Y-%m-%d %H:00';
+    // ✅ Smart grouping format
+    let groupByFormat = '%Y-%m-%d %H:00'; // default hourly
+    if (dto.range) {
+      switch (dto.range.toLowerCase()) {
+        case 'today':
+        case 'yesterday':
+          groupByFormat = '%Y-%m-%d %H:00'; // hourly
+          break;
+        case 'this week':
+        case 'this month':
+          groupByFormat = '%Y-%m-%d'; // daily
+          break;
+        case 'this year':
+          groupByFormat = '%Y-%m'; // monthly
+          break;
+      }
+    }
 
     const pipeline: any[] = [
       {

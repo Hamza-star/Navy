@@ -167,7 +167,7 @@ export class LogsDataService {
 
     const meterIds = meters.split(',').map((m) => m.trim());
 
-    // ✅ Time range 6:00 to next day 6:00:59.999
+    // Time range 6:00 to next day 6:00:59.999
     const startStr = moment(start_date)
       .startOf('day')
       .add(6, 'hours') // 06:00:00
@@ -189,7 +189,7 @@ export class LogsDataService {
 
     const rawData = await this.logEntryModel.find(dbQuery).lean().exec();
 
-    // ✅ Deduplicate by (minute + meterId)
+    // Deduplicate by (minute + meterId)
     const uniqueByMinute = new Map<string, any>();
 
     for (const item of rawData) {
@@ -211,7 +211,7 @@ export class LogsDataService {
         }
 
         if (Object.keys(entry).length > 2) {
-          // ✅ make key by minute + meter
+          // make key by minute + meter
           const minuteKey =
             meterId + '_' + moment(entry.time).format('YYYY-MM-DD HH:mm');
 
@@ -222,7 +222,7 @@ export class LogsDataService {
       }
     }
 
-    // ✅ Convert back to array sorted by timestamp
+    // Convert back to array sorted by timestamp
     const results = Array.from(uniqueByMinute.values()).sort((a, b) =>
       a.time.localeCompare(b.time),
     );

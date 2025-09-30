@@ -114,6 +114,7 @@ export class DashboardController {
     const data = await this.dashboardService.getDashboardDataChart18(dto);
     return { message: 'Dashoard Data', data };
   }
+
   @Post('dashboard-data19')
   async getDashoardDataChart19(@Body() dto: DashboardDto) {
     console.log('Received DashboardDto:', dto);

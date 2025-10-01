@@ -143,33 +143,68 @@ export class AnalysisService {
     startTime?: string;
     endTime?: string;
     towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
-    interval?: '15min' | 'hour' | 'day'; // NEW param
+    interval?: '15min' | 'hour' | 'day';
   }) {
     const tz = 'Asia/Karachi';
     let startDate: DateTime;
     let endDate: DateTime;
 
+    const now = DateTime.now().setZone(tz);
+    const todayStr = now.toFormat('yyyy-MM-dd');
+
     // --- Date Range Handling ---
     if (dto.range) {
       const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
+
       startDate = DateTime.fromJSDate(dateRange.$gte, { zone: 'utc' })
         .setZone(tz)
-        .startOf('day');
-      endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' })
-        .setZone(tz)
-        .endOf('day');
+        .set({ hour: 6, minute: 0, second: 0 }); // ✅ start from 6 AM
+
+      let tmpEnd = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' }).setZone(
+        tz,
+      );
+
+      if (tmpEnd.toFormat('yyyy-MM-dd') === todayStr) {
+        endDate = now; // today → current time
+      } else {
+        // ✅ extend to next day 7:00 AM so that 6:00 bucket is included
+        endDate = tmpEnd
+          .plus({ days: 1 })
+          .set({ hour: 7, minute: 0, second: 0 });
+      }
     } else if (dto.fromDate && dto.toDate) {
-      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
-      endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
+      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).set({
+        hour: 6,
+        minute: 0,
+        second: 0,
+      });
+
+      let tmpEnd = DateTime.fromISO(dto.toDate, { zone: tz });
+
+      if (dto.toDate === todayStr) {
+        endDate = now; // today → current time
+      } else {
+        // ✅ extend to next day 7:00 AM
+        endDate = tmpEnd
+          .plus({ days: 1 })
+          .set({ hour: 7, minute: 0, second: 0 });
+      }
     } else if (dto.date) {
       const day = DateTime.fromISO(dto.date, { zone: tz });
-      startDate = day.startOf('day');
-      endDate = day.endOf('day');
+
+      startDate = day.set({ hour: 6, minute: 0, second: 0 });
+
+      if (dto.date === todayStr) {
+        endDate = now; // today → current time
+      } else {
+        // ✅ extend to next day 7:00 AM
+        endDate = day.plus({ days: 1 }).set({ hour: 7, minute: 0, second: 0 });
+      }
     } else {
       throw new Error('No date range provided');
     }
 
-    // --- Fetch only by timestamp string boundaries ---
+    // --- Filter ---
     const filter: any = {
       timestamp: {
         $gte: startDate.toISO(),
@@ -199,7 +234,7 @@ export class AnalysisService {
       .lean()
       .exec();
 
-    // --- Interval Selection (auto mode) ---
+    // --- Interval Selection ---
     const diffInDays = endDate.diff(startDate, 'days').days;
     const interval: '15min' | 'hour' | 'day' = dto.interval
       ? dto.interval
@@ -285,7 +320,7 @@ export class AnalysisService {
       group.count++;
     }
 
-    // --- Merge Buckets with Data ---
+    // --- Merge Buckets ---
     const result = emptyBuckets.map(({ timestamp }) => {
       const group = groupMap.get(timestamp);
       const count = group?.count || 0;

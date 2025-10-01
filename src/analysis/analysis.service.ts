@@ -143,9 +143,15 @@ export class AnalysisService {
     startTime?: string;
     endTime?: string;
     towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
-    interval?: '15min' | 'hour' | 'day'; // NEW param
+    interval?: '15min' | 'hour' | 'day';
   }) {
     const tz = 'Asia/Karachi';
+    const wetBulb = 28;
+    const windowStartHour = 6;
+    const windowEndHour = 7; // fixed end for past dates
+    const now = DateTime.now().setZone(tz);
+    const today = now.startOf('day');
+
     let startDate: DateTime;
     let endDate: DateTime;
 
@@ -154,22 +160,44 @@ export class AnalysisService {
       const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
       startDate = DateTime.fromJSDate(dateRange.$gte, { zone: 'utc' })
         .setZone(tz)
-        .startOf('day');
+        .set({ hour: windowStartHour, minute: 0, second: 0 });
       endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' })
         .setZone(tz)
-        .endOf('day');
+        .set({ hour: windowEndHour, minute: 0, second: 0 });
+      if (endDate <= startDate) endDate = endDate.plus({ days: 1 });
     } else if (dto.fromDate && dto.toDate) {
-      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
-      endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
+      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).set({
+        hour: windowStartHour,
+        minute: 0,
+        second: 0,
+      });
+
+      if (dto.fromDate === dto.toDate) {
+        endDate = startDate.hasSame(today, 'day')
+          ? now
+          : startDate.plus({ hours: 1 });
+      } else {
+        endDate = DateTime.fromISO(dto.toDate, { zone: tz }).set({
+          hour: windowEndHour,
+          minute: 0,
+          second: 0,
+        });
+        if (endDate <= startDate) endDate = endDate.plus({ days: 1 });
+      }
     } else if (dto.date) {
-      const day = DateTime.fromISO(dto.date, { zone: tz });
-      startDate = day.startOf('day');
-      endDate = day.endOf('day');
+      startDate = DateTime.fromISO(dto.date, { zone: tz }).set({
+        hour: windowStartHour,
+        minute: 0,
+        second: 0,
+      });
+      endDate = startDate.hasSame(today, 'day')
+        ? now
+        : startDate.plus({ hours: 1 });
     } else {
       throw new Error('No date range provided');
     }
 
-    // --- Fetch only by timestamp string boundaries ---
+    // --- Build Mongo filter ---
     const filter: any = {
       timestamp: {
         $gte: startDate.toISO(),
@@ -199,7 +227,7 @@ export class AnalysisService {
       .lean()
       .exec();
 
-    // --- Interval Selection (auto mode) ---
+    // --- Interval Selection ---
     const diffInDays = endDate.diff(startDate, 'days').days;
     const interval: '15min' | 'hour' | 'day' = dto.interval
       ? dto.interval
@@ -208,8 +236,6 @@ export class AnalysisService {
         : diffInDays <= 7
           ? 'hour'
           : 'day';
-
-    const wetBulb = 28;
 
     // --- Empty Buckets ---
     const emptyBuckets: { timestamp: string }[] = [];
@@ -286,7 +312,7 @@ export class AnalysisService {
     }
 
     // --- Merge Buckets with Data ---
-    const result = emptyBuckets.map(({ timestamp }) => {
+    let result = emptyBuckets.map(({ timestamp }) => {
       const group = groupMap.get(timestamp);
       const count = group?.count || 0;
       return {
@@ -296,6 +322,28 @@ export class AnalysisService {
         returnTemp: count ? group!.returnSum / count : 0,
         wetBulb,
       };
+    });
+
+    // --- Filter out any next-day buckets beyond 6–7 AM window ---
+    result = result.filter(({ label }) => {
+      const dt = DateTime.fromFormat(
+        label,
+        interval === 'hour'
+          ? 'yyyy-MM-dd HH:00'
+          : interval === '15min'
+            ? 'yyyy-MM-dd HH:mm'
+            : 'yyyy-MM-dd',
+        { zone: tz },
+      );
+
+      // Only keep buckets that are on startDate's day OR
+      // if the same day as startDate, up to windowEndHour
+      return (
+        dt <
+        startDate
+          .plus({ hours: 24 })
+          .set({ hour: windowEndHour, minute: 0, second: 0 })
+      );
     });
 
     return { message: 'Analysis Chart 1 Data', rawdata: result };

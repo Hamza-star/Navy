@@ -11,7 +11,6 @@ export class AnalysisService {
     private readonly AnalysisModel: Model<AnalysisData>,
     private readonly mongoDateFilter: MongoDateFilterService,
   ) {}
-
   // async getAnalysisDataChart1(dto: {
   //   date?: string;
   //   range?: string;
@@ -20,57 +19,32 @@ export class AnalysisService {
   //   startTime?: string;
   //   endTime?: string;
   //   towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
-  //   interval?: '15min' | 'hour' | 'day';
   // }) {
   //   const tz = 'Asia/Karachi';
   //   let startDate: DateTime;
   //   let endDate: DateTime;
-
-  //   const now = DateTime.now().setZone(tz);
-  //   const todayStr = now.toFormat('yyyy-MM-dd');
 
   //   // --- Date Range Handling ---
   //   if (dto.range) {
   //     const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
   //     startDate = DateTime.fromJSDate(dateRange.$gte, { zone: 'utc' })
   //       .setZone(tz)
-  //       .set({ hour: 6, minute: 0, second: 0 }); // ✅ start from 6 AM
-
-  //     endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' }).setZone(
-  //       tz,
-  //     );
-  //     if (endDate.toFormat('yyyy-MM-dd') === todayStr) {
-  //       endDate = now;
-  //     } else {
-  //       endDate = endDate.endOf('day');
-  //     }
+  //       .startOf('day');
+  //     endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' })
+  //       .setZone(tz)
+  //       .endOf('day');
   //   } else if (dto.fromDate && dto.toDate) {
-  //     startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).set({
-  //       hour: 6,
-  //       minute: 0,
-  //       second: 0,
-  //     }); // ✅ start from 6 AM
-
-  //     endDate = DateTime.fromISO(dto.toDate, { zone: tz });
-  //     if (dto.toDate === todayStr) {
-  //       endDate = now;
-  //     } else {
-  //       endDate = endDate.endOf('day');
-  //     }
+  //     startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
+  //     endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
   //   } else if (dto.date) {
   //     const day = DateTime.fromISO(dto.date, { zone: tz });
-  //     startDate = day.set({ hour: 6, minute: 0, second: 0 }); // ✅ start from 6 AM
-
-  //     if (dto.date === todayStr) {
-  //       endDate = now;
-  //     } else {
-  //       endDate = day.endOf('day');
-  //     }
+  //     startDate = day.startOf('day');
+  //     endDate = day.endOf('day');
   //   } else {
   //     throw new Error('No date range provided');
   //   }
 
-  //   // --- Filter ---
+  //   // --- Fetch only by timestamp string boundaries ---
   //   const filter: any = {
   //     timestamp: {
   //       $gte: startDate.toISO(),
@@ -87,7 +61,7 @@ export class AnalysisService {
   //   }
 
   //   // --- Projection ---
-  //   const projection: any = { _id: 0, timestamp: 1 };
+  //   const projection: any = { _id: 1, timestamp: 1 };
   //   const sampleDoc = await this.AnalysisModel.findOne(filter).lean().exec();
   //   if (!sampleDoc) return { message: 'Analysis Chart 1 Data', rawdata: [] };
 
@@ -100,41 +74,11 @@ export class AnalysisService {
   //     .lean()
   //     .exec();
 
-  //   // --- Interval Selection ---
+  //   // --- Grouping ---
   //   const diffInDays = endDate.diff(startDate, 'days').days;
-  //   const interval: '15min' | 'hour' | 'day' = dto.interval
-  //     ? dto.interval
-  //     : diffInDays <= 1
-  //       ? '15min'
-  //       : diffInDays <= 7
-  //         ? 'hour'
-  //         : 'day';
-
+  //   const groupBy: 'hour' | 'day' = diffInDays <= 1 ? 'hour' : 'day';
   //   const wetBulb = 28;
 
-  //   // --- Empty Buckets ---
-  //   const emptyBuckets: { timestamp: string }[] = [];
-  //   let cursor = startDate;
-
-  //   while (cursor <= endDate) {
-  //     emptyBuckets.push({
-  //       timestamp:
-  //         interval === 'hour'
-  //           ? cursor.toFormat('yyyy-MM-dd HH:00')
-  //           : interval === '15min'
-  //             ? cursor.toFormat('yyyy-MM-dd HH:mm')
-  //             : cursor.toFormat('yyyy-MM-dd'),
-  //     });
-
-  //     cursor =
-  //       interval === 'hour'
-  //         ? cursor.plus({ hours: 1 })
-  //         : interval === '15min'
-  //           ? cursor.plus({ minutes: 15 })
-  //           : cursor.plus({ days: 1 });
-  //   }
-
-  //   // --- Grouping ---
   //   const groupMap = new Map<
   //     string,
   //     {
@@ -147,18 +91,10 @@ export class AnalysisService {
 
   //   for (const doc of data) {
   //     const docDate = DateTime.fromISO(doc.timestamp, { zone: tz });
-  //     let label: string;
-
-  //     if (interval === 'hour') {
-  //       label = docDate.toFormat('yyyy-MM-dd HH:00');
-  //     } else if (interval === '15min') {
-  //       const roundedMinutes = Math.floor(docDate.minute / 15) * 15;
-  //       label = docDate
-  //         .set({ minute: roundedMinutes, second: 0 })
-  //         .toFormat('yyyy-MM-dd HH:mm');
-  //     } else {
-  //       label = docDate.toFormat('yyyy-MM-dd');
-  //     }
+  //     const label =
+  //       groupBy === 'hour'
+  //         ? docDate.toFormat('yyyy-MM-dd HH:00')
+  //         : docDate.toFormat('yyyy-MM-dd');
 
   //     if (!groupMap.has(label)) {
   //       groupMap.set(label, {
@@ -186,18 +122,15 @@ export class AnalysisService {
   //     group.count++;
   //   }
 
-  //   // --- Merge Buckets ---
-  //   const result = emptyBuckets.map(({ timestamp }) => {
-  //     const group = groupMap.get(timestamp);
-  //     const count = group?.count || 0;
-  //     return {
-  //       label: timestamp,
-  //       coolingEfficiency: count ? group!.efficiencySum / count : 0,
-  //       supplyTemp: count ? group!.supplySum / count : 0,
-  //       returnTemp: count ? group!.returnSum / count : 0,
-  //       wetBulb,
-  //     };
-  //   });
+  //   // --- Only actual groups (no empty buckets) ---
+  //   const result = Array.from(groupMap.entries()).map(([label, group]) => ({
+  //     label,
+  //     coolingEfficiency:
+  //       group.count > 0 ? group.efficiencySum / group.count : 0,
+  //     supplyTemp: group.count > 0 ? group.supplySum / group.count : 0,
+  //     returnTemp: group.count > 0 ? group.returnSum / group.count : 0,
+  //     wetBulb,
+  //   }));
 
   //   return { message: 'Analysis Chart 1 Data', rawdata: result };
   // }
@@ -210,48 +143,33 @@ export class AnalysisService {
     startTime?: string;
     endTime?: string;
     towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
-    interval?: '15min' | 'hour' | 'day';
+    interval?: '15min' | 'hour' | 'day'; // NEW param
   }) {
     const tz = 'Asia/Karachi';
     let startDate: DateTime;
     let endDate: DateTime;
-
-    const now = DateTime.now().setZone(tz);
-    const todayStr = now.toFormat('yyyy-MM-dd');
 
     // --- Date Range Handling ---
     if (dto.range) {
       const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
       startDate = DateTime.fromJSDate(dateRange.$gte, { zone: 'utc' })
         .setZone(tz)
-        .set({ hour: 6, minute: 0, second: 0 });
-
-      endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' }).setZone(
-        tz,
-      );
-      // Last bucket = end of last day 6:00 AM
-      endDate = endDate.set({ hour: 6, minute: 0, second: 0 });
+        .startOf('day');
+      endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' })
+        .setZone(tz)
+        .endOf('day');
     } else if (dto.fromDate && dto.toDate) {
-      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).set({
-        hour: 6,
-        minute: 0,
-        second: 0,
-      });
-
-      endDate = DateTime.fromISO(dto.toDate, { zone: tz }).set({
-        hour: 6,
-        minute: 0,
-        second: 0,
-      });
+      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
+      endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
     } else if (dto.date) {
       const day = DateTime.fromISO(dto.date, { zone: tz });
-      startDate = day.set({ hour: 6, minute: 0, second: 0 });
-      endDate = day.set({ hour: 6, minute: 0, second: 0 });
+      startDate = day.startOf('day');
+      endDate = day.endOf('day');
     } else {
       throw new Error('No date range provided');
     }
 
-    // --- Filter ---
+    // --- Fetch only by timestamp string boundaries ---
     const filter: any = {
       timestamp: {
         $gte: startDate.toISO(),
@@ -281,7 +199,7 @@ export class AnalysisService {
       .lean()
       .exec();
 
-    // --- Interval Selection ---
+    // --- Interval Selection (auto mode) ---
     const diffInDays = endDate.diff(startDate, 'days').days;
     const interval: '15min' | 'hour' | 'day' = dto.interval
       ? dto.interval
@@ -298,19 +216,14 @@ export class AnalysisService {
     let cursor = startDate;
 
     while (cursor <= endDate) {
-      let timestamp: string;
-      if (interval === 'hour') {
-        timestamp = cursor.toFormat('yyyy-MM-dd HH:00');
-      } else if (interval === '15min') {
-        const roundedMinutes = Math.floor(cursor.minute / 15) * 15;
-        timestamp = cursor
-          .set({ minute: roundedMinutes, second: 0 })
-          .toFormat('yyyy-MM-dd HH:mm');
-      } else {
-        timestamp = cursor.toFormat('yyyy-MM-dd');
-      }
-
-      emptyBuckets.push({ timestamp });
+      emptyBuckets.push({
+        timestamp:
+          interval === 'hour'
+            ? cursor.toFormat('yyyy-MM-dd HH:00')
+            : interval === '15min'
+              ? cursor.toFormat('yyyy-MM-dd HH:mm')
+              : cursor.toFormat('yyyy-MM-dd'),
+      });
 
       cursor =
         interval === 'hour'
@@ -318,20 +231,6 @@ export class AnalysisService {
           : interval === '15min'
             ? cursor.plus({ minutes: 15 })
             : cursor.plus({ days: 1 });
-    }
-
-    // --- Ensure last bucket exactly at endDate ---
-    const lastTimestamp =
-      interval === 'hour'
-        ? endDate.toFormat('yyyy-MM-dd HH:00')
-        : interval === '15min'
-          ? endDate
-              .set({ minute: Math.floor(endDate.minute / 15) * 15, second: 0 })
-              .toFormat('yyyy-MM-dd HH:mm')
-          : endDate.toFormat('yyyy-MM-dd');
-
-    if (emptyBuckets[emptyBuckets.length - 1].timestamp !== lastTimestamp) {
-      emptyBuckets.push({ timestamp: lastTimestamp });
     }
 
     // --- Grouping ---
@@ -386,7 +285,7 @@ export class AnalysisService {
       group.count++;
     }
 
-    // --- Merge Buckets ---
+    // --- Merge Buckets with Data ---
     const result = emptyBuckets.map(({ timestamp }) => {
       const group = groupMap.get(timestamp);
       const count = group?.count || 0;
@@ -402,6 +301,121 @@ export class AnalysisService {
     return { message: 'Analysis Chart 1 Data', rawdata: result };
   }
 
+  // async getAnalysisDataChart2(dto: {
+  //   date?: string;
+  //   range?: string;
+  //   fromDate?: string;
+  //   toDate?: string;
+  //   startTime?: string;
+  //   endTime?: string;
+  //   towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
+  //   wetBulb?: number;
+  // }) {
+  //   const tz = 'Asia/Karachi';
+  //   let startDate: DateTime;
+  //   let endDate: DateTime;
+
+  //   if (dto.range) {
+  //     const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
+  //     startDate = DateTime.fromJSDate(dateRange.$gte, { zone: 'utc' })
+  //       .setZone(tz)
+  //       .startOf('day');
+  //     endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' })
+  //       .setZone(tz)
+  //       .endOf('day');
+  //   } else if (dto.fromDate && dto.toDate) {
+  //     startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
+  //     endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
+  //   } else if (dto.date) {
+  //     const day = DateTime.fromISO(dto.date, { zone: tz });
+  //     startDate = day.startOf('day');
+  //     endDate = day.endOf('day');
+  //   } else {
+  //     throw new Error('No date range provided');
+  //   }
+
+  //   const filter: any = {
+  //     timestamp: {
+  //       $gte: startDate.toISO(),
+  //       $lte: endDate.toISO(),
+  //     },
+  //   };
+
+  //   if (dto.startTime && dto.endTime) {
+  //     const custom = this.mongoDateFilter.getCustomTimeRange(
+  //       dto.startTime,
+  //       dto.endTime,
+  //     );
+  //     Object.assign(filter, custom);
+  //   }
+
+  //   const projection: any = { _id: 1, timestamp: 1 };
+  //   const sampleDoc = await this.AnalysisModel.findOne(filter).lean().exec();
+  //   if (!sampleDoc) return { message: 'Analysis Chart 2 Data', rawdata: [] };
+
+  //   const towerPrefix = `${dto.towerType}_`;
+  //   for (const field in sampleDoc) {
+  //     if (field.startsWith(towerPrefix)) projection[field] = 1;
+  //   }
+
+  //   const data = await this.AnalysisModel.find(filter, projection)
+  //     .lean()
+  //     .exec();
+
+  //   const diffInDays = endDate.diff(startDate, 'days').days;
+  //   const groupBy: 'hour' | 'day' = diffInDays <= 1 ? 'hour' : 'day';
+  //   const wetBulb = dto.wetBulb ?? 28;
+
+  //   const groupMap = new Map<
+  //     string,
+  //     {
+  //       approachSum: number;
+  //       supplySum: number;
+  //       returnSum: number;
+  //       count: number;
+  //     }
+  //   >();
+
+  //   for (const doc of data) {
+  //     const docDate = DateTime.fromISO(doc.timestamp, { zone: tz });
+  //     const label =
+  //       groupBy === 'hour'
+  //         ? docDate.toFormat('yyyy-MM-dd HH:00')
+  //         : docDate.toFormat('yyyy-MM-dd');
+
+  //     if (!groupMap.has(label)) {
+  //       groupMap.set(label, {
+  //         approachSum: 0,
+  //         supplySum: 0,
+  //         returnSum: 0,
+  //         count: 0,
+  //       });
+  //     }
+
+  //     const group = groupMap.get(label)!;
+  //     const returnTemp = doc[`${dto.towerType}_TEMP_RTD_01_AI`];
+  //     const supplyTemp = doc[`${dto.towerType}_TEMP_RTD_02_AI`];
+
+  //     const approach =
+  //       typeof returnTemp === 'number' ? returnTemp - wetBulb : null;
+
+  //     if (approach !== null) group.approachSum += approach;
+  //     if (typeof supplyTemp === 'number') group.supplySum += supplyTemp;
+  //     if (typeof returnTemp === 'number') group.returnSum += returnTemp;
+  //     group.count++;
+  //   }
+
+  //   const result = Array.from(groupMap.entries()).map(([label, group]) => ({
+  //     label,
+  //     approach: group.count > 0 ? group.approachSum / group.count : 0,
+  //     supplyTemp: group.count > 0 ? group.supplySum / group.count : 0,
+  //     returnTemp: group.count > 0 ? group.returnSum / group.count : 0,
+  //     wetBulb,
+  //   }));
+
+  //   return { message: 'Analysis Chart 2 Data', rawdata: result };
+  // }
+
   async getAnalysisDataChart2(dto: {
     date?: string;
     range?: string;
@@ -411,57 +425,32 @@ export class AnalysisService {
     endTime?: string;
     towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
     wetBulb?: number;
-    interval?: '15min' | 'hour' | 'day';
+    interval?: '15min' | 'hour' | 'day'; // NEW param
   }) {
     const tz = 'Asia/Karachi';
     let startDate: DateTime;
     let endDate: DateTime;
-
-    const now = DateTime.now().setZone(tz);
-    const todayStr = now.toFormat('yyyy-MM-dd');
 
     // --- Date Range Handling ---
     if (dto.range) {
       const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
       startDate = DateTime.fromJSDate(dateRange.$gte, { zone: 'utc' })
         .setZone(tz)
-        .set({ hour: 6, minute: 0, second: 0 }); // ✅ start from 6 AM
-
-      endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' }).setZone(
-        tz,
-      );
-      if (endDate.toFormat('yyyy-MM-dd') === todayStr) {
-        endDate = now;
-      } else {
-        endDate = endDate.endOf('day');
-      }
+        .startOf('day');
+      endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' })
+        .setZone(tz)
+        .endOf('day');
     } else if (dto.fromDate && dto.toDate) {
-      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).set({
-        hour: 6,
-        minute: 0,
-        second: 0,
-      }); // ✅ start from 6 AM
-
-      endDate = DateTime.fromISO(dto.toDate, { zone: tz });
-      if (dto.toDate === todayStr) {
-        endDate = now;
-      } else {
-        endDate = endDate.endOf('day');
-      }
+      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
+      endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
     } else if (dto.date) {
       const day = DateTime.fromISO(dto.date, { zone: tz });
-      startDate = day.set({ hour: 6, minute: 0, second: 0 }); // ✅ start from 6 AM
-
-      if (dto.date === todayStr) {
-        endDate = now;
-      } else {
-        endDate = day.endOf('day');
-      }
+      startDate = day.startOf('day');
+      endDate = day.endOf('day');
     } else {
       throw new Error('No date range provided');
     }
 
-    // --- Filter ---
     const filter: any = {
       timestamp: {
         $gte: startDate.toISO(),
@@ -491,7 +480,7 @@ export class AnalysisService {
       .lean()
       .exec();
 
-    // --- Interval Selection ---
+    // --- Interval Selection (auto mode) ---
     const diffInDays = endDate.diff(startDate, 'days').days;
     const interval: '15min' | 'hour' | 'day' = dto.interval
       ? dto.interval
@@ -573,7 +562,7 @@ export class AnalysisService {
       group.count++;
     }
 
-    // --- Merge Buckets ---
+    // --- Merge Buckets with Data ---
     const result = emptyBuckets.map(({ timestamp }) => {
       const group = groupMap.get(timestamp);
       const count = group?.count || 0;
@@ -732,121 +721,6 @@ export class AnalysisService {
   //   return { message: 'Analysis Chart 3 Data', rawdata: result };
   // }
 
-  // async getAnalysisDataChart4(dto: {
-  //   date?: string;
-  //   range?: string;
-  //   fromDate?: string;
-  //   toDate?: string;
-  //   startTime?: string;
-  //   endTime?: string;
-  //   towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
-  // }) {
-  //   const filter: any = {};
-  //   let startDate: DateTime;
-  //   let endDate: DateTime;
-  //   const tz = 'Asia/Karachi';
-
-  //   // --- Date range ---
-  //   if (dto.range) {
-  //     const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
-  //     startDate = DateTime.fromJSDate(dateRange.$gte)
-  //       .setZone(tz)
-  //       .startOf('day');
-  //     endDate = DateTime.fromJSDate(dateRange.$lte).setZone(tz).endOf('day');
-  //   } else if (dto.fromDate && dto.toDate) {
-  //     startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
-  //     endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
-  //   } else if (dto.date) {
-  //     startDate = DateTime.fromISO(dto.date, { zone: tz }).startOf('day');
-  //     endDate = DateTime.fromISO(dto.date, { zone: tz }).endOf('day');
-  //   } else {
-  //     throw new Error('No date range provided');
-  //   }
-
-  //   // --- Time range ---
-  //   if (dto.startTime && dto.endTime) {
-  //     const timeFilter = this.mongoDateFilter.getCustomTimeRange(
-  //       dto.startTime,
-  //       dto.endTime,
-  //     );
-  //     Object.assign(filter, timeFilter);
-  //   }
-
-  //   // --- Add timestamp filter (IMPORTANT to avoid missing last bucket) ---
-  //   filter.timestamp = {
-  //     $gte: startDate.toISO(),
-  //     $lte: endDate.toISO(),
-  //   };
-
-  //   // --- Projection ---
-  //   const projection: any = { _id: 0, timestamp: 1 };
-  //   const sampleDoc = await this.AnalysisModel.findOne(filter).lean().exec();
-  //   if (!sampleDoc) {
-  //     return { message: 'Analysis Chart 4 Data', rawdata: [] };
-  //   }
-
-  //   const towerPrefix = `${dto.towerType}_`;
-  //   for (const field in sampleDoc) {
-  //     if (field.startsWith(towerPrefix)) projection[field] = 1;
-  //   }
-
-  //   // --- Fetch data ---
-  //   const data = await this.AnalysisModel.find(filter, projection)
-  //     .lean()
-  //     .exec();
-
-  //   const diffInDays = endDate.diff(startDate, 'days').days;
-  //   const groupBy: 'hour' | 'day' = diffInDays <= 1 ? 'hour' : 'day';
-
-  //   // --- Empty Buckets ---
-  //   const emptyBuckets: { timestamp: string }[] = [];
-  //   let cursor = startDate;
-  //   while (cursor <= endDate) {
-  //     emptyBuckets.push({
-  //       timestamp:
-  //         groupBy === 'hour'
-  //           ? cursor.toFormat('yyyy-MM-dd HH:00')
-  //           : cursor.toFormat('yyyy-MM-dd'),
-  //     });
-  //     cursor =
-  //       groupBy === 'hour'
-  //         ? cursor.plus({ hours: 1 })
-  //         : cursor.plus({ days: 1 });
-  //   }
-
-  //   // --- Grouping ---
-  //   const groupMap = new Map<string, { returnSum: number; count: number }>();
-
-  //   for (const doc of data) {
-  //     const docDate = DateTime.fromISO(doc.timestamp, { zone: tz });
-  //     const label =
-  //       groupBy === 'hour'
-  //         ? docDate.toFormat('yyyy-MM-dd HH:00')
-  //         : docDate.toFormat('yyyy-MM-dd');
-
-  //     if (!groupMap.has(label)) {
-  //       groupMap.set(label, { returnSum: 0, count: 0 });
-  //     }
-
-  //     const group = groupMap.get(label)!;
-  //     const cold = doc[`${dto.towerType}_TEMP_RTD_01_AI`];
-  //     if (typeof cold === 'number') group.returnSum += cold;
-  //     group.count++;
-  //   }
-
-  //   // --- Merge Buckets ---
-  //   const result = emptyBuckets.map(({ timestamp }) => {
-  //     const group = groupMap.get(timestamp);
-  //     const count = group?.count || 0;
-  //     return {
-  //       label: timestamp,
-  //       returnTemp: count > 0 ? group!.returnSum / count : 0,
-  //     };
-  //   });
-
-  //   return { message: 'Analysis Chart 4 Data', rawdata: result };
-  // }
-
   async getAnalysisDataChart3(dto: {
     date?: string;
     range?: string;
@@ -855,53 +729,28 @@ export class AnalysisService {
     startTime?: string;
     endTime?: string;
     towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
-    interval?: '15min' | 'hour' | 'day';
+    interval?: '15min' | 'hour' | 'day'; // ✅ added param
   }) {
     const filter: any = {};
     const tz = 'Asia/Karachi';
     let startDate: DateTime;
     let endDate: DateTime;
 
-    const now = DateTime.now().setZone(tz);
-    const todayStr = now.toFormat('yyyy-MM-dd');
-
     // --- Date Filtering ---
     if (dto.range) {
       const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
       startDate = DateTime.fromJSDate(dateRange.$gte, { zone: 'utc' })
         .setZone(tz)
-        .set({ hour: 6, minute: 0, second: 0 }); // ✅ start from 6 AM
-
-      endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' }).setZone(
-        tz,
-      );
-      if (endDate.toFormat('yyyy-MM-dd') === todayStr) {
-        endDate = now;
-      } else {
-        endDate = endDate.endOf('day');
-      }
+        .startOf('day');
+      endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' })
+        .setZone(tz)
+        .endOf('day');
     } else if (dto.fromDate && dto.toDate) {
-      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).set({
-        hour: 6,
-        minute: 0,
-        second: 0,
-      }); // ✅ start from 6 AM
-
-      endDate = DateTime.fromISO(dto.toDate, { zone: tz });
-      if (dto.toDate === todayStr) {
-        endDate = now;
-      } else {
-        endDate = endDate.endOf('day');
-      }
+      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
+      endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
     } else if (dto.date) {
-      const day = DateTime.fromISO(dto.date, { zone: tz });
-      startDate = day.set({ hour: 6, minute: 0, second: 0 }); // ✅ start from 6 AM
-
-      if (dto.date === todayStr) {
-        endDate = now;
-      } else {
-        endDate = day.endOf('day');
-      }
+      startDate = DateTime.fromISO(dto.date, { zone: tz }).startOf('day');
+      endDate = DateTime.fromISO(dto.date, { zone: tz }).endOf('day');
     } else {
       throw new Error('No date range provided');
     }
@@ -1039,6 +888,121 @@ export class AnalysisService {
     return { message: 'Analysis Chart 3 Data', rawdata: result };
   }
 
+  // async getAnalysisDataChart4(dto: {
+  //   date?: string;
+  //   range?: string;
+  //   fromDate?: string;
+  //   toDate?: string;
+  //   startTime?: string;
+  //   endTime?: string;
+  //   towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
+  // }) {
+  //   const filter: any = {};
+  //   let startDate: DateTime;
+  //   let endDate: DateTime;
+  //   const tz = 'Asia/Karachi';
+
+  //   // --- Date range ---
+  //   if (dto.range) {
+  //     const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
+  //     startDate = DateTime.fromJSDate(dateRange.$gte)
+  //       .setZone(tz)
+  //       .startOf('day');
+  //     endDate = DateTime.fromJSDate(dateRange.$lte).setZone(tz).endOf('day');
+  //   } else if (dto.fromDate && dto.toDate) {
+  //     startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
+  //     endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
+  //   } else if (dto.date) {
+  //     startDate = DateTime.fromISO(dto.date, { zone: tz }).startOf('day');
+  //     endDate = DateTime.fromISO(dto.date, { zone: tz }).endOf('day');
+  //   } else {
+  //     throw new Error('No date range provided');
+  //   }
+
+  //   // --- Time range ---
+  //   if (dto.startTime && dto.endTime) {
+  //     const timeFilter = this.mongoDateFilter.getCustomTimeRange(
+  //       dto.startTime,
+  //       dto.endTime,
+  //     );
+  //     Object.assign(filter, timeFilter);
+  //   }
+
+  //   // --- Add timestamp filter (IMPORTANT to avoid missing last bucket) ---
+  //   filter.timestamp = {
+  //     $gte: startDate.toISO(),
+  //     $lte: endDate.toISO(),
+  //   };
+
+  //   // --- Projection ---
+  //   const projection: any = { _id: 0, timestamp: 1 };
+  //   const sampleDoc = await this.AnalysisModel.findOne(filter).lean().exec();
+  //   if (!sampleDoc) {
+  //     return { message: 'Analysis Chart 4 Data', rawdata: [] };
+  //   }
+
+  //   const towerPrefix = `${dto.towerType}_`;
+  //   for (const field in sampleDoc) {
+  //     if (field.startsWith(towerPrefix)) projection[field] = 1;
+  //   }
+
+  //   // --- Fetch data ---
+  //   const data = await this.AnalysisModel.find(filter, projection)
+  //     .lean()
+  //     .exec();
+
+  //   const diffInDays = endDate.diff(startDate, 'days').days;
+  //   const groupBy: 'hour' | 'day' = diffInDays <= 1 ? 'hour' : 'day';
+
+  //   // --- Empty Buckets ---
+  //   const emptyBuckets: { timestamp: string }[] = [];
+  //   let cursor = startDate;
+  //   while (cursor <= endDate) {
+  //     emptyBuckets.push({
+  //       timestamp:
+  //         groupBy === 'hour'
+  //           ? cursor.toFormat('yyyy-MM-dd HH:00')
+  //           : cursor.toFormat('yyyy-MM-dd'),
+  //     });
+  //     cursor =
+  //       groupBy === 'hour'
+  //         ? cursor.plus({ hours: 1 })
+  //         : cursor.plus({ days: 1 });
+  //   }
+
+  //   // --- Grouping ---
+  //   const groupMap = new Map<string, { returnSum: number; count: number }>();
+
+  //   for (const doc of data) {
+  //     const docDate = DateTime.fromISO(doc.timestamp, { zone: tz });
+  //     const label =
+  //       groupBy === 'hour'
+  //         ? docDate.toFormat('yyyy-MM-dd HH:00')
+  //         : docDate.toFormat('yyyy-MM-dd');
+
+  //     if (!groupMap.has(label)) {
+  //       groupMap.set(label, { returnSum: 0, count: 0 });
+  //     }
+
+  //     const group = groupMap.get(label)!;
+  //     const cold = doc[`${dto.towerType}_TEMP_RTD_01_AI`];
+  //     if (typeof cold === 'number') group.returnSum += cold;
+  //     group.count++;
+  //   }
+
+  //   // --- Merge Buckets ---
+  //   const result = emptyBuckets.map(({ timestamp }) => {
+  //     const group = groupMap.get(timestamp);
+  //     const count = group?.count || 0;
+  //     return {
+  //       label: timestamp,
+  //       returnTemp: count > 0 ? group!.returnSum / count : 0,
+  //     };
+  //   });
+
+  //   return { message: 'Analysis Chart 4 Data', rawdata: result };
+  // }
+
   async getAnalysisDataChart4(dto: {
     date?: string;
     range?: string;
@@ -1047,53 +1011,28 @@ export class AnalysisService {
     startTime?: string;
     endTime?: string;
     towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
-    interval?: '15min' | 'hour' | 'day';
+    interval?: '15min' | 'hour' | 'day'; // ✅ added param
   }) {
     const filter: any = {};
     const tz = 'Asia/Karachi';
     let startDate: DateTime;
     let endDate: DateTime;
 
-    const now = DateTime.now().setZone(tz);
-    const todayStr = now.toFormat('yyyy-MM-dd');
-
     // --- Date range ---
     if (dto.range) {
       const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
       startDate = DateTime.fromJSDate(dateRange.$gte, { zone: 'utc' })
         .setZone(tz)
-        .set({ hour: 6, minute: 0, second: 0 }); // ✅ start 6 AM
-
-      endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' }).setZone(
-        tz,
-      );
-      if (endDate.toFormat('yyyy-MM-dd') === todayStr) {
-        endDate = now;
-      } else {
-        endDate = endDate.endOf('day');
-      }
+        .startOf('day');
+      endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' })
+        .setZone(tz)
+        .endOf('day');
     } else if (dto.fromDate && dto.toDate) {
-      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).set({
-        hour: 6,
-        minute: 0,
-        second: 0,
-      }); // ✅ start 6 AM
-
-      endDate = DateTime.fromISO(dto.toDate, { zone: tz });
-      if (dto.toDate === todayStr) {
-        endDate = now;
-      } else {
-        endDate = endDate.endOf('day');
-      }
+      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
+      endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
     } else if (dto.date) {
-      const day = DateTime.fromISO(dto.date, { zone: tz });
-      startDate = day.set({ hour: 6, minute: 0, second: 0 }); // ✅ start 6 AM
-
-      if (dto.date === todayStr) {
-        endDate = now;
-      } else {
-        endDate = day.endOf('day');
-      }
+      startDate = DateTime.fromISO(dto.date, { zone: tz }).startOf('day');
+      endDate = DateTime.fromISO(dto.date, { zone: tz }).endOf('day');
     } else {
       throw new Error('No date range provided');
     }
@@ -1353,136 +1292,6 @@ export class AnalysisService {
   //   return { message: 'Analysis Chart 5 Data', rawdata: result };
   // }
 
-  // async getAnalysisDataChart6(dto: {
-  //   date?: string;
-  //   range?: string;
-  //   fromDate?: string;
-  //   toDate?: string;
-  //   startTime?: string;
-  //   endTime?: string;
-  //   towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
-  // }) {
-  //   const filter: any = {};
-  //   let startDate: DateTime;
-  //   let endDate: DateTime;
-  //   const tz = 'Asia/Karachi';
-
-  //   // --- Date range ---
-  //   if (dto.range) {
-  //     const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
-  //     startDate = DateTime.fromJSDate(dateRange.$gte)
-  //       .setZone(tz)
-  //       .startOf('day');
-  //     endDate = DateTime.fromJSDate(dateRange.$lte).setZone(tz).endOf('day');
-  //   } else if (dto.fromDate && dto.toDate) {
-  //     startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
-  //     endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
-  //   } else if (dto.date) {
-  //     startDate = DateTime.fromISO(dto.date, { zone: tz }).startOf('day');
-  //     endDate = DateTime.fromISO(dto.date, { zone: tz }).endOf('day');
-  //   } else {
-  //     throw new Error('No date range provided');
-  //   }
-
-  //   // --- Time range ---
-  //   if (dto.startTime && dto.endTime) {
-  //     const timeFilter = this.mongoDateFilter.getCustomTimeRange(
-  //       dto.startTime,
-  //       dto.endTime,
-  //     );
-  //     Object.assign(filter, timeFilter);
-  //   }
-
-  //   // --- Timestamp filter (string-based) ---
-  //   filter.timestamp = {
-  //     $gte: startDate.toISO(),
-  //     $lte: endDate.toISO(),
-  //   };
-
-  //   // --- Projection ---
-  //   const towerPrefix = `${dto.towerType}_`;
-  //   const projection: any = { _id: 0, timestamp: 1 };
-
-  //   const sampleDoc = await this.AnalysisModel.findOne(filter).lean().exec();
-  //   if (!sampleDoc) {
-  //     return { message: 'Analysis Chart 6 Data', rawdata: [] };
-  //   }
-
-  //   const requiredFields = [
-  //     `${towerPrefix}FM_02_FR`,
-  //     `${towerPrefix}TEMP_RTD_01_AI`,
-  //   ];
-  //   for (const field of requiredFields) {
-  //     if (field in sampleDoc) projection[field] = 1;
-  //   }
-
-  //   // --- Fetch data ---
-  //   const data = await this.AnalysisModel.find(filter, projection)
-  //     .lean()
-  //     .exec();
-  //   if (!data.length) return { message: 'Analysis Chart 6 Data', rawdata: [] };
-
-  //   const diffInDays = endDate.diff(startDate, 'days').days;
-  //   const groupBy: 'hour' | 'day' = diffInDays <= 1 ? 'hour' : 'day';
-
-  //   // --- Empty Buckets ---
-  //   const emptyBuckets: { timestamp: string }[] = [];
-  //   let cursor = startDate;
-  //   while (cursor <= endDate) {
-  //     emptyBuckets.push({
-  //       timestamp:
-  //         groupBy === 'hour'
-  //           ? cursor.toFormat('yyyy-MM-dd HH:00')
-  //           : cursor.toFormat('yyyy-MM-dd'),
-  //     });
-  //     cursor =
-  //       groupBy === 'hour'
-  //         ? cursor.plus({ hours: 1 })
-  //         : cursor.plus({ days: 1 });
-  //   }
-
-  //   // --- Grouping ---
-  //   const groupMap = new Map<
-  //     string,
-  //     { returnSum: number; driftSum: number; count: number }
-  //   >();
-
-  //   for (const doc of data) {
-  //     const docDate = DateTime.fromISO(doc.timestamp, { zone: tz });
-  //     const label =
-  //       groupBy === 'hour'
-  //         ? docDate.toFormat('yyyy-MM-dd HH:00')
-  //         : docDate.toFormat('yyyy-MM-dd');
-
-  //     const returnTemp = doc[`${towerPrefix}TEMP_RTD_01_AI`];
-  //     const flowRate = doc[`${towerPrefix}FM_02_FR`];
-  //     const driftLoss =
-  //       typeof flowRate === 'number' ? (0.05 * flowRate) / 100 : null;
-
-  //     if (!groupMap.has(label)) {
-  //       groupMap.set(label, { returnSum: 0, driftSum: 0, count: 0 });
-  //     }
-  //     const g = groupMap.get(label)!;
-
-  //     if (typeof returnTemp === 'number') g.returnSum += returnTemp;
-  //     if (typeof driftLoss === 'number') g.driftSum += driftLoss;
-  //     g.count++;
-  //   }
-
-  //   // --- Merge Buckets ---
-  //   const result = emptyBuckets.map(({ timestamp }) => {
-  //     const g = groupMap.get(timestamp);
-  //     const count = g?.count || 0;
-  //     return {
-  //       label: timestamp,
-  //       returnTemp: count ? g!.returnSum / count : 0,
-  //       driftLoss: count ? g!.driftSum / count : 0,
-  //     };
-  //   });
-
-  //   return { message: 'Analysis Chart 6 Data', rawdata: result };
-  // }
-
   async getAnalysisDataChart5(dto: {
     date?: string;
     range?: string;
@@ -1491,53 +1300,28 @@ export class AnalysisService {
     startTime?: string;
     endTime?: string;
     towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
-    interval?: '15min' | 'hour' | 'day';
+    interval?: '15min' | 'hour' | 'day'; // ✅ added
   }) {
     const filter: any = {};
     const tz = 'Asia/Karachi';
     let startDate: DateTime;
     let endDate: DateTime;
 
-    const now = DateTime.now().setZone(tz);
-    const todayStr = now.toFormat('yyyy-MM-dd');
-
     // --- Date range ---
     if (dto.range) {
       const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
       startDate = DateTime.fromJSDate(dateRange.$gte, { zone: 'utc' })
         .setZone(tz)
-        .set({ hour: 6, minute: 0, second: 0 }); // ✅ start 6 AM
-
-      endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' }).setZone(
-        tz,
-      );
-      if (endDate.toFormat('yyyy-MM-dd') === todayStr) {
-        endDate = now;
-      } else {
-        endDate = endDate.endOf('day');
-      }
+        .startOf('day');
+      endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' })
+        .setZone(tz)
+        .endOf('day');
     } else if (dto.fromDate && dto.toDate) {
-      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).set({
-        hour: 6,
-        minute: 0,
-        second: 0,
-      }); // ✅ start 6 AM
-
-      endDate = DateTime.fromISO(dto.toDate, { zone: tz });
-      if (dto.toDate === todayStr) {
-        endDate = now;
-      } else {
-        endDate = endDate.endOf('day');
-      }
+      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
+      endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
     } else if (dto.date) {
-      const day = DateTime.fromISO(dto.date, { zone: tz });
-      startDate = day.set({ hour: 6, minute: 0, second: 0 }); // ✅ start 6 AM
-
-      if (dto.date === todayStr) {
-        endDate = now;
-      } else {
-        endDate = day.endOf('day');
-      }
+      startDate = DateTime.fromISO(dto.date, { zone: tz }).startOf('day');
+      endDate = DateTime.fromISO(dto.date, { zone: tz }).endOf('day');
     } else {
       throw new Error('No date range provided');
     }
@@ -1683,6 +1467,136 @@ export class AnalysisService {
     return { message: 'Analysis Chart 5 Data', rawdata: result };
   }
 
+  // async getAnalysisDataChart6(dto: {
+  //   date?: string;
+  //   range?: string;
+  //   fromDate?: string;
+  //   toDate?: string;
+  //   startTime?: string;
+  //   endTime?: string;
+  //   towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
+  // }) {
+  //   const filter: any = {};
+  //   let startDate: DateTime;
+  //   let endDate: DateTime;
+  //   const tz = 'Asia/Karachi';
+
+  //   // --- Date range ---
+  //   if (dto.range) {
+  //     const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
+  //     startDate = DateTime.fromJSDate(dateRange.$gte)
+  //       .setZone(tz)
+  //       .startOf('day');
+  //     endDate = DateTime.fromJSDate(dateRange.$lte).setZone(tz).endOf('day');
+  //   } else if (dto.fromDate && dto.toDate) {
+  //     startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
+  //     endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
+  //   } else if (dto.date) {
+  //     startDate = DateTime.fromISO(dto.date, { zone: tz }).startOf('day');
+  //     endDate = DateTime.fromISO(dto.date, { zone: tz }).endOf('day');
+  //   } else {
+  //     throw new Error('No date range provided');
+  //   }
+
+  //   // --- Time range ---
+  //   if (dto.startTime && dto.endTime) {
+  //     const timeFilter = this.mongoDateFilter.getCustomTimeRange(
+  //       dto.startTime,
+  //       dto.endTime,
+  //     );
+  //     Object.assign(filter, timeFilter);
+  //   }
+
+  //   // --- Timestamp filter (string-based) ---
+  //   filter.timestamp = {
+  //     $gte: startDate.toISO(),
+  //     $lte: endDate.toISO(),
+  //   };
+
+  //   // --- Projection ---
+  //   const towerPrefix = `${dto.towerType}_`;
+  //   const projection: any = { _id: 0, timestamp: 1 };
+
+  //   const sampleDoc = await this.AnalysisModel.findOne(filter).lean().exec();
+  //   if (!sampleDoc) {
+  //     return { message: 'Analysis Chart 6 Data', rawdata: [] };
+  //   }
+
+  //   const requiredFields = [
+  //     `${towerPrefix}FM_02_FR`,
+  //     `${towerPrefix}TEMP_RTD_01_AI`,
+  //   ];
+  //   for (const field of requiredFields) {
+  //     if (field in sampleDoc) projection[field] = 1;
+  //   }
+
+  //   // --- Fetch data ---
+  //   const data = await this.AnalysisModel.find(filter, projection)
+  //     .lean()
+  //     .exec();
+  //   if (!data.length) return { message: 'Analysis Chart 6 Data', rawdata: [] };
+
+  //   const diffInDays = endDate.diff(startDate, 'days').days;
+  //   const groupBy: 'hour' | 'day' = diffInDays <= 1 ? 'hour' : 'day';
+
+  //   // --- Empty Buckets ---
+  //   const emptyBuckets: { timestamp: string }[] = [];
+  //   let cursor = startDate;
+  //   while (cursor <= endDate) {
+  //     emptyBuckets.push({
+  //       timestamp:
+  //         groupBy === 'hour'
+  //           ? cursor.toFormat('yyyy-MM-dd HH:00')
+  //           : cursor.toFormat('yyyy-MM-dd'),
+  //     });
+  //     cursor =
+  //       groupBy === 'hour'
+  //         ? cursor.plus({ hours: 1 })
+  //         : cursor.plus({ days: 1 });
+  //   }
+
+  //   // --- Grouping ---
+  //   const groupMap = new Map<
+  //     string,
+  //     { returnSum: number; driftSum: number; count: number }
+  //   >();
+
+  //   for (const doc of data) {
+  //     const docDate = DateTime.fromISO(doc.timestamp, { zone: tz });
+  //     const label =
+  //       groupBy === 'hour'
+  //         ? docDate.toFormat('yyyy-MM-dd HH:00')
+  //         : docDate.toFormat('yyyy-MM-dd');
+
+  //     const returnTemp = doc[`${towerPrefix}TEMP_RTD_01_AI`];
+  //     const flowRate = doc[`${towerPrefix}FM_02_FR`];
+  //     const driftLoss =
+  //       typeof flowRate === 'number' ? (0.05 * flowRate) / 100 : null;
+
+  //     if (!groupMap.has(label)) {
+  //       groupMap.set(label, { returnSum: 0, driftSum: 0, count: 0 });
+  //     }
+  //     const g = groupMap.get(label)!;
+
+  //     if (typeof returnTemp === 'number') g.returnSum += returnTemp;
+  //     if (typeof driftLoss === 'number') g.driftSum += driftLoss;
+  //     g.count++;
+  //   }
+
+  //   // --- Merge Buckets ---
+  //   const result = emptyBuckets.map(({ timestamp }) => {
+  //     const g = groupMap.get(timestamp);
+  //     const count = g?.count || 0;
+  //     return {
+  //       label: timestamp,
+  //       returnTemp: count ? g!.returnSum / count : 0,
+  //       driftLoss: count ? g!.driftSum / count : 0,
+  //     };
+  //   });
+
+  //   return { message: 'Analysis Chart 6 Data', rawdata: result };
+  // }
+
   async getAnalysisDataChart6(dto: {
     date?: string;
     range?: string;
@@ -1691,53 +1605,28 @@ export class AnalysisService {
     startTime?: string;
     endTime?: string;
     towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
-    interval?: '15min' | 'hour' | 'day';
+    interval?: '15min' | 'hour' | 'day'; // ✅ added
   }) {
     const filter: any = {};
     const tz = 'Asia/Karachi';
     let startDate: DateTime;
     let endDate: DateTime;
 
-    const now = DateTime.now().setZone(tz);
-    const todayStr = now.toFormat('yyyy-MM-dd');
-
     // --- Date range ---
     if (dto.range) {
       const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
       startDate = DateTime.fromJSDate(dateRange.$gte, { zone: 'utc' })
         .setZone(tz)
-        .set({ hour: 6, minute: 0, second: 0 }); // ✅ start 6 AM
-
-      endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' }).setZone(
-        tz,
-      );
-      if (endDate.toFormat('yyyy-MM-dd') === todayStr) {
-        endDate = now; // ✅ today → current time
-      } else {
-        endDate = endDate.endOf('day');
-      }
+        .startOf('day');
+      endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' })
+        .setZone(tz)
+        .endOf('day');
     } else if (dto.fromDate && dto.toDate) {
-      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).set({
-        hour: 6,
-        minute: 0,
-        second: 0,
-      }); // ✅ start 6 AM
-
-      endDate = DateTime.fromISO(dto.toDate, { zone: tz });
-      if (dto.toDate === todayStr) {
-        endDate = now;
-      } else {
-        endDate = endDate.endOf('day');
-      }
+      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
+      endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
     } else if (dto.date) {
-      const day = DateTime.fromISO(dto.date, { zone: tz });
-      startDate = day.set({ hour: 6, minute: 0, second: 0 }); // ✅ start 6 AM
-
-      if (dto.date === todayStr) {
-        endDate = now;
-      } else {
-        endDate = day.endOf('day');
-      }
+      startDate = DateTime.fromISO(dto.date, { zone: tz }).startOf('day');
+      endDate = DateTime.fromISO(dto.date, { zone: tz }).endOf('day');
     } else {
       throw new Error('No date range provided');
     }
@@ -1996,6 +1885,165 @@ export class AnalysisService {
   //   return { message: 'Analysis Chart 7 Data', rawdata: result };
   // }
 
+  async getAnalysisDataChart7(dto: {
+    date?: string;
+    range?: string;
+    fromDate?: string;
+    toDate?: string;
+    startTime?: string;
+    endTime?: string;
+    towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
+    interval?: '15min' | 'hour' | 'day'; // ✅ added
+  }) {
+    const filter: any = {};
+    const tz = 'Asia/Karachi';
+    let startDate: DateTime;
+    let endDate: DateTime;
+
+    // --- Date range ---
+    if (dto.range) {
+      const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
+      startDate = DateTime.fromJSDate(dateRange.$gte, { zone: 'utc' })
+        .setZone(tz)
+        .startOf('day');
+      endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' })
+        .setZone(tz)
+        .endOf('day');
+    } else if (dto.fromDate && dto.toDate) {
+      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
+      endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
+    } else if (dto.date) {
+      startDate = DateTime.fromISO(dto.date, { zone: tz }).startOf('day');
+      endDate = DateTime.fromISO(dto.date, { zone: tz }).endOf('day');
+    } else {
+      throw new Error('No date range provided');
+    }
+
+    // --- Time filter ---
+    if (dto.startTime && dto.endTime) {
+      const timeFilter = this.mongoDateFilter.getCustomTimeRange(
+        dto.startTime,
+        dto.endTime,
+      );
+      Object.assign(filter, timeFilter);
+    }
+
+    // --- Timestamp filter ---
+    filter.timestamp = {
+      $gte: startDate.toISO(),
+      $lte: endDate.toISO(),
+    };
+
+    // --- Projection ---
+    const towerPrefix = `${dto.towerType}_`;
+    const projection: any = { _id: 0, timestamp: 1 };
+
+    const sampleDoc = await this.AnalysisModel.findOne(filter).lean().exec();
+    if (!sampleDoc) return { message: 'Analysis Chart 7 Data', rawdata: [] };
+
+    const requiredFields = [
+      `${towerPrefix}FM_02_FR`,
+      `${towerPrefix}TEMP_RTD_01_AI`,
+      `${towerPrefix}TEMP_RTD_02_AI`,
+    ];
+    for (const field of requiredFields) {
+      if (field in sampleDoc) projection[field] = 1;
+    }
+
+    const data = await this.AnalysisModel.find(filter, projection)
+      .lean()
+      .exec();
+    if (!data.length) return { message: 'Analysis Chart 7 Data', rawdata: [] };
+
+    // --- Interval selection ---
+    const diffInDays = endDate.diff(startDate, 'days').days;
+    const interval: '15min' | 'hour' | 'day' = dto.interval
+      ? dto.interval
+      : diffInDays <= 1
+        ? '15min'
+        : diffInDays <= 7
+          ? 'hour'
+          : 'day';
+
+    // --- Empty Buckets ---
+    const emptyBuckets: { timestamp: string }[] = [];
+    let cursor = startDate;
+    while (cursor <= endDate) {
+      emptyBuckets.push({
+        timestamp:
+          interval === 'hour'
+            ? cursor.toFormat('yyyy-MM-dd HH:00')
+            : interval === '15min'
+              ? cursor.toFormat('yyyy-MM-dd HH:mm')
+              : cursor.toFormat('yyyy-MM-dd'),
+      });
+
+      cursor =
+        interval === 'hour'
+          ? cursor.plus({ hours: 1 })
+          : interval === '15min'
+            ? cursor.plus({ minutes: 15 })
+            : cursor.plus({ days: 1 });
+    }
+
+    // --- Grouping ---
+    const groupMap = new Map<
+      string,
+      { blowdownSum: number; evapSum: number; count: number }
+    >();
+    const constant = 0.00085 * 1.8;
+
+    for (const doc of data) {
+      const docDate = DateTime.fromISO(doc.timestamp, { zone: tz });
+      let label: string;
+
+      if (interval === 'hour') {
+        label = docDate.toFormat('yyyy-MM-dd HH:00');
+      } else if (interval === '15min') {
+        const roundedMinutes = Math.floor(docDate.minute / 15) * 15;
+        label = docDate
+          .set({ minute: roundedMinutes, second: 0 })
+          .toFormat('yyyy-MM-dd HH:mm');
+      } else {
+        label = docDate.toFormat('yyyy-MM-dd');
+      }
+
+      const flow = doc[`${towerPrefix}FM_02_FR`];
+      const supply = doc[`${towerPrefix}TEMP_RTD_01_AI`];
+      const ret = doc[`${towerPrefix}TEMP_RTD_02_AI`];
+
+      if (
+        typeof flow === 'number' &&
+        typeof supply === 'number' &&
+        typeof ret === 'number'
+      ) {
+        const evapLoss = constant * flow * (ret - supply);
+        const blowdownRate = evapLoss / 6;
+
+        if (!groupMap.has(label)) {
+          groupMap.set(label, { blowdownSum: 0, evapSum: 0, count: 0 });
+        }
+        const g = groupMap.get(label)!;
+        g.blowdownSum += blowdownRate;
+        g.evapSum += evapLoss;
+        g.count++;
+      }
+    }
+
+    // --- Merge Buckets ---
+    const result = emptyBuckets.map(({ timestamp }) => {
+      const g = groupMap.get(timestamp);
+      const count = g?.count || 0;
+      return {
+        label: timestamp,
+        evaporationLoss: count ? g!.evapSum / count : 0,
+        blowdownRate: count ? g!.blowdownSum / count : 0,
+      };
+    });
+
+    return { message: 'Analysis Chart 7 Data', rawdata: result };
+  }
+
   // async getAnalysisDataChart8(dto: {
   //   date?: string;
   //   range?: string;
@@ -2148,190 +2196,6 @@ export class AnalysisService {
   //   return { message: 'Analysis Chart 8 Data', rawdata: result };
   // }
 
-  async getAnalysisDataChart7(dto: {
-    date?: string;
-    range?: string;
-    fromDate?: string;
-    toDate?: string;
-    startTime?: string;
-    endTime?: string;
-    towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
-    interval?: '15min' | 'hour' | 'day';
-  }) {
-    const filter: any = {};
-    const tz = 'Asia/Karachi';
-    let startDate: DateTime;
-    let endDate: DateTime;
-
-    const now = DateTime.now().setZone(tz);
-    const todayStr = now.toFormat('yyyy-MM-dd');
-
-    // --- Date range ---
-    if (dto.range) {
-      const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
-      startDate = DateTime.fromJSDate(dateRange.$gte, { zone: 'utc' })
-        .setZone(tz)
-        .set({ hour: 6, minute: 0, second: 0 }); // ✅ 6 AM start
-
-      endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' }).setZone(
-        tz,
-      );
-      if (endDate.toFormat('yyyy-MM-dd') === todayStr) {
-        endDate = now; // ✅ today → current time
-      } else {
-        endDate = endDate.endOf('day');
-      }
-    } else if (dto.fromDate && dto.toDate) {
-      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).set({
-        hour: 6,
-        minute: 0,
-        second: 0,
-      }); // ✅ 6 AM start
-
-      endDate = DateTime.fromISO(dto.toDate, { zone: tz });
-      if (dto.toDate === todayStr) {
-        endDate = now;
-      } else {
-        endDate = endDate.endOf('day');
-      }
-    } else if (dto.date) {
-      const day = DateTime.fromISO(dto.date, { zone: tz });
-      startDate = day.set({ hour: 6, minute: 0, second: 0 }); // ✅ 6 AM start
-
-      if (dto.date === todayStr) {
-        endDate = now;
-      } else {
-        endDate = day.endOf('day');
-      }
-    } else {
-      throw new Error('No date range provided');
-    }
-
-    // --- Time filter ---
-    if (dto.startTime && dto.endTime) {
-      const timeFilter = this.mongoDateFilter.getCustomTimeRange(
-        dto.startTime,
-        dto.endTime,
-      );
-      Object.assign(filter, timeFilter);
-    }
-
-    // --- Timestamp filter ---
-    filter.timestamp = {
-      $gte: startDate.toISO(),
-      $lte: endDate.toISO(),
-    };
-
-    // --- Projection ---
-    const towerPrefix = `${dto.towerType}_`;
-    const projection: any = { _id: 0, timestamp: 1 };
-
-    const sampleDoc = await this.AnalysisModel.findOne(filter).lean().exec();
-    if (!sampleDoc) return { message: 'Analysis Chart 7 Data', rawdata: [] };
-
-    const requiredFields = [
-      `${towerPrefix}FM_02_FR`,
-      `${towerPrefix}TEMP_RTD_01_AI`,
-      `${towerPrefix}TEMP_RTD_02_AI`,
-    ];
-    for (const field of requiredFields) {
-      if (field in sampleDoc) projection[field] = 1;
-    }
-
-    const data = await this.AnalysisModel.find(filter, projection)
-      .lean()
-      .exec();
-    if (!data.length) return { message: 'Analysis Chart 7 Data', rawdata: [] };
-
-    // --- Interval selection ---
-    const diffInDays = endDate.diff(startDate, 'days').days;
-    const interval: '15min' | 'hour' | 'day' = dto.interval
-      ? dto.interval
-      : diffInDays <= 1
-        ? '15min'
-        : diffInDays <= 7
-          ? 'hour'
-          : 'day';
-
-    // --- Empty Buckets ---
-    const emptyBuckets: { timestamp: string }[] = [];
-    let cursor = startDate;
-    while (cursor <= endDate) {
-      emptyBuckets.push({
-        timestamp:
-          interval === 'hour'
-            ? cursor.toFormat('yyyy-MM-dd HH:00')
-            : interval === '15min'
-              ? cursor.toFormat('yyyy-MM-dd HH:mm')
-              : cursor.toFormat('yyyy-MM-dd'),
-      });
-
-      cursor =
-        interval === 'hour'
-          ? cursor.plus({ hours: 1 })
-          : interval === '15min'
-            ? cursor.plus({ minutes: 15 })
-            : cursor.plus({ days: 1 });
-    }
-
-    // --- Grouping ---
-    const groupMap = new Map<
-      string,
-      { blowdownSum: number; evapSum: number; count: number }
-    >();
-    const constant = 0.00085 * 1.8;
-
-    for (const doc of data) {
-      const docDate = DateTime.fromISO(doc.timestamp, { zone: tz });
-      let label: string;
-
-      if (interval === 'hour') {
-        label = docDate.toFormat('yyyy-MM-dd HH:00');
-      } else if (interval === '15min') {
-        const roundedMinutes = Math.floor(docDate.minute / 15) * 15;
-        label = docDate
-          .set({ minute: roundedMinutes, second: 0 })
-          .toFormat('yyyy-MM-dd HH:mm');
-      } else {
-        label = docDate.toFormat('yyyy-MM-dd');
-      }
-
-      const flow = doc[`${towerPrefix}FM_02_FR`];
-      const supply = doc[`${towerPrefix}TEMP_RTD_01_AI`];
-      const ret = doc[`${towerPrefix}TEMP_RTD_02_AI`];
-
-      if (
-        typeof flow === 'number' &&
-        typeof supply === 'number' &&
-        typeof ret === 'number'
-      ) {
-        const evapLoss = constant * flow * (ret - supply);
-        const blowdownRate = evapLoss / 6;
-
-        if (!groupMap.has(label)) {
-          groupMap.set(label, { blowdownSum: 0, evapSum: 0, count: 0 });
-        }
-        const g = groupMap.get(label)!;
-        g.blowdownSum += blowdownRate;
-        g.evapSum += evapLoss;
-        g.count++;
-      }
-    }
-
-    // --- Merge Buckets ---
-    const result = emptyBuckets.map(({ timestamp }) => {
-      const g = groupMap.get(timestamp);
-      const count = g?.count || 0;
-      return {
-        label: timestamp,
-        evaporationLoss: count ? g!.evapSum / count : 0,
-        blowdownRate: count ? g!.blowdownSum / count : 0,
-      };
-    });
-
-    return { message: 'Analysis Chart 7 Data', rawdata: result };
-  }
-
   async getAnalysisDataChart8(dto: {
     date?: string;
     range?: string;
@@ -2340,53 +2204,28 @@ export class AnalysisService {
     startTime?: string;
     endTime?: string;
     towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
-    interval?: '15min' | 'hour' | 'day';
+    interval?: '15min' | 'hour' | 'day'; // ✅ added
   }) {
     const filter: any = {};
     const tz = 'Asia/Karachi';
     let startDate: DateTime;
     let endDate: DateTime;
 
-    const now = DateTime.now().setZone(tz);
-    const todayStr = now.toFormat('yyyy-MM-dd');
-
     // --- Date range ---
     if (dto.range) {
       const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
       startDate = DateTime.fromJSDate(dateRange.$gte, { zone: 'utc' })
         .setZone(tz)
-        .set({ hour: 6, minute: 0, second: 0 }); // ✅ 6 AM start
-
-      endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' }).setZone(
-        tz,
-      );
-      if (endDate.toFormat('yyyy-MM-dd') === todayStr) {
-        endDate = now; // ✅ today → abhi ka time
-      } else {
-        endDate = endDate.endOf('day');
-      }
+        .startOf('day');
+      endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' })
+        .setZone(tz)
+        .endOf('day');
     } else if (dto.fromDate && dto.toDate) {
-      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).set({
-        hour: 6,
-        minute: 0,
-        second: 0,
-      }); // ✅ 6 AM start
-
-      endDate = DateTime.fromISO(dto.toDate, { zone: tz });
-      if (dto.toDate === todayStr) {
-        endDate = now;
-      } else {
-        endDate = endDate.endOf('day');
-      }
+      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
+      endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
     } else if (dto.date) {
-      const day = DateTime.fromISO(dto.date, { zone: tz });
-      startDate = day.set({ hour: 6, minute: 0, second: 0 }); // ✅ 6 AM start
-
-      if (dto.date === todayStr) {
-        endDate = now;
-      } else {
-        endDate = day.endOf('day');
-      }
+      startDate = DateTime.fromISO(dto.date, { zone: tz }).startOf('day');
+      endDate = DateTime.fromISO(dto.date, { zone: tz }).endOf('day');
     } else {
       throw new Error('No date range provided');
     }
@@ -2543,58 +2382,30 @@ export class AnalysisService {
     startTime?: string;
     endTime?: string;
     towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
-    interval?: '15min' | 'hour';
+    interval?: '15min' | 'hour'; // NEW param
   }) {
     const filter: any = {};
     const tz = 'Asia/Karachi';
     let startDate: DateTime;
     let endDate: DateTime;
 
-    const now = DateTime.now().setZone(tz);
-    const todayStr = now.toFormat('yyyy-MM-dd');
-
     // --- Date range ---
     if (dto.range) {
       const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
-      startDate = DateTime.fromJSDate(dateRange.$gte, { zone: 'utc' })
+      startDate = DateTime.fromJSDate(dateRange.$gte)
         .setZone(tz)
-        .set({ hour: 6, minute: 0, second: 0 }); // ✅ 6 AM start
-
-      endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' }).setZone(
-        tz,
-      );
-      if (endDate.toFormat('yyyy-MM-dd') === todayStr) {
-        endDate = now; // ✅ today → abhi ka waqt
-      } else {
-        endDate = endDate.endOf('day');
-      }
+        .startOf('day');
+      endDate = DateTime.fromJSDate(dateRange.$lte).setZone(tz).endOf('day');
     } else if (dto.fromDate && dto.toDate) {
-      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).set({
-        hour: 6,
-        minute: 0,
-        second: 0,
-      });
-
-      endDate = DateTime.fromISO(dto.toDate, { zone: tz });
-      if (dto.toDate === todayStr) {
-        endDate = now;
-      } else {
-        endDate = endDate.endOf('day');
-      }
+      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
+      endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
     } else if (dto.date) {
-      const day = DateTime.fromISO(dto.date, { zone: tz });
-      startDate = day.set({ hour: 6, minute: 0, second: 0 }); // ✅ 6 AM start
-
-      if (dto.date === todayStr) {
-        endDate = now;
-      } else {
-        endDate = day.endOf('day');
-      }
+      startDate = DateTime.fromISO(dto.date, { zone: tz }).startOf('day');
+      endDate = DateTime.fromISO(dto.date, { zone: tz }).endOf('day');
     } else {
       throw new Error('No date range provided');
     }
 
-    // --- Time filter ---
     if (dto.startTime && dto.endTime) {
       const timeFilter = this.mongoDateFilter.getCustomTimeRange(
         dto.startTime,
@@ -2603,7 +2414,6 @@ export class AnalysisService {
       Object.assign(filter, timeFilter);
     }
 
-    // --- Timestamp filter ---
     filter.timestamp = {
       $gte: startDate.toISO(),
       $lte: endDate.toISO(),
@@ -2627,7 +2437,6 @@ export class AnalysisService {
     if (!data.length)
       return { message: 'Analysis Chart 9 - Fan Speed & Ampere', rawdata: [] };
 
-    // --- Interval selection ---
     const interval = dto.interval ?? 'hour';
 
     // --- Empty Buckets ---
@@ -2640,7 +2449,6 @@ export class AnalysisService {
             ? cursor.toFormat('yyyy-MM-dd HH:00')
             : cursor.toFormat('yyyy-MM-dd HH:mm'),
       });
-
       cursor =
         interval === 'hour'
           ? cursor.plus({ hours: 1 })
@@ -2702,7 +2510,6 @@ export class AnalysisService {
       rawdata: result,
     };
   }
-
   async getAnalysisDataChart10(dto: {
     date?: string;
     range?: string;
@@ -2812,145 +2619,6 @@ export class AnalysisService {
     return { message: 'Analysis Chart 10 Data', rawdata: result };
   }
 
-  // async getAnalysisDataChart11(dto: {
-  //   date?: string;
-  //   range?: string;
-  //   fromDate?: string;
-  //   toDate?: string;
-  //   startTime?: string;
-  //   endTime?: string;
-  //   towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
-  //   interval?: '15min' | 'hour';
-  // }) {
-  //   const filter: any = {};
-  //   const tz = 'Asia/Karachi';
-  //   let startDate: DateTime;
-  //   let endDate: DateTime;
-
-  //   // --- Date range ---
-  //   if (dto.range) {
-  //     const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
-  //     startDate = DateTime.fromJSDate(dateRange.$gte)
-  //       .setZone(tz)
-  //       .startOf('day');
-  //     endDate = DateTime.fromJSDate(dateRange.$lte).setZone(tz).endOf('day');
-  //   } else if (dto.fromDate && dto.toDate) {
-  //     startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
-  //     endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
-  //   } else if (dto.date) {
-  //     startDate = DateTime.fromISO(dto.date, { zone: tz }).startOf('day');
-  //     endDate = DateTime.fromISO(dto.date, { zone: tz }).endOf('day');
-  //   } else {
-  //     throw new Error('No date range provided');
-  //   }
-
-  //   if (dto.startTime && dto.endTime) {
-  //     const timeFilter = this.mongoDateFilter.getCustomTimeRange(
-  //       dto.startTime,
-  //       dto.endTime,
-  //     );
-  //     Object.assign(filter, timeFilter);
-  //   }
-
-  //   filter.timestamp = {
-  //     $gte: startDate.toISO(),
-  //     $lte: endDate.toISO(),
-  //   };
-
-  //   // --- Projection ---
-  //   const projection: any = { _id: 0, timestamp: 1 };
-  //   const tower = dto.towerType!;
-
-  //   projection[`${tower}_EM01_Current_AN_Amp`] = 1;
-  //   projection[`${tower}_EM01_Current_BN_Amp`] = 1;
-  //   projection[`${tower}_EM01_Current_CN_Amp`] = 1;
-  //   projection[`${tower}_TEMP_RTD_01_AI`] = 1; // supply
-  //   projection[`${tower}_TEMP_RTD_02_AI`] = 1; // return
-
-  //   const data = await this.AnalysisModel.find(filter, projection)
-  //     .lean()
-  //     .exec();
-  //   if (!data.length) {
-  //     return { message: 'Analysis Chart 11 Data', rawdata: [] };
-  //   }
-
-  //   const interval = dto.interval ?? 'hour';
-
-  //   // --- Empty buckets ---
-  //   const emptyBuckets: { timestamp: string }[] = [];
-  //   let cursor = startDate;
-  //   while (cursor <= endDate) {
-  //     emptyBuckets.push({
-  //       timestamp:
-  //         interval === 'hour'
-  //           ? cursor.toFormat('yyyy-MM-dd HH:00')
-  //           : cursor.toFormat('yyyy-MM-dd HH:mm'),
-  //     });
-  //     cursor =
-  //       interval === 'hour'
-  //         ? cursor.plus({ hours: 1 })
-  //         : cursor.plus({ minutes: 15 });
-  //   }
-
-  //   // --- Grouping ---
-  //   const groupMap = new Map<
-  //     string,
-  //     { powerSum: number; supplySum: number; returnSum: number; count: number }
-  //   >();
-
-  //   for (const doc of data) {
-  //     const docDate = DateTime.fromISO(doc.timestamp, { zone: tz });
-  //     let label: string;
-
-  //     if (interval === 'hour') {
-  //       label = docDate.toFormat('yyyy-MM-dd HH:00');
-  //     } else {
-  //       const roundedMinutes = Math.floor(docDate.minute / 15) * 15;
-  //       label = docDate
-  //         .set({ minute: roundedMinutes, second: 0 })
-  //         .toFormat('yyyy-MM-dd HH:mm');
-  //     }
-
-  //     if (!groupMap.has(label)) {
-  //       groupMap.set(label, {
-  //         powerSum: 0,
-  //         supplySum: 0,
-  //         returnSum: 0,
-  //         count: 0,
-  //       });
-  //     }
-
-  //     const g = groupMap.get(label)!;
-  //     const an = doc[`${tower}_EM01_Current_AN_Amp`] ?? 0;
-  //     const bn = doc[`${tower}_EM01_Current_BN_Amp`] ?? 0;
-  //     const cn = doc[`${tower}_EM01_Current_CN_Amp`] ?? 0;
-
-  //     const avgPower = (an + bn + cn) / 3;
-
-  //     const supplyTemp = doc[`${tower}_TEMP_RTD_01_AI`];
-  //     const returnTemp = doc[`${tower}_TEMP_RTD_02_AI`];
-
-  //     g.powerSum += avgPower;
-  //     if (typeof supplyTemp === 'number') g.supplySum += supplyTemp;
-  //     if (typeof returnTemp === 'number') g.returnSum += returnTemp;
-  //     g.count++;
-  //   }
-
-  //   // --- Merge buckets ---
-  //   const result = emptyBuckets.map(({ timestamp }) => {
-  //     const g = groupMap.get(timestamp);
-  //     const count = g?.count || 0;
-  //     return {
-  //       label: timestamp,
-  //       fanPower: count ? g!.powerSum / count : 0,
-  //       supplyTemp: count ? g!.supplySum / count : 0,
-  //       returnTemp: count ? g!.returnSum / count : 0,
-  //     };
-  //   });
-
-  //   return { message: 'Analysis Chart 11 Data', rawdata: result };
-  // }
-
   async getAnalysisDataChart11(dto: {
     date?: string;
     range?: string;
@@ -2973,42 +2641,16 @@ export class AnalysisService {
         .setZone(tz)
         .startOf('day');
       endDate = DateTime.fromJSDate(dateRange.$lte).setZone(tz).endOf('day');
-
-      // ✅ If range = today → endDate = now
-      if (dto.range.toLowerCase() === 'today') {
-        endDate = DateTime.now().setZone(tz);
-      }
     } else if (dto.fromDate && dto.toDate) {
       startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
       endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
-
-      // ✅ If toDate = today → endDate = now
-      if (
-        DateTime.fromISO(dto.toDate, { zone: tz }).hasSame(
-          DateTime.now().setZone(tz),
-          'day',
-        )
-      ) {
-        endDate = DateTime.now().setZone(tz);
-      }
     } else if (dto.date) {
       startDate = DateTime.fromISO(dto.date, { zone: tz }).startOf('day');
       endDate = DateTime.fromISO(dto.date, { zone: tz }).endOf('day');
-
-      // ✅ If date = today → endDate = now
-      if (
-        DateTime.fromISO(dto.date, { zone: tz }).hasSame(
-          DateTime.now().setZone(tz),
-          'day',
-        )
-      ) {
-        endDate = DateTime.now().setZone(tz);
-      }
     } else {
       throw new Error('No date range provided');
     }
 
-    // --- Time filter ---
     if (dto.startTime && dto.endTime) {
       const timeFilter = this.mongoDateFilter.getCustomTimeRange(
         dto.startTime,
@@ -3017,7 +2659,6 @@ export class AnalysisService {
       Object.assign(filter, timeFilter);
     }
 
-    // --- Timestamp filter ---
     filter.timestamp = {
       $gte: startDate.toISO(),
       $lte: endDate.toISO(),
@@ -3040,7 +2681,6 @@ export class AnalysisService {
       return { message: 'Analysis Chart 11 Data', rawdata: [] };
     }
 
-    // --- Interval selection ---
     const interval = dto.interval ?? 'hour';
 
     // --- Empty buckets ---

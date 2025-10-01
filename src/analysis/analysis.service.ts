@@ -11,223 +11,68 @@ export class AnalysisService {
     private readonly AnalysisModel: Model<AnalysisData>,
     private readonly mongoDateFilter: MongoDateFilterService,
   ) {}
-  // async getAnalysisDataChart1(dto: {
-  //   date?: string;
-  //   range?: string;
-  //   fromDate?: string;
-  //   toDate?: string;
-  //   startTime?: string;
-  //   endTime?: string;
-  //   towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
-  // }) {
-  //   const tz = 'Asia/Karachi';
-  //   let startDate: DateTime;
-  //   let endDate: DateTime;
-
-  //   // --- Date Range Handling ---
-  //   if (dto.range) {
-  //     const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
-  //     startDate = DateTime.fromJSDate(dateRange.$gte, { zone: 'utc' })
-  //       .setZone(tz)
-  //       .startOf('day');
-  //     endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' })
-  //       .setZone(tz)
-  //       .endOf('day');
-  //   } else if (dto.fromDate && dto.toDate) {
-  //     startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
-  //     endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
-  //   } else if (dto.date) {
-  //     const day = DateTime.fromISO(dto.date, { zone: tz });
-  //     startDate = day.startOf('day');
-  //     endDate = day.endOf('day');
-  //   } else {
-  //     throw new Error('No date range provided');
-  //   }
-
-  //   // --- Fetch only by timestamp string boundaries ---
-  //   const filter: any = {
-  //     timestamp: {
-  //       $gte: startDate.toISO(),
-  //       $lte: endDate.toISO(),
-  //     },
-  //   };
-
-  //   if (dto.startTime && dto.endTime) {
-  //     const custom = this.mongoDateFilter.getCustomTimeRange(
-  //       dto.startTime,
-  //       dto.endTime,
-  //     );
-  //     Object.assign(filter, custom);
-  //   }
-
-  //   // --- Projection ---
-  //   const projection: any = { _id: 1, timestamp: 1 };
-  //   const sampleDoc = await this.AnalysisModel.findOne(filter).lean().exec();
-  //   if (!sampleDoc) return { message: 'Analysis Chart 1 Data', rawdata: [] };
-
-  //   const towerPrefix = `${dto.towerType}_`;
-  //   for (const field in sampleDoc) {
-  //     if (field.startsWith(towerPrefix)) projection[field] = 1;
-  //   }
-
-  //   const data = await this.AnalysisModel.find(filter, projection)
-  //     .lean()
-  //     .exec();
-
-  //   // --- Grouping ---
-  //   const diffInDays = endDate.diff(startDate, 'days').days;
-  //   const groupBy: 'hour' | 'day' = diffInDays <= 1 ? 'hour' : 'day';
-  //   const wetBulb = 28;
-
-  //   const groupMap = new Map<
-  //     string,
-  //     {
-  //       efficiencySum: number;
-  //       supplySum: number;
-  //       returnSum: number;
-  //       count: number;
-  //     }
-  //   >();
-
-  //   for (const doc of data) {
-  //     const docDate = DateTime.fromISO(doc.timestamp, { zone: tz });
-  //     const label =
-  //       groupBy === 'hour'
-  //         ? docDate.toFormat('yyyy-MM-dd HH:00')
-  //         : docDate.toFormat('yyyy-MM-dd');
-
-  //     if (!groupMap.has(label)) {
-  //       groupMap.set(label, {
-  //         efficiencySum: 0,
-  //         supplySum: 0,
-  //         returnSum: 0,
-  //         count: 0,
-  //       });
-  //     }
-
-  //     const group = groupMap.get(label)!;
-  //     const hot = doc[`${dto.towerType}_TEMP_RTD_02_AI`];
-  //     const cold = doc[`${dto.towerType}_TEMP_RTD_01_AI`];
-
-  //     const eff =
-  //       typeof hot === 'number' &&
-  //       typeof cold === 'number' &&
-  //       hot - wetBulb !== 0
-  //         ? ((hot - cold) / (hot - wetBulb)) * 100
-  //         : null;
-
-  //     if (eff !== null) group.efficiencySum += eff;
-  //     if (typeof hot === 'number') group.supplySum += hot;
-  //     if (typeof cold === 'number') group.returnSum += cold;
-  //     group.count++;
-  //   }
-
-  //   // --- Only actual groups (no empty buckets) ---
-  //   const result = Array.from(groupMap.entries()).map(([label, group]) => ({
-  //     label,
-  //     coolingEfficiency:
-  //       group.count > 0 ? group.efficiencySum / group.count : 0,
-  //     supplyTemp: group.count > 0 ? group.supplySum / group.count : 0,
-  //     returnTemp: group.count > 0 ? group.returnSum / group.count : 0,
-  //     wetBulb,
-  //   }));
-
-  //   return { message: 'Analysis Chart 1 Data', rawdata: result };
-  // }
 
   async getAnalysisDataChart1(dto: {
     date?: string;
     range?: string;
     fromDate?: string;
     toDate?: string;
-    startTime?: string;
-    endTime?: string;
     towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
     interval?: '15min' | 'hour' | 'day';
   }) {
     const tz = 'Asia/Karachi';
-    const wetBulb = 28;
-    const windowStartHour = 6;
-    const windowEndHour = 7; // fixed end for past dates
     const now = DateTime.now().setZone(tz);
-    const today = now.startOf('day');
 
     let startDate: DateTime;
     let endDate: DateTime;
+    const todayStr = now.toFormat('yyyy-MM-dd');
 
-    // --- Date Range Handling ---
-    if (dto.range) {
-      const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
-      startDate = DateTime.fromJSDate(dateRange.$gte, { zone: 'utc' })
-        .setZone(tz)
-        .set({ hour: windowStartHour, minute: 0, second: 0 });
-      endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' })
-        .setZone(tz)
-        .set({ hour: windowEndHour, minute: 0, second: 0 });
-      if (endDate <= startDate) endDate = endDate.plus({ days: 1 });
+    // --- Determine start and end ---
+    if (dto.date) {
+      startDate = DateTime.fromISO(dto.date, { zone: tz }).set({
+        hour: 6,
+        minute: 0,
+        second: 0,
+      });
+      endDate = startDate.plus({ hours: 25 });
+      if (dto.date === todayStr) endDate = now;
     } else if (dto.fromDate && dto.toDate) {
       startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).set({
-        hour: windowStartHour,
+        hour: 6,
         minute: 0,
         second: 0,
       });
-
-      if (dto.fromDate === dto.toDate) {
-        endDate = startDate.hasSame(today, 'day')
-          ? now
-          : startDate.plus({ hours: 1 });
-      } else {
-        endDate = DateTime.fromISO(dto.toDate, { zone: tz }).set({
-          hour: windowEndHour,
-          minute: 0,
-          second: 0,
-        });
-        if (endDate <= startDate) endDate = endDate.plus({ days: 1 });
-      }
-    } else if (dto.date) {
-      startDate = DateTime.fromISO(dto.date, { zone: tz }).set({
-        hour: windowStartHour,
+      endDate = DateTime.fromISO(dto.toDate, { zone: tz })
+        .set({ hour: 6, minute: 0, second: 0 })
+        .plus({ hours: 25 });
+      if (dto.toDate === todayStr) endDate = now;
+    } else if (dto.range) {
+      const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
+      startDate = DateTime.fromJSDate(dateRange.$gte, { zone: tz }).set({
+        hour: 6,
         minute: 0,
         second: 0,
       });
-      endDate = startDate.hasSame(today, 'day')
-        ? now
-        : startDate.plus({ hours: 1 });
+      endDate = startDate.plus({ hours: 25 });
+      if (startDate.toFormat('yyyy-MM-dd') === todayStr) endDate = now;
     } else {
       throw new Error('No date range provided');
     }
 
-    // --- Build Mongo filter ---
     const filter: any = {
-      timestamp: {
-        $gte: startDate.toISO(),
-        $lte: endDate.toISO(),
-      },
+      timestamp: { $gte: startDate.toISO(), $lt: endDate.toISO() },
     };
-
-    if (dto.startTime && dto.endTime) {
-      const custom = this.mongoDateFilter.getCustomTimeRange(
-        dto.startTime,
-        dto.endTime,
-      );
-      Object.assign(filter, custom);
-    }
-
-    // --- Projection ---
-    const projection: any = { _id: 0, timestamp: 1 };
     const sampleDoc = await this.AnalysisModel.findOne(filter).lean().exec();
     if (!sampleDoc) return { message: 'Analysis Chart 1 Data', rawdata: [] };
 
     const towerPrefix = `${dto.towerType}_`;
-    for (const field in sampleDoc) {
+    const projection: any = { _id: 0, timestamp: 1 };
+    for (const field in sampleDoc)
       if (field.startsWith(towerPrefix)) projection[field] = 1;
-    }
 
     const data = await this.AnalysisModel.find(filter, projection)
       .lean()
       .exec();
-
-    // --- Interval Selection ---
     const diffInDays = endDate.diff(startDate, 'days').days;
     const interval: '15min' | 'hour' | 'day' = dto.interval
       ? dto.interval
@@ -237,232 +82,188 @@ export class AnalysisService {
           ? 'hour'
           : 'day';
 
-    // --- Empty Buckets ---
-    const emptyBuckets: { timestamp: string }[] = [];
-    let cursor = startDate;
+    const wetBulb = 28;
+    const result: {
+      label: string;
+      coolingEfficiency: number;
+      supplyTemp: number;
+      returnTemp: number;
+      wetBulb: number;
+    }[] = [];
 
-    while (cursor <= endDate) {
-      emptyBuckets.push({
-        timestamp:
-          interval === 'hour'
-            ? cursor.toFormat('yyyy-MM-dd HH:00')
-            : interval === '15min'
-              ? cursor.toFormat('yyyy-MM-dd HH:mm')
-              : cursor.toFormat('yyyy-MM-dd'),
-      });
+    if (interval === '15min') {
+      const cursorEnd24h = startDate.plus({ hours: 24 });
+      let cursor = startDate;
+      let lastValues = { coolingEfficiency: 0, supplyTemp: 0, returnTemp: 0 };
 
-      cursor =
-        interval === 'hour'
-          ? cursor.plus({ hours: 1 })
-          : interval === '15min'
-            ? cursor.plus({ minutes: 15 })
-            : cursor.plus({ days: 1 });
-    }
+      // --- First 24 hours ---
+      while (cursor < cursorEnd24h && cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd HH:mm');
+        const docsInBucket = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ minutes: 15 });
+        });
 
-    // --- Grouping ---
-    const groupMap = new Map<
-      string,
-      {
-        efficiencySum: number;
-        supplySum: number;
-        returnSum: number;
-        count: number;
+        let effSum = 0,
+          supplySum = 0,
+          returnSum = 0,
+          count = 0;
+        for (const doc of docsInBucket) {
+          const hot = doc[`${dto.towerType}_TEMP_RTD_02_AI`];
+          const cold = doc[`${dto.towerType}_TEMP_RTD_01_AI`];
+          const eff =
+            typeof hot === 'number' &&
+            typeof cold === 'number' &&
+            hot - wetBulb !== 0
+              ? ((hot - cold) / (hot - wetBulb)) * 100
+              : null;
+          if (eff !== null) effSum += eff;
+          if (typeof hot === 'number') supplySum += hot;
+          if (typeof cold === 'number') returnSum += cold;
+          count++;
+        }
+
+        if (count === 0 && cursor.toFormat('yyyy-MM-dd') === todayStr) {
+          // --- Today: no data yet, use last known values ---
+          result.push({
+            label,
+            coolingEfficiency: lastValues.coolingEfficiency,
+            supplyTemp: lastValues.supplyTemp,
+            returnTemp: lastValues.returnTemp,
+            wetBulb,
+          });
+        } else {
+          const avgEff = count ? effSum / count : 0;
+          const avgSupply = count ? supplySum / count : 0;
+          const avgReturn = count ? returnSum / count : 0;
+          result.push({
+            label,
+            coolingEfficiency: avgEff,
+            supplyTemp: avgSupply,
+            returnTemp: avgReturn,
+            wetBulb,
+          });
+          lastValues = {
+            coolingEfficiency: avgEff,
+            supplyTemp: avgSupply,
+            returnTemp: avgReturn,
+          };
+        }
+
+        cursor = cursor.plus({ minutes: 15 });
       }
-    >();
 
-    for (const doc of data) {
-      const docDate = DateTime.fromISO(doc.timestamp, { zone: tz });
-      let label: string;
+      // --- 25th hour: only first document ---
+      if (data.length > 0 && cursor < endDate) {
+        const firstDoc = data[0];
+        const hot = firstDoc[`${dto.towerType}_TEMP_RTD_02_AI`];
+        const cold = firstDoc[`${dto.towerType}_TEMP_RTD_01_AI`];
+        const eff =
+          typeof hot === 'number' &&
+          typeof cold === 'number' &&
+          hot - wetBulb !== 0
+            ? ((hot - cold) / (hot - wetBulb)) * 100
+            : 0;
 
-      if (interval === 'hour') {
-        label = docDate.toFormat('yyyy-MM-dd HH:00');
-      } else if (interval === '15min') {
-        const roundedMinutes = Math.floor(docDate.minute / 15) * 15;
-        label = docDate
-          .set({ minute: roundedMinutes, second: 0 })
-          .toFormat('yyyy-MM-dd HH:mm');
-      } else {
-        label = docDate.toFormat('yyyy-MM-dd');
-      }
-
-      if (!groupMap.has(label)) {
-        groupMap.set(label, {
-          efficiencySum: 0,
-          supplySum: 0,
-          returnSum: 0,
-          count: 0,
+        const label25 = cursor.toFormat('yyyy-MM-dd HH:mm');
+        result.push({
+          label: label25,
+          coolingEfficiency: eff,
+          supplyTemp: typeof hot === 'number' ? hot : 0,
+          returnTemp: typeof cold === 'number' ? cold : 0,
+          wetBulb,
         });
       }
-
-      const group = groupMap.get(label)!;
-      const hot = doc[`${dto.towerType}_TEMP_RTD_02_AI`];
-      const cold = doc[`${dto.towerType}_TEMP_RTD_01_AI`];
-
-      const eff =
-        typeof hot === 'number' &&
-        typeof cold === 'number' &&
-        hot - wetBulb !== 0
-          ? ((hot - cold) / (hot - wetBulb)) * 100
-          : null;
-
-      if (eff !== null) group.efficiencySum += eff;
-      if (typeof hot === 'number') group.supplySum += hot;
-      if (typeof cold === 'number') group.returnSum += cold;
-      group.count++;
     }
+    // --- Hourly interval ---
+    else if (interval === 'hour') {
+      let cursor = startDate;
+      while (cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd HH:00');
+        const hourDocs = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ hours: 1 });
+        });
 
-    // --- Merge Buckets with Data ---
-    let result = emptyBuckets.map(({ timestamp }) => {
-      const group = groupMap.get(timestamp);
-      const count = group?.count || 0;
-      return {
-        label: timestamp,
-        coolingEfficiency: count ? group!.efficiencySum / count : 0,
-        supplyTemp: count ? group!.supplySum / count : 0,
-        returnTemp: count ? group!.returnSum / count : 0,
-        wetBulb,
-      };
-    });
+        let effSum = 0,
+          supplySum = 0,
+          returnSum = 0,
+          count = 0;
+        for (const doc of hourDocs) {
+          const hot = doc[`${dto.towerType}_TEMP_RTD_02_AI`];
+          const cold = doc[`${dto.towerType}_TEMP_RTD_01_AI`];
+          const eff =
+            typeof hot === 'number' &&
+            typeof cold === 'number' &&
+            hot - wetBulb !== 0
+              ? ((hot - cold) / (hot - wetBulb)) * 100
+              : null;
+          if (eff !== null) effSum += eff;
+          if (typeof hot === 'number') supplySum += hot;
+          if (typeof cold === 'number') returnSum += cold;
+          count++;
+        }
 
-    // --- Filter out any next-day buckets beyond 6–7 AM window ---
-    result = result.filter(({ label }) => {
-      const dt = DateTime.fromFormat(
-        label,
-        interval === 'hour'
-          ? 'yyyy-MM-dd HH:00'
-          : interval === '15min'
-            ? 'yyyy-MM-dd HH:mm'
-            : 'yyyy-MM-dd',
-        { zone: tz },
-      );
+        const avgEff = count ? effSum / count : 0;
+        const avgSupply = count ? supplySum : 0;
+        const avgReturn = count ? returnSum : 0;
+        result.push({
+          label,
+          coolingEfficiency: avgEff,
+          supplyTemp: avgSupply,
+          returnTemp: avgReturn,
+          wetBulb,
+        });
 
-      // Only keep buckets that are on startDate's day OR
-      // if the same day as startDate, up to windowEndHour
-      return (
-        dt <
-        startDate
-          .plus({ hours: 24 })
-          .set({ hour: windowEndHour, minute: 0, second: 0 })
-      );
-    });
+        cursor = cursor.plus({ hours: 1 });
+      }
+    }
+    // --- Daily interval ---
+    else if (interval === 'day') {
+      let cursor = startDate;
+      while (cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd');
+        const dayDocs = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ days: 1 });
+        });
+
+        let effSum = 0,
+          supplySum = 0,
+          returnSum = 0,
+          count = 0;
+        for (const doc of dayDocs) {
+          const hot = doc[`${dto.towerType}_TEMP_RTD_02_AI`];
+          const cold = doc[`${dto.towerType}_TEMP_RTD_01_AI`];
+          const eff =
+            typeof hot === 'number' &&
+            typeof cold === 'number' &&
+            hot - wetBulb !== 0
+              ? ((hot - cold) / (hot - wetBulb)) * 100
+              : null;
+          if (eff !== null) effSum += eff;
+          if (typeof hot === 'number') supplySum += hot;
+          if (typeof cold === 'number') returnSum += cold;
+          count++;
+        }
+
+        const avgEff = count ? effSum / count : 0;
+        const avgSupply = count ? supplySum : 0;
+        const avgReturn = count ? returnSum : 0;
+        result.push({
+          label,
+          coolingEfficiency: avgEff,
+          supplyTemp: avgSupply,
+          returnTemp: avgReturn,
+          wetBulb,
+        });
+
+        cursor = cursor.plus({ days: 1 });
+      }
+    }
 
     return { message: 'Analysis Chart 1 Data', rawdata: result };
   }
-
-  // async getAnalysisDataChart2(dto: {
-  //   date?: string;
-  //   range?: string;
-  //   fromDate?: string;
-  //   toDate?: string;
-  //   startTime?: string;
-  //   endTime?: string;
-  //   towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
-  //   wetBulb?: number;
-  // }) {
-  //   const tz = 'Asia/Karachi';
-  //   let startDate: DateTime;
-  //   let endDate: DateTime;
-
-  //   if (dto.range) {
-  //     const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
-  //     startDate = DateTime.fromJSDate(dateRange.$gte, { zone: 'utc' })
-  //       .setZone(tz)
-  //       .startOf('day');
-  //     endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' })
-  //       .setZone(tz)
-  //       .endOf('day');
-  //   } else if (dto.fromDate && dto.toDate) {
-  //     startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
-  //     endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
-  //   } else if (dto.date) {
-  //     const day = DateTime.fromISO(dto.date, { zone: tz });
-  //     startDate = day.startOf('day');
-  //     endDate = day.endOf('day');
-  //   } else {
-  //     throw new Error('No date range provided');
-  //   }
-
-  //   const filter: any = {
-  //     timestamp: {
-  //       $gte: startDate.toISO(),
-  //       $lte: endDate.toISO(),
-  //     },
-  //   };
-
-  //   if (dto.startTime && dto.endTime) {
-  //     const custom = this.mongoDateFilter.getCustomTimeRange(
-  //       dto.startTime,
-  //       dto.endTime,
-  //     );
-  //     Object.assign(filter, custom);
-  //   }
-
-  //   const projection: any = { _id: 1, timestamp: 1 };
-  //   const sampleDoc = await this.AnalysisModel.findOne(filter).lean().exec();
-  //   if (!sampleDoc) return { message: 'Analysis Chart 2 Data', rawdata: [] };
-
-  //   const towerPrefix = `${dto.towerType}_`;
-  //   for (const field in sampleDoc) {
-  //     if (field.startsWith(towerPrefix)) projection[field] = 1;
-  //   }
-
-  //   const data = await this.AnalysisModel.find(filter, projection)
-  //     .lean()
-  //     .exec();
-
-  //   const diffInDays = endDate.diff(startDate, 'days').days;
-  //   const groupBy: 'hour' | 'day' = diffInDays <= 1 ? 'hour' : 'day';
-  //   const wetBulb = dto.wetBulb ?? 28;
-
-  //   const groupMap = new Map<
-  //     string,
-  //     {
-  //       approachSum: number;
-  //       supplySum: number;
-  //       returnSum: number;
-  //       count: number;
-  //     }
-  //   >();
-
-  //   for (const doc of data) {
-  //     const docDate = DateTime.fromISO(doc.timestamp, { zone: tz });
-  //     const label =
-  //       groupBy === 'hour'
-  //         ? docDate.toFormat('yyyy-MM-dd HH:00')
-  //         : docDate.toFormat('yyyy-MM-dd');
-
-  //     if (!groupMap.has(label)) {
-  //       groupMap.set(label, {
-  //         approachSum: 0,
-  //         supplySum: 0,
-  //         returnSum: 0,
-  //         count: 0,
-  //       });
-  //     }
-
-  //     const group = groupMap.get(label)!;
-  //     const returnTemp = doc[`${dto.towerType}_TEMP_RTD_01_AI`];
-  //     const supplyTemp = doc[`${dto.towerType}_TEMP_RTD_02_AI`];
-
-  //     const approach =
-  //       typeof returnTemp === 'number' ? returnTemp - wetBulb : null;
-
-  //     if (approach !== null) group.approachSum += approach;
-  //     if (typeof supplyTemp === 'number') group.supplySum += supplyTemp;
-  //     if (typeof returnTemp === 'number') group.returnSum += returnTemp;
-  //     group.count++;
-  //   }
-
-  //   const result = Array.from(groupMap.entries()).map(([label, group]) => ({
-  //     label,
-  //     approach: group.count > 0 ? group.approachSum / group.count : 0,
-  //     supplyTemp: group.count > 0 ? group.supplySum / group.count : 0,
-  //     returnTemp: group.count > 0 ? group.returnSum / group.count : 0,
-  //     wetBulb,
-  //   }));
-
-  //   return { message: 'Analysis Chart 2 Data', rawdata: result };
-  // }
 
   async getAnalysisDataChart2(dto: {
     date?: string;
@@ -473,39 +274,49 @@ export class AnalysisService {
     endTime?: string;
     towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
     wetBulb?: number;
-    interval?: '15min' | 'hour' | 'day'; // NEW param
+    interval?: '15min' | 'hour' | 'day';
   }) {
     const tz = 'Asia/Karachi';
+    const now = DateTime.now().setZone(tz);
+    const todayStr = now.toFormat('yyyy-MM-dd');
+
+    // --- Determine start and end ---
     let startDate: DateTime;
     let endDate: DateTime;
 
-    // --- Date Range Handling ---
-    if (dto.range) {
+    if (dto.date) {
+      startDate = DateTime.fromISO(dto.date, { zone: tz }).set({
+        hour: 6,
+        minute: 0,
+        second: 0,
+      });
+      endDate = startDate.plus({ hours: 25 });
+      if (dto.date === todayStr) endDate = now;
+    } else if (dto.fromDate && dto.toDate) {
+      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).set({
+        hour: 6,
+        minute: 0,
+        second: 0,
+      });
+      endDate = DateTime.fromISO(dto.toDate, { zone: tz })
+        .set({ hour: 6, minute: 0, second: 0 })
+        .plus({ hours: 25 });
+      if (dto.toDate === todayStr) endDate = now;
+    } else if (dto.range) {
       const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
       startDate = DateTime.fromJSDate(dateRange.$gte, { zone: 'utc' })
         .setZone(tz)
-        .startOf('day');
-      endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' })
-        .setZone(tz)
-        .endOf('day');
-    } else if (dto.fromDate && dto.toDate) {
-      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
-      endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
-    } else if (dto.date) {
-      const day = DateTime.fromISO(dto.date, { zone: tz });
-      startDate = day.startOf('day');
-      endDate = day.endOf('day');
+        .set({ hour: 6, minute: 0, second: 0 });
+      endDate = startDate.plus({ hours: 25 });
+      if (startDate.toFormat('yyyy-MM-dd') === todayStr) endDate = now;
     } else {
       throw new Error('No date range provided');
     }
 
+    // --- MongoDB filter ---
     const filter: any = {
-      timestamp: {
-        $gte: startDate.toISO(),
-        $lte: endDate.toISO(),
-      },
+      timestamp: { $gte: startDate.toISO(), $lt: endDate.toISO() },
     };
-
     if (dto.startTime && dto.endTime) {
       const custom = this.mongoDateFilter.getCustomTimeRange(
         dto.startTime,
@@ -514,21 +325,19 @@ export class AnalysisService {
       Object.assign(filter, custom);
     }
 
-    // --- Projection ---
-    const projection: any = { _id: 0, timestamp: 1 };
     const sampleDoc = await this.AnalysisModel.findOne(filter).lean().exec();
     if (!sampleDoc) return { message: 'Analysis Chart 2 Data', rawdata: [] };
 
     const towerPrefix = `${dto.towerType}_`;
-    for (const field in sampleDoc) {
+    const projection: any = { _id: 0, timestamp: 1 };
+    for (const field in sampleDoc)
       if (field.startsWith(towerPrefix)) projection[field] = 1;
-    }
 
     const data = await this.AnalysisModel.find(filter, projection)
       .lean()
       .exec();
 
-    // --- Interval Selection (auto mode) ---
+    // --- Interval selection ---
     const diffInDays = endDate.diff(startDate, 'days').days;
     const interval: '15min' | 'hour' | 'day' = dto.interval
       ? dto.interval
@@ -539,235 +348,170 @@ export class AnalysisService {
           : 'day';
 
     const wetBulb = dto.wetBulb ?? 28;
+    const result: {
+      label: string;
+      approach: number;
+      supplyTemp: number;
+      returnTemp: number;
+      wetBulb: number;
+    }[] = [];
 
-    // --- Empty Buckets ---
-    const emptyBuckets: { timestamp: string }[] = [];
-    let cursor = startDate;
+    // --- 15-min interval with carry-forward for today ---
+    if (interval === '15min') {
+      const cursorEnd24h = startDate.plus({ hours: 24 });
+      let cursor = startDate;
+      let lastValues = { approach: 0, supplyTemp: 0, returnTemp: 0 };
 
-    while (cursor <= endDate) {
-      emptyBuckets.push({
-        timestamp:
-          interval === 'hour'
-            ? cursor.toFormat('yyyy-MM-dd HH:00')
-            : interval === '15min'
-              ? cursor.toFormat('yyyy-MM-dd HH:mm')
-              : cursor.toFormat('yyyy-MM-dd'),
-      });
+      while (cursor < cursorEnd24h && cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd HH:mm');
+        const docsInBucket = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ minutes: 15 });
+        });
 
-      cursor =
-        interval === 'hour'
-          ? cursor.plus({ hours: 1 })
-          : interval === '15min'
-            ? cursor.plus({ minutes: 15 })
-            : cursor.plus({ days: 1 });
-    }
+        let approachSum = 0,
+          supplySum = 0,
+          returnSum = 0,
+          count = 0;
+        for (const doc of docsInBucket) {
+          const supplyTemp = doc[`${dto.towerType}_TEMP_RTD_02_AI`];
+          const returnTemp = doc[`${dto.towerType}_TEMP_RTD_01_AI`];
+          const approach =
+            typeof returnTemp === 'number' ? returnTemp - wetBulb : null;
+          if (approach !== null) approachSum += approach;
+          if (typeof supplyTemp === 'number') supplySum += supplyTemp;
+          if (typeof returnTemp === 'number') returnSum += returnTemp;
+          count++;
+        }
 
-    // --- Grouping ---
-    const groupMap = new Map<
-      string,
-      {
-        approachSum: number;
-        supplySum: number;
-        returnSum: number;
-        count: number;
+        if (count === 0 && cursor.toFormat('yyyy-MM-dd') === todayStr) {
+          // carry-forward last known values
+          result.push({
+            label,
+            approach: lastValues.approach,
+            supplyTemp: lastValues.supplyTemp,
+            returnTemp: lastValues.returnTemp,
+            wetBulb,
+          });
+        } else {
+          const avgApproach = count ? approachSum / count : 0;
+          const avgSupply = count ? supplySum / count : 0;
+          const avgReturn = count ? returnSum / count : 0;
+          result.push({
+            label,
+            approach: avgApproach,
+            supplyTemp: avgSupply,
+            returnTemp: avgReturn,
+            wetBulb,
+          });
+          lastValues = {
+            approach: avgApproach,
+            supplyTemp: avgSupply,
+            returnTemp: avgReturn,
+          };
+        }
+
+        cursor = cursor.plus({ minutes: 15 });
       }
-    >();
 
-    for (const doc of data) {
-      const docDate = DateTime.fromISO(doc.timestamp, { zone: tz });
-      let label: string;
-
-      if (interval === 'hour') {
-        label = docDate.toFormat('yyyy-MM-dd HH:00');
-      } else if (interval === '15min') {
-        const roundedMinutes = Math.floor(docDate.minute / 15) * 15;
-        label = docDate
-          .set({ minute: roundedMinutes, second: 0 })
-          .toFormat('yyyy-MM-dd HH:mm');
-      } else {
-        label = docDate.toFormat('yyyy-MM-dd');
-      }
-
-      if (!groupMap.has(label)) {
-        groupMap.set(label, {
-          approachSum: 0,
-          supplySum: 0,
-          returnSum: 0,
-          count: 0,
+      // --- 25th hour: only first document ---
+      if (data.length > 0 && cursor < endDate) {
+        const firstDoc = data[0];
+        const supplyTemp = firstDoc[`${dto.towerType}_TEMP_RTD_02_AI`];
+        const returnTemp = firstDoc[`${dto.towerType}_TEMP_RTD_01_AI`];
+        const approach =
+          typeof returnTemp === 'number' ? returnTemp - wetBulb : 0;
+        const label25 = cursor.toFormat('yyyy-MM-dd HH:mm');
+        result.push({
+          label: label25,
+          approach,
+          supplyTemp: typeof supplyTemp === 'number' ? supplyTemp : 0,
+          returnTemp: typeof returnTemp === 'number' ? returnTemp : 0,
+          wetBulb,
         });
       }
-
-      const group = groupMap.get(label)!;
-      const returnTemp = doc[`${dto.towerType}_TEMP_RTD_01_AI`];
-      const supplyTemp = doc[`${dto.towerType}_TEMP_RTD_02_AI`];
-
-      const approach =
-        typeof returnTemp === 'number' ? returnTemp - wetBulb : null;
-
-      if (approach !== null) group.approachSum += approach;
-      if (typeof supplyTemp === 'number') group.supplySum += supplyTemp;
-      if (typeof returnTemp === 'number') group.returnSum += returnTemp;
-      group.count++;
     }
+    // --- Hourly interval ---
+    else if (interval === 'hour') {
+      let cursor = startDate;
+      while (cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd HH:00');
+        const hourDocs = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ hours: 1 });
+        });
 
-    // --- Merge Buckets with Data ---
-    const result = emptyBuckets.map(({ timestamp }) => {
-      const group = groupMap.get(timestamp);
-      const count = group?.count || 0;
-      return {
-        label: timestamp,
-        approach: count ? group!.approachSum / count : 0,
-        supplyTemp: count ? group!.supplySum / count : 0,
-        returnTemp: count ? group!.returnSum / count : 0,
-        wetBulb,
-      };
-    });
+        let approachSum = 0,
+          supplySum = 0,
+          returnSum = 0,
+          count = 0;
+        for (const doc of hourDocs) {
+          const supplyTemp = doc[`${dto.towerType}_TEMP_RTD_02_AI`];
+          const returnTemp = doc[`${dto.towerType}_TEMP_RTD_01_AI`];
+          const approach =
+            typeof returnTemp === 'number' ? returnTemp - wetBulb : null;
+          if (approach !== null) approachSum += approach;
+          if (typeof supplyTemp === 'number') supplySum += supplyTemp;
+          if (typeof returnTemp === 'number') returnSum += returnTemp;
+          count++;
+        }
+
+        const avgApproach = count ? approachSum / count : 0;
+        const avgSupply = count ? supplySum : 0;
+        const avgReturn = count ? returnSum : 0;
+        result.push({
+          label,
+          approach: avgApproach,
+          supplyTemp: avgSupply,
+          returnTemp: avgReturn,
+          wetBulb,
+        });
+
+        cursor = cursor.plus({ hours: 1 });
+      }
+    }
+    // --- Daily interval ---
+    else if (interval === 'day') {
+      let cursor = startDate;
+      while (cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd');
+        const dayDocs = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ days: 1 });
+        });
+
+        let approachSum = 0,
+          supplySum = 0,
+          returnSum = 0,
+          count = 0;
+        for (const doc of dayDocs) {
+          const supplyTemp = doc[`${dto.towerType}_TEMP_RTD_02_AI`];
+          const returnTemp = doc[`${dto.towerType}_TEMP_RTD_01_AI`];
+          const approach =
+            typeof returnTemp === 'number' ? returnTemp - wetBulb : null;
+          if (approach !== null) approachSum += approach;
+          if (typeof supplyTemp === 'number') supplySum += supplyTemp;
+          if (typeof returnTemp === 'number') returnSum += returnTemp;
+          count++;
+        }
+
+        const avgApproach = count ? approachSum / count : 0;
+        const avgSupply = count ? supplySum : 0;
+        const avgReturn = count ? returnSum : 0;
+        result.push({
+          label,
+          approach: avgApproach,
+          supplyTemp: avgSupply,
+          returnTemp: avgReturn,
+          wetBulb,
+        });
+
+        cursor = cursor.plus({ days: 1 });
+      }
+    }
 
     return { message: 'Analysis Chart 2 Data', rawdata: result };
   }
-
-  // async getAnalysisDataChart3(dto: {
-  //   date?: string;
-  //   range?: string;
-  //   fromDate?: string;
-  //   toDate?: string;
-  //   startTime?: string;
-  //   endTime?: string;
-  //   towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
-  // }) {
-  //   const filter: any = {};
-  //   let startDate: DateTime;
-  //   let endDate: DateTime;
-  //   const tz = 'Asia/Karachi';
-
-  //   // --- Date Filtering ---
-  //   if (dto.range) {
-  //     const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
-  //     startDate = DateTime.fromJSDate(dateRange.$gte)
-  //       .setZone(tz)
-  //       .startOf('day');
-  //     endDate = DateTime.fromJSDate(dateRange.$lte).setZone(tz).endOf('day');
-  //   } else if (dto.fromDate && dto.toDate) {
-  //     startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
-  //     endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
-  //   } else if (dto.date) {
-  //     startDate = DateTime.fromISO(dto.date, { zone: tz }).startOf('day');
-  //     endDate = DateTime.fromISO(dto.date, { zone: tz }).endOf('day');
-  //   } else {
-  //     throw new Error('No date range provided');
-  //   }
-
-  //   // ✅ Apply date filter on string timestamps (ISO format in DB)
-  //   filter.timestamp = {
-  //     $gte: startDate.toISO(),
-  //     $lte: endDate.toISO(),
-  //   };
-
-  //   // --- Time filtering (if provided) ---
-  //   if (dto.startTime && dto.endTime) {
-  //     const timeFilter = this.mongoDateFilter.getCustomTimeRange(
-  //       dto.startTime,
-  //       dto.endTime,
-  //     );
-  //     Object.assign(filter, timeFilter);
-  //   }
-
-  //   // --- Projection ---
-  //   const projection: any = { _id: 1, timestamp: 1 };
-  //   const sampleDoc = await this.AnalysisModel.findOne(filter).lean().exec();
-  //   if (!sampleDoc) {
-  //     return { message: 'Analysis Chart 3 Data', rawdata: [] };
-  //   }
-
-  //   const towerPrefix = `${dto.towerType}_`;
-  //   for (const field in sampleDoc) {
-  //     if (field.startsWith(towerPrefix)) projection[field] = 1;
-  //   }
-
-  //   // --- Query ---
-  //   const data = await this.AnalysisModel.find(filter, projection)
-  //     .lean()
-  //     .exec();
-
-  //   const diffInDays = endDate.diff(startDate, 'days').days;
-  //   const groupBy: 'hour' | 'day' = diffInDays <= 1 ? 'hour' : 'day';
-  //   const Cp = 4.186;
-
-  //   // --- Empty Buckets ---
-  //   const emptyBuckets: { timestamp: string }[] = [];
-  //   let cursor = startDate;
-  //   while (cursor <= endDate) {
-  //     emptyBuckets.push({
-  //       timestamp:
-  //         groupBy === 'hour'
-  //           ? cursor.toFormat('yyyy-MM-dd HH:00')
-  //           : cursor.toFormat('yyyy-MM-dd'),
-  //     });
-  //     cursor =
-  //       groupBy === 'hour'
-  //         ? cursor.plus({ hours: 1 })
-  //         : cursor.plus({ days: 1 });
-  //     if (cursor > endDate) break; // ✅ safety
-  //   }
-
-  //   // --- Grouping ---
-  //   const groupMap = new Map<
-  //     string,
-  //     {
-  //       capacitySum: number;
-  //       supplySum: number;
-  //       returnSum: number;
-  //       count: number;
-  //     }
-  //   >();
-
-  //   for (const doc of data) {
-  //     const docDate = DateTime.fromISO(doc.timestamp, { zone: tz });
-  //     const label =
-  //       groupBy === 'hour'
-  //         ? docDate.toFormat('yyyy-MM-dd HH:00')
-  //         : docDate.toFormat('yyyy-MM-dd');
-
-  //     if (!groupMap.has(label)) {
-  //       groupMap.set(label, {
-  //         capacitySum: 0,
-  //         supplySum: 0,
-  //         returnSum: 0,
-  //         count: 0,
-  //       });
-  //     }
-
-  //     const group = groupMap.get(label)!;
-  //     const flow = doc[`${dto.towerType}_FM_02_FR`];
-  //     const returnTemp = doc[`${dto.towerType}_TEMP_RTD_02_AI`];
-  //     const supplyTemp = doc[`${dto.towerType}_TEMP_RTD_01_AI`];
-
-  //     if (
-  //       typeof flow === 'number' &&
-  //       typeof returnTemp === 'number' &&
-  //       typeof supplyTemp === 'number'
-  //     ) {
-  //       group.capacitySum += Cp * flow * (returnTemp - supplyTemp);
-  //       group.supplySum += supplyTemp;
-  //       group.returnSum += returnTemp;
-  //       group.count++;
-  //     }
-  //   }
-
-  //   // --- Merge Buckets ---
-  //   const result = emptyBuckets.map(({ timestamp }) => {
-  //     const group = groupMap.get(timestamp);
-  //     const count = group?.count || 0;
-  //     return {
-  //       label: timestamp,
-  //       coolingCapacity: count > 0 ? group!.capacitySum / count : 0,
-  //       supplyTemp: count > 0 ? group!.supplySum / count : 0,
-  //       returnTemp: count > 0 ? group!.returnSum / count : 0,
-  //     };
-  //   });
-
-  //   return { message: 'Analysis Chart 3 Data', rawdata: result };
-  // }
 
   async getAnalysisDataChart3(dto: {
     date?: string;
@@ -777,65 +521,70 @@ export class AnalysisService {
     startTime?: string;
     endTime?: string;
     towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
-    interval?: '15min' | 'hour' | 'day'; // ✅ added param
+    interval?: '15min' | 'hour' | 'day';
   }) {
-    const filter: any = {};
     const tz = 'Asia/Karachi';
+    const now = DateTime.now().setZone(tz);
+    const todayStr = now.toFormat('yyyy-MM-dd');
+    const Cp = 4.186;
+
+    // --- Determine start and end ---
     let startDate: DateTime;
     let endDate: DateTime;
 
-    // --- Date Filtering ---
-    if (dto.range) {
+    if (dto.date) {
+      startDate = DateTime.fromISO(dto.date, { zone: tz }).set({
+        hour: 6,
+        minute: 0,
+        second: 0,
+      });
+      endDate = startDate.plus({ hours: 25 });
+      if (dto.date === todayStr) endDate = now;
+    } else if (dto.fromDate && dto.toDate) {
+      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).set({
+        hour: 6,
+        minute: 0,
+        second: 0,
+      });
+      endDate = DateTime.fromISO(dto.toDate, { zone: tz })
+        .set({ hour: 6, minute: 0, second: 0 })
+        .plus({ hours: 25 });
+      if (dto.toDate === todayStr) endDate = now;
+    } else if (dto.range) {
       const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
       startDate = DateTime.fromJSDate(dateRange.$gte, { zone: 'utc' })
         .setZone(tz)
-        .startOf('day');
-      endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' })
-        .setZone(tz)
-        .endOf('day');
-    } else if (dto.fromDate && dto.toDate) {
-      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
-      endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
-    } else if (dto.date) {
-      startDate = DateTime.fromISO(dto.date, { zone: tz }).startOf('day');
-      endDate = DateTime.fromISO(dto.date, { zone: tz }).endOf('day');
+        .set({ hour: 6, minute: 0, second: 0 });
+      endDate = startDate.plus({ hours: 25 });
+      if (startDate.toFormat('yyyy-MM-dd') === todayStr) endDate = now;
     } else {
       throw new Error('No date range provided');
     }
 
-    // ✅ Apply date filter
-    filter.timestamp = {
-      $gte: startDate.toISO(),
-      $lte: endDate.toISO(),
+    // --- MongoDB filter ---
+    const filter: any = {
+      timestamp: { $gte: startDate.toISO(), $lt: endDate.toISO() },
     };
-
-    // --- Time filtering (if provided) ---
     if (dto.startTime && dto.endTime) {
-      const timeFilter = this.mongoDateFilter.getCustomTimeRange(
-        dto.startTime,
-        dto.endTime,
+      Object.assign(
+        filter,
+        this.mongoDateFilter.getCustomTimeRange(dto.startTime, dto.endTime),
       );
-      Object.assign(filter, timeFilter);
     }
 
-    // --- Projection ---
-    const projection: any = { _id: 0, timestamp: 1 };
     const sampleDoc = await this.AnalysisModel.findOne(filter).lean().exec();
-    if (!sampleDoc) {
-      return { message: 'Analysis Chart 3 Data', rawdata: [] };
-    }
+    if (!sampleDoc) return { message: 'Analysis Chart 3 Data', rawdata: [] };
 
     const towerPrefix = `${dto.towerType}_`;
-    for (const field in sampleDoc) {
+    const projection: any = { _id: 0, timestamp: 1 };
+    for (const field in sampleDoc)
       if (field.startsWith(towerPrefix)) projection[field] = 1;
-    }
 
-    // --- Query ---
     const data = await this.AnalysisModel.find(filter, projection)
       .lean()
       .exec();
 
-    // --- Interval Selection (auto mode) ---
+    // --- Interval selection ---
     const diffInDays = endDate.diff(startDate, 'days').days;
     const interval: '15min' | 'hour' | 'day' = dto.interval
       ? dto.interval
@@ -845,211 +594,179 @@ export class AnalysisService {
           ? 'hour'
           : 'day';
 
-    const Cp = 4.186;
+    const result: {
+      label: string;
+      coolingCapacity: number;
+      supplyTemp: number;
+      returnTemp: number;
+    }[] = [];
 
-    // --- Empty Buckets ---
-    const emptyBuckets: { timestamp: string }[] = [];
-    let cursor = startDate;
+    if (interval === '15min') {
+      const cursorEnd24h = startDate.plus({ hours: 24 });
+      let cursor = startDate;
+      let lastValues = { capacity: 0, supplyTemp: 0, returnTemp: 0 };
 
-    while (cursor <= endDate) {
-      emptyBuckets.push({
-        timestamp:
-          interval === 'hour'
-            ? cursor.toFormat('yyyy-MM-dd HH:00')
-            : interval === '15min'
-              ? cursor.toFormat('yyyy-MM-dd HH:mm')
-              : cursor.toFormat('yyyy-MM-dd'),
-      });
+      while (cursor < cursorEnd24h && cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd HH:mm');
+        const docsInBucket = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ minutes: 15 });
+        });
 
-      cursor =
-        interval === 'hour'
-          ? cursor.plus({ hours: 1 })
-          : interval === '15min'
-            ? cursor.plus({ minutes: 15 })
-            : cursor.plus({ days: 1 });
-    }
+        let capacitySum = 0,
+          supplySum = 0,
+          returnSum = 0,
+          count = 0;
+        for (const doc of docsInBucket) {
+          const flow = doc[`${dto.towerType}_FM_02_FR`];
+          const returnTemp = doc[`${dto.towerType}_TEMP_RTD_02_AI`];
+          const supplyTemp = doc[`${dto.towerType}_TEMP_RTD_01_AI`];
+          if (
+            typeof flow === 'number' &&
+            typeof returnTemp === 'number' &&
+            typeof supplyTemp === 'number'
+          ) {
+            capacitySum += Cp * flow * (returnTemp - supplyTemp);
+            supplySum += supplyTemp;
+            returnSum += returnTemp;
+            count++;
+          }
+        }
 
-    // --- Grouping ---
-    const groupMap = new Map<
-      string,
-      {
-        capacitySum: number;
-        supplySum: number;
-        returnSum: number;
-        count: number;
+        if (count === 0 && cursor.toFormat('yyyy-MM-dd') === todayStr) {
+          // carry-forward last known values
+          result.push({
+            label,
+            coolingCapacity: lastValues.capacity,
+            supplyTemp: lastValues.supplyTemp,
+            returnTemp: lastValues.returnTemp,
+          });
+        } else {
+          const avgCapacity = count ? capacitySum / count : 0;
+          const avgSupply = count ? supplySum / count : 0;
+          const avgReturn = count ? returnSum / count : 0;
+          result.push({
+            label,
+            coolingCapacity: avgCapacity,
+            supplyTemp: avgSupply,
+            returnTemp: avgReturn,
+          });
+          lastValues = {
+            capacity: avgCapacity,
+            supplyTemp: avgSupply,
+            returnTemp: avgReturn,
+          };
+        }
+
+        cursor = cursor.plus({ minutes: 15 });
       }
-    >();
 
-    for (const doc of data) {
-      const docDate = DateTime.fromISO(doc.timestamp, { zone: tz });
-      let label: string;
-
-      if (interval === 'hour') {
-        label = docDate.toFormat('yyyy-MM-dd HH:00');
-      } else if (interval === '15min') {
-        const roundedMinutes = Math.floor(docDate.minute / 15) * 15;
-        label = docDate
-          .set({ minute: roundedMinutes, second: 0 })
-          .toFormat('yyyy-MM-dd HH:mm');
-      } else {
-        label = docDate.toFormat('yyyy-MM-dd');
-      }
-
-      if (!groupMap.has(label)) {
-        groupMap.set(label, {
-          capacitySum: 0,
-          supplySum: 0,
-          returnSum: 0,
-          count: 0,
+      // --- 25th hour: only first document ---
+      if (data.length > 0 && cursor < endDate) {
+        const firstDoc = data[0];
+        const flow = firstDoc[`${dto.towerType}_FM_02_FR`];
+        const returnTemp = firstDoc[`${dto.towerType}_TEMP_RTD_02_AI`];
+        const supplyTemp = firstDoc[`${dto.towerType}_TEMP_RTD_01_AI`];
+        const capacity =
+          typeof flow === 'number' &&
+          typeof returnTemp === 'number' &&
+          typeof supplyTemp === 'number'
+            ? Cp * flow * (returnTemp - supplyTemp)
+            : 0;
+        const label25 = cursor.toFormat('yyyy-MM-dd HH:mm');
+        result.push({
+          label: label25,
+          coolingCapacity: capacity,
+          supplyTemp: typeof supplyTemp === 'number' ? supplyTemp : 0,
+          returnTemp: typeof returnTemp === 'number' ? returnTemp : 0,
         });
       }
+    } else if (interval === 'hour') {
+      let cursor = startDate;
+      while (cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd HH:00');
+        const hourDocs = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ hours: 1 });
+        });
 
-      const group = groupMap.get(label)!;
-      const flow = doc[`${dto.towerType}_FM_02_FR`];
-      const returnTemp = doc[`${dto.towerType}_TEMP_RTD_02_AI`];
-      const supplyTemp = doc[`${dto.towerType}_TEMP_RTD_01_AI`];
+        let capacitySum = 0,
+          supplySum = 0,
+          returnSum = 0,
+          count = 0;
+        for (const doc of hourDocs) {
+          const flow = doc[`${dto.towerType}_FM_02_FR`];
+          const returnTemp = doc[`${dto.towerType}_TEMP_RTD_02_AI`];
+          const supplyTemp = doc[`${dto.towerType}_TEMP_RTD_01_AI`];
+          if (
+            typeof flow === 'number' &&
+            typeof returnTemp === 'number' &&
+            typeof supplyTemp === 'number'
+          ) {
+            capacitySum += Cp * flow * (returnTemp - supplyTemp);
+            supplySum += supplyTemp;
+            returnSum += returnTemp;
+            count++;
+          }
+        }
 
-      if (
-        typeof flow === 'number' &&
-        typeof returnTemp === 'number' &&
-        typeof supplyTemp === 'number'
-      ) {
-        group.capacitySum += Cp * flow * (returnTemp - supplyTemp);
-        group.supplySum += supplyTemp;
-        group.returnSum += returnTemp;
-        group.count++;
+        const avgCapacity = count ? capacitySum / count : 0;
+        const avgSupply = count ? supplySum : 0;
+        const avgReturn = count ? returnSum : 0;
+        result.push({
+          label,
+          coolingCapacity: avgCapacity,
+          supplyTemp: avgSupply,
+          returnTemp: avgReturn,
+        });
+
+        cursor = cursor.plus({ hours: 1 });
+      }
+    } else if (interval === 'day') {
+      let cursor = startDate;
+      while (cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd');
+        const dayDocs = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ days: 1 });
+        });
+
+        let capacitySum = 0,
+          supplySum = 0,
+          returnSum = 0,
+          count = 0;
+        for (const doc of dayDocs) {
+          const flow = doc[`${dto.towerType}_FM_02_FR`];
+          const returnTemp = doc[`${dto.towerType}_TEMP_RTD_02_AI`];
+          const supplyTemp = doc[`${dto.towerType}_TEMP_RTD_01_AI`];
+          if (
+            typeof flow === 'number' &&
+            typeof returnTemp === 'number' &&
+            typeof supplyTemp === 'number'
+          ) {
+            capacitySum += Cp * flow * (returnTemp - supplyTemp);
+            supplySum += supplyTemp;
+            returnSum += returnTemp;
+            count++;
+          }
+        }
+
+        const avgCapacity = count ? capacitySum / count : 0;
+        const avgSupply = count ? supplySum : 0;
+        const avgReturn = count ? returnSum : 0;
+        result.push({
+          label,
+          coolingCapacity: avgCapacity,
+          supplyTemp: avgSupply,
+          returnTemp: avgReturn,
+        });
+
+        cursor = cursor.plus({ days: 1 });
       }
     }
-
-    // --- Merge Buckets ---
-    const result = emptyBuckets.map(({ timestamp }) => {
-      const group = groupMap.get(timestamp);
-      const count = group?.count || 0;
-      return {
-        label: timestamp,
-        coolingCapacity: count > 0 ? group!.capacitySum / count : 0,
-        supplyTemp: count > 0 ? group!.supplySum / count : 0,
-        returnTemp: count > 0 ? group!.returnSum / count : 0,
-      };
-    });
 
     return { message: 'Analysis Chart 3 Data', rawdata: result };
   }
-
-  // async getAnalysisDataChart4(dto: {
-  //   date?: string;
-  //   range?: string;
-  //   fromDate?: string;
-  //   toDate?: string;
-  //   startTime?: string;
-  //   endTime?: string;
-  //   towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
-  // }) {
-  //   const filter: any = {};
-  //   let startDate: DateTime;
-  //   let endDate: DateTime;
-  //   const tz = 'Asia/Karachi';
-
-  //   // --- Date range ---
-  //   if (dto.range) {
-  //     const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
-  //     startDate = DateTime.fromJSDate(dateRange.$gte)
-  //       .setZone(tz)
-  //       .startOf('day');
-  //     endDate = DateTime.fromJSDate(dateRange.$lte).setZone(tz).endOf('day');
-  //   } else if (dto.fromDate && dto.toDate) {
-  //     startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
-  //     endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
-  //   } else if (dto.date) {
-  //     startDate = DateTime.fromISO(dto.date, { zone: tz }).startOf('day');
-  //     endDate = DateTime.fromISO(dto.date, { zone: tz }).endOf('day');
-  //   } else {
-  //     throw new Error('No date range provided');
-  //   }
-
-  //   // --- Time range ---
-  //   if (dto.startTime && dto.endTime) {
-  //     const timeFilter = this.mongoDateFilter.getCustomTimeRange(
-  //       dto.startTime,
-  //       dto.endTime,
-  //     );
-  //     Object.assign(filter, timeFilter);
-  //   }
-
-  //   // --- Add timestamp filter (IMPORTANT to avoid missing last bucket) ---
-  //   filter.timestamp = {
-  //     $gte: startDate.toISO(),
-  //     $lte: endDate.toISO(),
-  //   };
-
-  //   // --- Projection ---
-  //   const projection: any = { _id: 0, timestamp: 1 };
-  //   const sampleDoc = await this.AnalysisModel.findOne(filter).lean().exec();
-  //   if (!sampleDoc) {
-  //     return { message: 'Analysis Chart 4 Data', rawdata: [] };
-  //   }
-
-  //   const towerPrefix = `${dto.towerType}_`;
-  //   for (const field in sampleDoc) {
-  //     if (field.startsWith(towerPrefix)) projection[field] = 1;
-  //   }
-
-  //   // --- Fetch data ---
-  //   const data = await this.AnalysisModel.find(filter, projection)
-  //     .lean()
-  //     .exec();
-
-  //   const diffInDays = endDate.diff(startDate, 'days').days;
-  //   const groupBy: 'hour' | 'day' = diffInDays <= 1 ? 'hour' : 'day';
-
-  //   // --- Empty Buckets ---
-  //   const emptyBuckets: { timestamp: string }[] = [];
-  //   let cursor = startDate;
-  //   while (cursor <= endDate) {
-  //     emptyBuckets.push({
-  //       timestamp:
-  //         groupBy === 'hour'
-  //           ? cursor.toFormat('yyyy-MM-dd HH:00')
-  //           : cursor.toFormat('yyyy-MM-dd'),
-  //     });
-  //     cursor =
-  //       groupBy === 'hour'
-  //         ? cursor.plus({ hours: 1 })
-  //         : cursor.plus({ days: 1 });
-  //   }
-
-  //   // --- Grouping ---
-  //   const groupMap = new Map<string, { returnSum: number; count: number }>();
-
-  //   for (const doc of data) {
-  //     const docDate = DateTime.fromISO(doc.timestamp, { zone: tz });
-  //     const label =
-  //       groupBy === 'hour'
-  //         ? docDate.toFormat('yyyy-MM-dd HH:00')
-  //         : docDate.toFormat('yyyy-MM-dd');
-
-  //     if (!groupMap.has(label)) {
-  //       groupMap.set(label, { returnSum: 0, count: 0 });
-  //     }
-
-  //     const group = groupMap.get(label)!;
-  //     const cold = doc[`${dto.towerType}_TEMP_RTD_01_AI`];
-  //     if (typeof cold === 'number') group.returnSum += cold;
-  //     group.count++;
-  //   }
-
-  //   // --- Merge Buckets ---
-  //   const result = emptyBuckets.map(({ timestamp }) => {
-  //     const group = groupMap.get(timestamp);
-  //     const count = group?.count || 0;
-  //     return {
-  //       label: timestamp,
-  //       returnTemp: count > 0 ? group!.returnSum / count : 0,
-  //     };
-  //   });
-
-  //   return { message: 'Analysis Chart 4 Data', rawdata: result };
-  // }
 
   async getAnalysisDataChart4(dto: {
     date?: string;
@@ -1059,65 +776,68 @@ export class AnalysisService {
     startTime?: string;
     endTime?: string;
     towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
-    interval?: '15min' | 'hour' | 'day'; // ✅ added param
+    interval?: '15min' | 'hour' | 'day';
   }) {
-    const filter: any = {};
     const tz = 'Asia/Karachi';
+    const now = DateTime.now().setZone(tz);
+    const todayStr = now.toFormat('yyyy-MM-dd');
+
+    // --- Determine start and end ---
     let startDate: DateTime;
     let endDate: DateTime;
 
-    // --- Date range ---
-    if (dto.range) {
+    if (dto.date) {
+      startDate = DateTime.fromISO(dto.date, { zone: tz }).set({
+        hour: 6,
+        minute: 0,
+        second: 0,
+      });
+      endDate = startDate.plus({ hours: 25 });
+      if (dto.date === todayStr) endDate = now;
+    } else if (dto.fromDate && dto.toDate) {
+      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).set({
+        hour: 6,
+        minute: 0,
+        second: 0,
+      });
+      endDate = DateTime.fromISO(dto.toDate, { zone: tz })
+        .set({ hour: 6, minute: 0, second: 0 })
+        .plus({ hours: 25 });
+      if (dto.toDate === todayStr) endDate = now;
+    } else if (dto.range) {
       const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
       startDate = DateTime.fromJSDate(dateRange.$gte, { zone: 'utc' })
         .setZone(tz)
-        .startOf('day');
-      endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' })
-        .setZone(tz)
-        .endOf('day');
-    } else if (dto.fromDate && dto.toDate) {
-      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
-      endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
-    } else if (dto.date) {
-      startDate = DateTime.fromISO(dto.date, { zone: tz }).startOf('day');
-      endDate = DateTime.fromISO(dto.date, { zone: tz }).endOf('day');
+        .set({ hour: 6, minute: 0, second: 0 });
+      endDate = startDate.plus({ hours: 25 });
+      if (startDate.toFormat('yyyy-MM-dd') === todayStr) endDate = now;
     } else {
       throw new Error('No date range provided');
     }
 
-    // --- Time range ---
-    if (dto.startTime && dto.endTime) {
-      const timeFilter = this.mongoDateFilter.getCustomTimeRange(
-        dto.startTime,
-        dto.endTime,
-      );
-      Object.assign(filter, timeFilter);
-    }
-
-    // --- Timestamp filter ---
-    filter.timestamp = {
-      $gte: startDate.toISO(),
-      $lte: endDate.toISO(),
+    // --- MongoDB filter ---
+    const filter: any = {
+      timestamp: { $gte: startDate.toISO(), $lt: endDate.toISO() },
     };
+    if (dto.startTime && dto.endTime)
+      Object.assign(
+        filter,
+        this.mongoDateFilter.getCustomTimeRange(dto.startTime, dto.endTime),
+      );
 
     // --- Projection ---
     const projection: any = { _id: 0, timestamp: 1 };
     const sampleDoc = await this.AnalysisModel.findOne(filter).lean().exec();
-    if (!sampleDoc) {
-      return { message: 'Analysis Chart 4 Data', rawdata: [] };
-    }
-
+    if (!sampleDoc) return { message: 'Analysis Chart 4 Data', rawdata: [] };
     const towerPrefix = `${dto.towerType}_`;
-    for (const field in sampleDoc) {
+    for (const field in sampleDoc)
       if (field.startsWith(towerPrefix)) projection[field] = 1;
-    }
 
-    // --- Fetch data ---
     const data = await this.AnalysisModel.find(filter, projection)
       .lean()
       .exec();
 
-    // --- Interval Selection (auto mode) ---
+    // --- Interval selection ---
     const diffInDays = endDate.diff(startDate, 'days').days;
     const interval: '15min' | 'hour' | 'day' = dto.interval
       ? dto.interval
@@ -1127,218 +847,95 @@ export class AnalysisService {
           ? 'hour'
           : 'day';
 
-    // --- Empty Buckets ---
-    const emptyBuckets: { timestamp: string }[] = [];
-    let cursor = startDate;
+    const result: { label: string; returnTemp: number }[] = [];
 
-    while (cursor <= endDate) {
-      emptyBuckets.push({
-        timestamp:
-          interval === 'hour'
-            ? cursor.toFormat('yyyy-MM-dd HH:00')
-            : interval === '15min'
-              ? cursor.toFormat('yyyy-MM-dd HH:mm')
-              : cursor.toFormat('yyyy-MM-dd'),
-      });
+    if (interval === '15min') {
+      const cursorEnd24h = startDate.plus({ hours: 24 });
+      let cursor = startDate;
+      let lastValue = 0;
 
-      cursor =
-        interval === 'hour'
-          ? cursor.plus({ hours: 1 })
-          : interval === '15min'
-            ? cursor.plus({ minutes: 15 })
-            : cursor.plus({ days: 1 });
-    }
+      while (cursor < cursorEnd24h && cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd HH:mm');
+        const docsInBucket = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ minutes: 15 });
+        });
 
-    // --- Grouping ---
-    const groupMap = new Map<string, { returnSum: number; count: number }>();
+        let sum = 0,
+          count = 0;
+        for (const doc of docsInBucket) {
+          const val = doc[`${dto.towerType}_TEMP_RTD_01_AI`];
+          if (typeof val === 'number') {
+            sum += val;
+            count++;
+          }
+        }
 
-    for (const doc of data) {
-      const docDate = DateTime.fromISO(doc.timestamp, { zone: tz });
-      let label: string;
+        const avg = count ? sum / count : lastValue;
+        result.push({ label, returnTemp: avg });
+        if (count) lastValue = avg;
 
-      if (interval === 'hour') {
-        label = docDate.toFormat('yyyy-MM-dd HH:00');
-      } else if (interval === '15min') {
-        const roundedMinutes = Math.floor(docDate.minute / 15) * 15;
-        label = docDate
-          .set({ minute: roundedMinutes, second: 0 })
-          .toFormat('yyyy-MM-dd HH:mm');
-      } else {
-        label = docDate.toFormat('yyyy-MM-dd');
+        cursor = cursor.plus({ minutes: 15 });
       }
 
-      if (!groupMap.has(label)) {
-        groupMap.set(label, { returnSum: 0, count: 0 });
+      // --- 25th hour: only first document ---
+      if (data.length > 0 && cursor < endDate) {
+        const firstDoc = data[0];
+        const val =
+          typeof firstDoc[`${dto.towerType}_TEMP_RTD_01_AI`] === 'number'
+            ? firstDoc[`${dto.towerType}_TEMP_RTD_01_AI`]
+            : 0;
+        const label25 = cursor.toFormat('yyyy-MM-dd HH:mm');
+        result.push({ label: label25, returnTemp: val });
       }
+    } else if (interval === 'hour') {
+      let cursor = startDate;
+      while (cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd HH:00');
+        const hourDocs = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ hours: 1 });
+        });
 
-      const group = groupMap.get(label)!;
-      const cold = doc[`${dto.towerType}_TEMP_RTD_01_AI`];
-      if (typeof cold === 'number') group.returnSum += cold;
-      group.count++;
+        let sum = 0,
+          count = 0;
+        for (const doc of hourDocs) {
+          const val = doc[`${dto.towerType}_TEMP_RTD_01_AI`];
+          if (typeof val === 'number') {
+            sum += val;
+            count++;
+          }
+        }
+
+        result.push({ label, returnTemp: count ? sum / count : 0 });
+        cursor = cursor.plus({ hours: 1 });
+      }
+    } else if (interval === 'day') {
+      let cursor = startDate;
+      while (cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd');
+        const dayDocs = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ days: 1 });
+        });
+
+        let sum = 0,
+          count = 0;
+        for (const doc of dayDocs) {
+          const val = doc[`${dto.towerType}_TEMP_RTD_01_AI`];
+          if (typeof val === 'number') {
+            sum += val;
+            count++;
+          }
+        }
+
+        result.push({ label, returnTemp: count ? sum / count : 0 });
+        cursor = cursor.plus({ days: 1 });
+      }
     }
-
-    // --- Merge Buckets ---
-    const result = emptyBuckets.map(({ timestamp }) => {
-      const group = groupMap.get(timestamp);
-      const count = group?.count || 0;
-      return {
-        label: timestamp,
-        returnTemp: count > 0 ? group!.returnSum / count : 0,
-      };
-    });
 
     return { message: 'Analysis Chart 4 Data', rawdata: result };
   }
-
-  // async getAnalysisDataChart5(dto: {
-  //   date?: string;
-  //   range?: string;
-  //   fromDate?: string;
-  //   toDate?: string;
-  //   startTime?: string;
-  //   endTime?: string;
-  //   towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
-  // }) {
-  //   const filter: any = {};
-  //   let startDate: DateTime;
-  //   let endDate: DateTime;
-  //   const tz = 'Asia/Karachi';
-
-  //   // --- Date range ---
-  //   if (dto.range) {
-  //     const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
-  //     startDate = DateTime.fromJSDate(dateRange.$gte)
-  //       .setZone(tz)
-  //       .startOf('day');
-  //     endDate = DateTime.fromJSDate(dateRange.$lte).setZone(tz).endOf('day');
-  //   } else if (dto.fromDate && dto.toDate) {
-  //     startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
-  //     endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
-  //   } else if (dto.date) {
-  //     startDate = DateTime.fromISO(dto.date, { zone: tz }).startOf('day');
-  //     endDate = DateTime.fromISO(dto.date, { zone: tz }).endOf('day');
-  //   } else {
-  //     throw new Error('No date range provided');
-  //   }
-
-  //   // --- Time range ---
-  //   if (dto.startTime && dto.endTime) {
-  //     const timeFilter = this.mongoDateFilter.getCustomTimeRange(
-  //       dto.startTime,
-  //       dto.endTime,
-  //     );
-  //     Object.assign(filter, timeFilter);
-  //   }
-
-  //   // --- Timestamp filter (string-based to avoid last-hour missing issue) ---
-  //   filter.timestamp = {
-  //     $gte: startDate.toISO(),
-  //     $lte: endDate.toISO(),
-  //   };
-
-  //   // --- Projection ---
-  //   const projection: any = { _id: 0, timestamp: 1 };
-  //   const sampleDoc = await this.AnalysisModel.findOne(filter).lean().exec();
-  //   if (!sampleDoc) {
-  //     return { message: 'Analysis Chart 5 Data', rawdata: [] };
-  //   }
-
-  //   const towerPrefix = `${dto.towerType}_`;
-  //   const requiredFields = [
-  //     `${towerPrefix}FM_02_FR`,
-  //     `${towerPrefix}TEMP_RTD_01_AI`,
-  //     `${towerPrefix}TEMP_RTD_02_AI`,
-  //   ];
-
-  //   for (const field of requiredFields) {
-  //     if (field in sampleDoc) projection[field] = 1;
-  //   }
-
-  //   // --- Fetch data ---
-  //   const data = await this.AnalysisModel.find(filter, projection)
-  //     .lean()
-  //     .exec();
-  //   if (!data.length) return { message: 'Analysis Chart 5 Data', rawdata: [] };
-
-  //   const diffInDays = endDate.diff(startDate, 'days').days;
-  //   const groupBy: 'hour' | 'day' = diffInDays <= 1 ? 'hour' : 'day';
-
-  //   // --- Empty Buckets ---
-  //   const emptyBuckets: { timestamp: string }[] = [];
-  //   let cursor = startDate;
-  //   while (cursor <= endDate) {
-  //     emptyBuckets.push({
-  //       timestamp:
-  //         groupBy === 'hour'
-  //           ? cursor.toFormat('yyyy-MM-dd HH:00')
-  //           : cursor.toFormat('yyyy-MM-dd'),
-  //     });
-  //     cursor =
-  //       groupBy === 'hour'
-  //         ? cursor.plus({ hours: 1 })
-  //         : cursor.plus({ days: 1 });
-  //   }
-
-  //   // --- Grouping ---
-  //   const groupMap = new Map<
-  //     string,
-  //     {
-  //       evapLossSum: number;
-  //       supplySum: number;
-  //       returnSum: number;
-  //       count: number;
-  //     }
-  //   >();
-
-  //   const constant = 0.00085 * 1.8;
-
-  //   for (const doc of data) {
-  //     const docDate = DateTime.fromISO(doc.timestamp, { zone: tz });
-  //     const label =
-  //       groupBy === 'hour'
-  //         ? docDate.toFormat('yyyy-MM-dd HH:00')
-  //         : docDate.toFormat('yyyy-MM-dd');
-
-  //     const flow = doc[`${towerPrefix}FM_02_FR`];
-  //     const supply = doc[`${towerPrefix}TEMP_RTD_01_AI`];
-  //     const ret = doc[`${towerPrefix}TEMP_RTD_02_AI`];
-
-  //     if (
-  //       typeof flow === 'number' &&
-  //       typeof supply === 'number' &&
-  //       typeof ret === 'number'
-  //     ) {
-  //       const evapLoss = constant * flow * (ret - supply);
-  //       if (!groupMap.has(label)) {
-  //         groupMap.set(label, {
-  //           evapLossSum: 0,
-  //           supplySum: 0,
-  //           returnSum: 0,
-  //           count: 0,
-  //         });
-  //       }
-  //       const g = groupMap.get(label)!;
-  //       g.evapLossSum += evapLoss;
-  //       g.supplySum += supply;
-  //       g.returnSum += ret;
-  //       g.count++;
-  //     }
-  //   }
-
-  //   // --- Merge Buckets ---
-  //   const result = emptyBuckets.map(({ timestamp }) => {
-  //     const g = groupMap.get(timestamp);
-  //     const count = g?.count || 0;
-  //     return {
-  //       label: timestamp,
-  //       evaporationLoss: count ? g!.evapLossSum / count : 0,
-  //       supplyTemp: count ? g!.supplySum / count : 0,
-  //       returnTemp: count ? g!.returnSum / count : 0,
-  //     };
-  //   });
-
-  //   return { message: 'Analysis Chart 5 Data', rawdata: result };
-  // }
 
   async getAnalysisDataChart5(dto: {
     date?: string;
@@ -1348,66 +945,68 @@ export class AnalysisService {
     startTime?: string;
     endTime?: string;
     towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
-    interval?: '15min' | 'hour' | 'day'; // ✅ added
+    interval?: '15min' | 'hour' | 'day';
   }) {
-    const filter: any = {};
     const tz = 'Asia/Karachi';
+    const now = DateTime.now().setZone(tz);
+    const todayStr = now.toFormat('yyyy-MM-dd');
+
+    // --- Determine start and end ---
     let startDate: DateTime;
     let endDate: DateTime;
 
-    // --- Date range ---
-    if (dto.range) {
+    if (dto.date) {
+      startDate = DateTime.fromISO(dto.date, { zone: tz }).set({
+        hour: 6,
+        minute: 0,
+        second: 0,
+      });
+      endDate = startDate.plus({ hours: 25 });
+      if (dto.date === todayStr) endDate = now;
+    } else if (dto.fromDate && dto.toDate) {
+      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).set({
+        hour: 6,
+        minute: 0,
+        second: 0,
+      });
+      endDate = DateTime.fromISO(dto.toDate, { zone: tz })
+        .set({ hour: 6, minute: 0, second: 0 })
+        .plus({ hours: 25 });
+      if (dto.toDate === todayStr) endDate = now;
+    } else if (dto.range) {
       const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
       startDate = DateTime.fromJSDate(dateRange.$gte, { zone: 'utc' })
         .setZone(tz)
-        .startOf('day');
-      endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' })
-        .setZone(tz)
-        .endOf('day');
-    } else if (dto.fromDate && dto.toDate) {
-      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
-      endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
-    } else if (dto.date) {
-      startDate = DateTime.fromISO(dto.date, { zone: tz }).startOf('day');
-      endDate = DateTime.fromISO(dto.date, { zone: tz }).endOf('day');
+        .set({ hour: 6, minute: 0, second: 0 });
+      endDate = startDate.plus({ hours: 25 });
+      if (startDate.toFormat('yyyy-MM-dd') === todayStr) endDate = now;
     } else {
       throw new Error('No date range provided');
     }
 
-    // --- Time range ---
-    if (dto.startTime && dto.endTime) {
-      const timeFilter = this.mongoDateFilter.getCustomTimeRange(
-        dto.startTime,
-        dto.endTime,
-      );
-      Object.assign(filter, timeFilter);
-    }
-
-    // --- Timestamp filter ---
-    filter.timestamp = {
-      $gte: startDate.toISO(),
-      $lte: endDate.toISO(),
+    // --- MongoDB filter ---
+    const filter: any = {
+      timestamp: { $gte: startDate.toISO(), $lt: endDate.toISO() },
     };
+    if (dto.startTime && dto.endTime)
+      Object.assign(
+        filter,
+        this.mongoDateFilter.getCustomTimeRange(dto.startTime, dto.endTime),
+      );
 
     // --- Projection ---
     const projection: any = { _id: 0, timestamp: 1 };
     const sampleDoc = await this.AnalysisModel.findOne(filter).lean().exec();
-    if (!sampleDoc) {
-      return { message: 'Analysis Chart 5 Data', rawdata: [] };
-    }
-
+    if (!sampleDoc) return { message: 'Analysis Chart 5 Data', rawdata: [] };
     const towerPrefix = `${dto.towerType}_`;
     const requiredFields = [
       `${towerPrefix}FM_02_FR`,
       `${towerPrefix}TEMP_RTD_01_AI`,
       `${towerPrefix}TEMP_RTD_02_AI`,
     ];
-
-    for (const field of requiredFields) {
+    for (const field of requiredFields)
       if (field in sampleDoc) projection[field] = 1;
-    }
 
-    // --- Fetch data ---
     const data = await this.AnalysisModel.find(filter, projection)
       .lean()
       .exec();
@@ -1423,227 +1022,169 @@ export class AnalysisService {
           ? 'hour'
           : 'day';
 
-    // --- Empty Buckets ---
-    const emptyBuckets: { timestamp: string }[] = [];
-    let cursor = startDate;
-    while (cursor <= endDate) {
-      emptyBuckets.push({
-        timestamp:
-          interval === 'hour'
-            ? cursor.toFormat('yyyy-MM-dd HH:00')
-            : interval === '15min'
-              ? cursor.toFormat('yyyy-MM-dd HH:mm')
-              : cursor.toFormat('yyyy-MM-dd'),
-      });
-
-      cursor =
-        interval === 'hour'
-          ? cursor.plus({ hours: 1 })
-          : interval === '15min'
-            ? cursor.plus({ minutes: 15 })
-            : cursor.plus({ days: 1 });
-    }
-
-    // --- Grouping ---
-    const groupMap = new Map<
-      string,
-      {
-        evapLossSum: number;
-        supplySum: number;
-        returnSum: number;
-        count: number;
-      }
-    >();
-
     const constant = 0.00085 * 1.8;
+    const result: {
+      label: string;
+      evaporationLoss: number;
+      supplyTemp: number;
+      returnTemp: number;
+    }[] = [];
 
-    for (const doc of data) {
-      const docDate = DateTime.fromISO(doc.timestamp, { zone: tz });
-      let label: string;
+    if (interval === '15min') {
+      const cursorEnd24h = startDate.plus({ hours: 24 });
+      let cursor = startDate;
+      let lastEvap = 0,
+        lastSupply = 0,
+        lastReturn = 0;
 
-      if (interval === 'hour') {
-        label = docDate.toFormat('yyyy-MM-dd HH:00');
-      } else if (interval === '15min') {
-        const roundedMinutes = Math.floor(docDate.minute / 15) * 15;
-        label = docDate
-          .set({ minute: roundedMinutes, second: 0 })
-          .toFormat('yyyy-MM-dd HH:mm');
-      } else {
-        label = docDate.toFormat('yyyy-MM-dd');
-      }
+      while (cursor < cursorEnd24h && cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd HH:mm');
+        const docsInBucket = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ minutes: 15 });
+        });
 
-      const flow = doc[`${towerPrefix}FM_02_FR`];
-      const supply = doc[`${towerPrefix}TEMP_RTD_01_AI`];
-      const ret = doc[`${towerPrefix}TEMP_RTD_02_AI`];
+        let evapSum = 0,
+          supplySum = 0,
+          returnSum = 0,
+          count = 0;
 
-      if (
-        typeof flow === 'number' &&
-        typeof supply === 'number' &&
-        typeof ret === 'number'
-      ) {
-        const evapLoss = constant * flow * (ret - supply);
+        for (const doc of docsInBucket) {
+          const flow = doc[`${towerPrefix}FM_02_FR`];
+          const supply = doc[`${towerPrefix}TEMP_RTD_01_AI`];
+          const ret = doc[`${towerPrefix}TEMP_RTD_02_AI`];
 
-        if (!groupMap.has(label)) {
-          groupMap.set(label, {
-            evapLossSum: 0,
-            supplySum: 0,
-            returnSum: 0,
-            count: 0,
-          });
+          if (
+            typeof flow === 'number' &&
+            typeof supply === 'number' &&
+            typeof ret === 'number'
+          ) {
+            evapSum += constant * flow * (ret - supply);
+            supplySum += supply;
+            returnSum += ret;
+            count++;
+          }
         }
 
-        const g = groupMap.get(label)!;
-        g.evapLossSum += evapLoss;
-        g.supplySum += supply;
-        g.returnSum += ret;
-        g.count++;
+        const evap = count ? evapSum / count : lastEvap;
+        const supply = count ? supplySum / count : lastSupply;
+        const ret = count ? returnSum / count : lastReturn;
+
+        result.push({
+          label,
+          evaporationLoss: evap,
+          supplyTemp: supply,
+          returnTemp: ret,
+        });
+
+        if (count) {
+          lastEvap = evap;
+          lastSupply = supply;
+          lastReturn = ret;
+        }
+
+        cursor = cursor.plus({ minutes: 15 });
+      }
+
+      // --- 25th hour: first document only ---
+      if (data.length > 0 && cursor < endDate) {
+        const firstDoc = data[0];
+        const flow = firstDoc[`${towerPrefix}FM_02_FR`];
+        const supply = firstDoc[`${towerPrefix}TEMP_RTD_01_AI`];
+        const ret = firstDoc[`${towerPrefix}TEMP_RTD_02_AI`];
+        const evap =
+          typeof flow === 'number' &&
+          typeof supply === 'number' &&
+          typeof ret === 'number'
+            ? constant * flow * (ret - supply)
+            : 0;
+
+        const label25 = cursor.toFormat('yyyy-MM-dd HH:mm');
+        result.push({
+          label: label25,
+          evaporationLoss: evap,
+          supplyTemp: supply ?? 0,
+          returnTemp: ret ?? 0,
+        });
+      }
+    } else if (interval === 'hour') {
+      let cursor = startDate;
+      while (cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd HH:00');
+        const hourDocs = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ hours: 1 });
+        });
+
+        let evapSum = 0,
+          supplySum = 0,
+          returnSum = 0,
+          count = 0;
+        for (const doc of hourDocs) {
+          const flow = doc[`${towerPrefix}FM_02_FR`];
+          const supply = doc[`${towerPrefix}TEMP_RTD_01_AI`];
+          const ret = doc[`${towerPrefix}TEMP_RTD_02_AI`];
+          if (
+            typeof flow === 'number' &&
+            typeof supply === 'number' &&
+            typeof ret === 'number'
+          ) {
+            evapSum += constant * flow * (ret - supply);
+            supplySum += supply;
+            returnSum += ret;
+            count++;
+          }
+        }
+
+        result.push({
+          label,
+          evaporationLoss: count ? evapSum / count : 0,
+          supplyTemp: count ? supplySum / count : 0,
+          returnTemp: count ? returnSum / count : 0,
+        });
+        cursor = cursor.plus({ hours: 1 });
+      }
+    } else if (interval === 'day') {
+      let cursor = startDate;
+      while (cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd');
+        const dayDocs = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ days: 1 });
+        });
+
+        let evapSum = 0,
+          supplySum = 0,
+          returnSum = 0,
+          count = 0;
+        for (const doc of dayDocs) {
+          const flow = doc[`${towerPrefix}FM_02_FR`];
+          const supply = doc[`${towerPrefix}TEMP_RTD_01_AI`];
+          const ret = doc[`${towerPrefix}TEMP_RTD_02_AI`];
+          if (
+            typeof flow === 'number' &&
+            typeof supply === 'number' &&
+            typeof ret === 'number'
+          ) {
+            evapSum += constant * flow * (ret - supply);
+            supplySum += supply;
+            returnSum += ret;
+            count++;
+          }
+        }
+
+        result.push({
+          label,
+          evaporationLoss: count ? evapSum / count : 0,
+          supplyTemp: count ? supplySum / count : 0,
+          returnTemp: count ? returnSum / count : 0,
+        });
+        cursor = cursor.plus({ days: 1 });
       }
     }
-
-    // --- Merge Buckets ---
-    const result = emptyBuckets.map(({ timestamp }) => {
-      const g = groupMap.get(timestamp);
-      const count = g?.count || 0;
-      return {
-        label: timestamp,
-        evaporationLoss: count ? g!.evapLossSum / count : 0,
-        supplyTemp: count ? g!.supplySum / count : 0,
-        returnTemp: count ? g!.returnSum / count : 0,
-      };
-    });
 
     return { message: 'Analysis Chart 5 Data', rawdata: result };
   }
-
-  // async getAnalysisDataChart6(dto: {
-  //   date?: string;
-  //   range?: string;
-  //   fromDate?: string;
-  //   toDate?: string;
-  //   startTime?: string;
-  //   endTime?: string;
-  //   towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
-  // }) {
-  //   const filter: any = {};
-  //   let startDate: DateTime;
-  //   let endDate: DateTime;
-  //   const tz = 'Asia/Karachi';
-
-  //   // --- Date range ---
-  //   if (dto.range) {
-  //     const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
-  //     startDate = DateTime.fromJSDate(dateRange.$gte)
-  //       .setZone(tz)
-  //       .startOf('day');
-  //     endDate = DateTime.fromJSDate(dateRange.$lte).setZone(tz).endOf('day');
-  //   } else if (dto.fromDate && dto.toDate) {
-  //     startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
-  //     endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
-  //   } else if (dto.date) {
-  //     startDate = DateTime.fromISO(dto.date, { zone: tz }).startOf('day');
-  //     endDate = DateTime.fromISO(dto.date, { zone: tz }).endOf('day');
-  //   } else {
-  //     throw new Error('No date range provided');
-  //   }
-
-  //   // --- Time range ---
-  //   if (dto.startTime && dto.endTime) {
-  //     const timeFilter = this.mongoDateFilter.getCustomTimeRange(
-  //       dto.startTime,
-  //       dto.endTime,
-  //     );
-  //     Object.assign(filter, timeFilter);
-  //   }
-
-  //   // --- Timestamp filter (string-based) ---
-  //   filter.timestamp = {
-  //     $gte: startDate.toISO(),
-  //     $lte: endDate.toISO(),
-  //   };
-
-  //   // --- Projection ---
-  //   const towerPrefix = `${dto.towerType}_`;
-  //   const projection: any = { _id: 0, timestamp: 1 };
-
-  //   const sampleDoc = await this.AnalysisModel.findOne(filter).lean().exec();
-  //   if (!sampleDoc) {
-  //     return { message: 'Analysis Chart 6 Data', rawdata: [] };
-  //   }
-
-  //   const requiredFields = [
-  //     `${towerPrefix}FM_02_FR`,
-  //     `${towerPrefix}TEMP_RTD_01_AI`,
-  //   ];
-  //   for (const field of requiredFields) {
-  //     if (field in sampleDoc) projection[field] = 1;
-  //   }
-
-  //   // --- Fetch data ---
-  //   const data = await this.AnalysisModel.find(filter, projection)
-  //     .lean()
-  //     .exec();
-  //   if (!data.length) return { message: 'Analysis Chart 6 Data', rawdata: [] };
-
-  //   const diffInDays = endDate.diff(startDate, 'days').days;
-  //   const groupBy: 'hour' | 'day' = diffInDays <= 1 ? 'hour' : 'day';
-
-  //   // --- Empty Buckets ---
-  //   const emptyBuckets: { timestamp: string }[] = [];
-  //   let cursor = startDate;
-  //   while (cursor <= endDate) {
-  //     emptyBuckets.push({
-  //       timestamp:
-  //         groupBy === 'hour'
-  //           ? cursor.toFormat('yyyy-MM-dd HH:00')
-  //           : cursor.toFormat('yyyy-MM-dd'),
-  //     });
-  //     cursor =
-  //       groupBy === 'hour'
-  //         ? cursor.plus({ hours: 1 })
-  //         : cursor.plus({ days: 1 });
-  //   }
-
-  //   // --- Grouping ---
-  //   const groupMap = new Map<
-  //     string,
-  //     { returnSum: number; driftSum: number; count: number }
-  //   >();
-
-  //   for (const doc of data) {
-  //     const docDate = DateTime.fromISO(doc.timestamp, { zone: tz });
-  //     const label =
-  //       groupBy === 'hour'
-  //         ? docDate.toFormat('yyyy-MM-dd HH:00')
-  //         : docDate.toFormat('yyyy-MM-dd');
-
-  //     const returnTemp = doc[`${towerPrefix}TEMP_RTD_01_AI`];
-  //     const flowRate = doc[`${towerPrefix}FM_02_FR`];
-  //     const driftLoss =
-  //       typeof flowRate === 'number' ? (0.05 * flowRate) / 100 : null;
-
-  //     if (!groupMap.has(label)) {
-  //       groupMap.set(label, { returnSum: 0, driftSum: 0, count: 0 });
-  //     }
-  //     const g = groupMap.get(label)!;
-
-  //     if (typeof returnTemp === 'number') g.returnSum += returnTemp;
-  //     if (typeof driftLoss === 'number') g.driftSum += driftLoss;
-  //     g.count++;
-  //   }
-
-  //   // --- Merge Buckets ---
-  //   const result = emptyBuckets.map(({ timestamp }) => {
-  //     const g = groupMap.get(timestamp);
-  //     const count = g?.count || 0;
-  //     return {
-  //       label: timestamp,
-  //       returnTemp: count ? g!.returnSum / count : 0,
-  //       driftLoss: count ? g!.driftSum / count : 0,
-  //     };
-  //   });
-
-  //   return { message: 'Analysis Chart 6 Data', rawdata: result };
-  // }
 
   async getAnalysisDataChart6(dto: {
     date?: string;
@@ -1653,65 +1194,68 @@ export class AnalysisService {
     startTime?: string;
     endTime?: string;
     towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
-    interval?: '15min' | 'hour' | 'day'; // ✅ added
+    interval?: '15min' | 'hour' | 'day';
   }) {
-    const filter: any = {};
     const tz = 'Asia/Karachi';
+    const now = DateTime.now().setZone(tz);
+    const todayStr = now.toFormat('yyyy-MM-dd');
+
+    // --- Determine start and end ---
     let startDate: DateTime;
     let endDate: DateTime;
 
-    // --- Date range ---
-    if (dto.range) {
+    if (dto.date) {
+      startDate = DateTime.fromISO(dto.date, { zone: tz }).set({
+        hour: 6,
+        minute: 0,
+        second: 0,
+      });
+      endDate = startDate.plus({ hours: 25 });
+      if (dto.date === todayStr) endDate = now;
+    } else if (dto.fromDate && dto.toDate) {
+      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).set({
+        hour: 6,
+        minute: 0,
+        second: 0,
+      });
+      endDate = DateTime.fromISO(dto.toDate, { zone: tz })
+        .set({ hour: 6, minute: 0, second: 0 })
+        .plus({ hours: 25 });
+      if (dto.toDate === todayStr) endDate = now;
+    } else if (dto.range) {
       const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
       startDate = DateTime.fromJSDate(dateRange.$gte, { zone: 'utc' })
         .setZone(tz)
-        .startOf('day');
-      endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' })
-        .setZone(tz)
-        .endOf('day');
-    } else if (dto.fromDate && dto.toDate) {
-      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
-      endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
-    } else if (dto.date) {
-      startDate = DateTime.fromISO(dto.date, { zone: tz }).startOf('day');
-      endDate = DateTime.fromISO(dto.date, { zone: tz }).endOf('day');
+        .set({ hour: 6, minute: 0, second: 0 });
+      endDate = startDate.plus({ hours: 25 });
+      if (startDate.toFormat('yyyy-MM-dd') === todayStr) endDate = now;
     } else {
       throw new Error('No date range provided');
     }
 
-    // --- Time range ---
-    if (dto.startTime && dto.endTime) {
-      const timeFilter = this.mongoDateFilter.getCustomTimeRange(
-        dto.startTime,
-        dto.endTime,
-      );
-      Object.assign(filter, timeFilter);
-    }
-
-    // --- Timestamp filter ---
-    filter.timestamp = {
-      $gte: startDate.toISO(),
-      $lte: endDate.toISO(),
+    // --- MongoDB filter ---
+    const filter: any = {
+      timestamp: { $gte: startDate.toISO(), $lt: endDate.toISO() },
     };
+    if (dto.startTime && dto.endTime)
+      Object.assign(
+        filter,
+        this.mongoDateFilter.getCustomTimeRange(dto.startTime, dto.endTime),
+      );
 
     // --- Projection ---
     const towerPrefix = `${dto.towerType}_`;
     const projection: any = { _id: 0, timestamp: 1 };
-
     const sampleDoc = await this.AnalysisModel.findOne(filter).lean().exec();
-    if (!sampleDoc) {
-      return { message: 'Analysis Chart 6 Data', rawdata: [] };
-    }
+    if (!sampleDoc) return { message: 'Analysis Chart 6 Data', rawdata: [] };
 
     const requiredFields = [
       `${towerPrefix}FM_02_FR`,
       `${towerPrefix}TEMP_RTD_01_AI`,
     ];
-    for (const field of requiredFields) {
+    for (const field of requiredFields)
       if (field in sampleDoc) projection[field] = 1;
-    }
 
-    // --- Fetch data ---
     const data = await this.AnalysisModel.find(filter, projection)
       .lean()
       .exec();
@@ -1727,211 +1271,123 @@ export class AnalysisService {
           ? 'hour'
           : 'day';
 
-    // --- Empty Buckets ---
-    const emptyBuckets: { timestamp: string }[] = [];
-    let cursor = startDate;
-    while (cursor <= endDate) {
-      emptyBuckets.push({
-        timestamp:
-          interval === 'hour'
-            ? cursor.toFormat('yyyy-MM-dd HH:00')
-            : interval === '15min'
-              ? cursor.toFormat('yyyy-MM-dd HH:mm')
-              : cursor.toFormat('yyyy-MM-dd'),
-      });
+    const result: { label: string; returnTemp: number; driftLoss: number }[] =
+      [];
 
-      cursor =
-        interval === 'hour'
-          ? cursor.plus({ hours: 1 })
-          : interval === '15min'
-            ? cursor.plus({ minutes: 15 })
-            : cursor.plus({ days: 1 });
-    }
+    if (interval === '15min') {
+      const cursorEnd24h = startDate.plus({ hours: 24 });
+      let cursor = startDate;
+      let lastReturn = 0,
+        lastDrift = 0;
 
-    // --- Grouping ---
-    const groupMap = new Map<
-      string,
-      { returnSum: number; driftSum: number; count: number }
-    >();
+      while (cursor < cursorEnd24h && cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd HH:mm');
+        const docsInBucket = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ minutes: 15 });
+        });
 
-    for (const doc of data) {
-      const docDate = DateTime.fromISO(doc.timestamp, { zone: tz });
-      let label: string;
+        let returnSum = 0,
+          driftSum = 0,
+          count = 0;
+        for (const doc of docsInBucket) {
+          const returnTemp = doc[`${towerPrefix}TEMP_RTD_01_AI`];
+          const flowRate = doc[`${towerPrefix}FM_02_FR`];
+          const driftLoss =
+            typeof flowRate === 'number' ? (0.05 * flowRate) / 100 : 0;
 
-      if (interval === 'hour') {
-        label = docDate.toFormat('yyyy-MM-dd HH:00');
-      } else if (interval === '15min') {
-        const roundedMinutes = Math.floor(docDate.minute / 15) * 15;
-        label = docDate
-          .set({ minute: roundedMinutes, second: 0 })
-          .toFormat('yyyy-MM-dd HH:mm');
-      } else {
-        label = docDate.toFormat('yyyy-MM-dd');
+          if (typeof returnTemp === 'number') returnSum += returnTemp;
+          driftSum += driftLoss;
+          count++;
+        }
+
+        const ret = count ? returnSum / count : lastReturn;
+        const drift = count ? driftSum / count : lastDrift;
+
+        result.push({ label, returnTemp: ret, driftLoss: drift });
+
+        if (count) {
+          lastReturn = ret;
+          lastDrift = drift;
+        }
+
+        cursor = cursor.plus({ minutes: 15 });
       }
 
-      const returnTemp = doc[`${towerPrefix}TEMP_RTD_01_AI`];
-      const flowRate = doc[`${towerPrefix}FM_02_FR`];
-      const driftLoss =
-        typeof flowRate === 'number' ? (0.05 * flowRate) / 100 : null;
+      // --- 25th hour: first document only ---
+      if (data.length > 0 && cursor < endDate) {
+        const firstDoc = data[0];
+        const returnTemp = firstDoc[`${towerPrefix}TEMP_RTD_01_AI`] ?? 0;
+        const flowRate = firstDoc[`${towerPrefix}FM_02_FR`] ?? 0;
+        const driftLoss = (0.05 * flowRate) / 100;
 
-      if (!groupMap.has(label)) {
-        groupMap.set(label, { returnSum: 0, driftSum: 0, count: 0 });
+        const label25 = cursor.toFormat('yyyy-MM-dd HH:mm');
+        result.push({ label: label25, returnTemp, driftLoss });
       }
-      const g = groupMap.get(label)!;
+    } else if (interval === 'hour') {
+      let cursor = startDate;
+      while (cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd HH:00');
+        const hourDocs = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ hours: 1 });
+        });
 
-      if (typeof returnTemp === 'number') g.returnSum += returnTemp;
-      if (typeof driftLoss === 'number') g.driftSum += driftLoss;
-      g.count++;
+        let returnSum = 0,
+          driftSum = 0,
+          count = 0;
+        for (const doc of hourDocs) {
+          const returnTemp = doc[`${towerPrefix}TEMP_RTD_01_AI`];
+          const flowRate = doc[`${towerPrefix}FM_02_FR`];
+          const driftLoss =
+            typeof flowRate === 'number' ? (0.05 * flowRate) / 100 : 0;
+
+          if (typeof returnTemp === 'number') returnSum += returnTemp;
+          driftSum += driftLoss;
+          count++;
+        }
+
+        result.push({
+          label,
+          returnTemp: count ? returnSum / count : 0,
+          driftLoss: count ? driftSum / count : 0,
+        });
+        cursor = cursor.plus({ hours: 1 });
+      }
+    } else if (interval === 'day') {
+      let cursor = startDate;
+      while (cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd');
+        const dayDocs = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ days: 1 });
+        });
+
+        let returnSum = 0,
+          driftSum = 0,
+          count = 0;
+        for (const doc of dayDocs) {
+          const returnTemp = doc[`${towerPrefix}TEMP_RTD_01_AI`];
+          const flowRate = doc[`${towerPrefix}FM_02_FR`];
+          const driftLoss =
+            typeof flowRate === 'number' ? (0.05 * flowRate) / 100 : 0;
+
+          if (typeof returnTemp === 'number') returnSum += returnTemp;
+          driftSum += driftLoss;
+          count++;
+        }
+
+        result.push({
+          label,
+          returnTemp: count ? returnSum / count : 0,
+          driftLoss: count ? driftSum / count : 0,
+        });
+        cursor = cursor.plus({ days: 1 });
+      }
     }
-
-    // --- Merge Buckets ---
-    const result = emptyBuckets.map(({ timestamp }) => {
-      const g = groupMap.get(timestamp);
-      const count = g?.count || 0;
-      return {
-        label: timestamp,
-        returnTemp: count ? g!.returnSum / count : 0,
-        driftLoss: count ? g!.driftSum / count : 0,
-      };
-    });
 
     return { message: 'Analysis Chart 6 Data', rawdata: result };
   }
-
-  // async getAnalysisDataChart7(dto: {
-  //   date?: string;
-  //   range?: string;
-  //   fromDate?: string;
-  //   toDate?: string;
-  //   startTime?: string;
-  //   endTime?: string;
-  //   towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
-  // }) {
-  //   const filter: any = {};
-  //   let startDate: DateTime;
-  //   let endDate: DateTime;
-  //   const tz = 'Asia/Karachi';
-
-  //   // --- Date range ---
-  //   if (dto.range) {
-  //     const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
-  //     startDate = DateTime.fromJSDate(dateRange.$gte)
-  //       .setZone(tz)
-  //       .startOf('day');
-  //     endDate = DateTime.fromJSDate(dateRange.$lte).setZone(tz).endOf('day');
-  //   } else if (dto.fromDate && dto.toDate) {
-  //     startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
-  //     endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
-  //   } else if (dto.date) {
-  //     startDate = DateTime.fromISO(dto.date, { zone: tz }).startOf('day');
-  //     endDate = DateTime.fromISO(dto.date, { zone: tz }).endOf('day');
-  //   } else {
-  //     throw new Error('No date range provided');
-  //   }
-
-  //   // --- Time filter ---
-  //   if (dto.startTime && dto.endTime) {
-  //     const timeFilter = this.mongoDateFilter.getCustomTimeRange(
-  //       dto.startTime,
-  //       dto.endTime,
-  //     );
-  //     Object.assign(filter, timeFilter);
-  //   }
-
-  //   // --- Timestamp filter (ISO string) ---
-  //   filter.timestamp = {
-  //     $gte: startDate.toISO(),
-  //     $lte: endDate.toISO(),
-  //   };
-
-  //   // --- Projection ---
-  //   const towerPrefix = `${dto.towerType}_`;
-  //   const projection: any = { _id: 0, timestamp: 1 };
-  //   const sampleDoc = await this.AnalysisModel.findOne(filter).lean().exec();
-  //   if (!sampleDoc) return { message: 'Analysis Chart 7 Data', rawdata: [] };
-
-  //   const requiredFields = [
-  //     `${towerPrefix}FM_02_FR`,
-  //     `${towerPrefix}TEMP_RTD_01_AI`,
-  //     `${towerPrefix}TEMP_RTD_02_AI`,
-  //   ];
-  //   for (const field of requiredFields) {
-  //     if (field in sampleDoc) projection[field] = 1;
-  //   }
-
-  //   const data = await this.AnalysisModel.find(filter, projection)
-  //     .lean()
-  //     .exec();
-  //   if (!data.length) return { message: 'Analysis Chart 7 Data', rawdata: [] };
-
-  //   const diffInDays = endDate.diff(startDate, 'days').days;
-  //   const groupBy: 'hour' | 'day' = diffInDays <= 1 ? 'hour' : 'day';
-
-  //   // --- Empty Buckets ---
-  //   const emptyBuckets: { timestamp: string }[] = [];
-  //   let cursor = startDate;
-  //   while (cursor <= endDate) {
-  //     emptyBuckets.push({
-  //       timestamp:
-  //         groupBy === 'hour'
-  //           ? cursor.toFormat('yyyy-MM-dd HH:00')
-  //           : cursor.toFormat('yyyy-MM-dd'),
-  //     });
-  //     cursor =
-  //       groupBy === 'hour'
-  //         ? cursor.plus({ hours: 1 })
-  //         : cursor.plus({ days: 1 });
-  //   }
-
-  //   // --- Grouping ---
-  //   const groupMap = new Map<
-  //     string,
-  //     { blowdownSum: number; evapSum: number; count: number }
-  //   >();
-  //   const constant = 0.00085 * 1.8;
-
-  //   for (const doc of data) {
-  //     const docDate = DateTime.fromISO(doc.timestamp, { zone: tz });
-  //     const label =
-  //       groupBy === 'hour'
-  //         ? docDate.toFormat('yyyy-MM-dd HH:00')
-  //         : docDate.toFormat('yyyy-MM-dd');
-
-  //     const flow = doc[`${towerPrefix}FM_02_FR`];
-  //     const supply = doc[`${towerPrefix}TEMP_RTD_01_AI`];
-  //     const ret = doc[`${towerPrefix}TEMP_RTD_02_AI`];
-
-  //     if (
-  //       typeof flow === 'number' &&
-  //       typeof supply === 'number' &&
-  //       typeof ret === 'number'
-  //     ) {
-  //       const evapLoss = constant * flow * (ret - supply);
-  //       const blowdownRate = evapLoss / 6;
-
-  //       if (!groupMap.has(label)) {
-  //         groupMap.set(label, { blowdownSum: 0, evapSum: 0, count: 0 });
-  //       }
-  //       const g = groupMap.get(label)!;
-  //       g.blowdownSum += blowdownRate;
-  //       g.evapSum += evapLoss;
-  //       g.count++;
-  //     }
-  //   }
-
-  //   // --- Merge Buckets ---
-  //   const result = emptyBuckets.map(({ timestamp }) => {
-  //     const g = groupMap.get(timestamp);
-  //     const count = g?.count || 0;
-  //     return {
-  //       label: timestamp,
-  //       evaporationLoss: count ? g!.evapSum / count : 0,
-  //       blowdownRate: count ? g!.blowdownSum / count : 0,
-  //     };
-  //   });
-
-  //   return { message: 'Analysis Chart 7 Data', rawdata: result };
-  // }
 
   async getAnalysisDataChart7(dto: {
     date?: string;
@@ -1941,51 +1397,58 @@ export class AnalysisService {
     startTime?: string;
     endTime?: string;
     towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
-    interval?: '15min' | 'hour' | 'day'; // ✅ added
+    interval?: '15min' | 'hour' | 'day';
   }) {
-    const filter: any = {};
     const tz = 'Asia/Karachi';
+    const now = DateTime.now().setZone(tz);
+    const todayStr = now.toFormat('yyyy-MM-dd');
+
+    // --- Determine start and end ---
     let startDate: DateTime;
     let endDate: DateTime;
 
-    // --- Date range ---
-    if (dto.range) {
+    if (dto.date) {
+      startDate = DateTime.fromISO(dto.date, { zone: tz }).set({
+        hour: 6,
+        minute: 0,
+        second: 0,
+      });
+      endDate = startDate.plus({ hours: 25 });
+      if (dto.date === todayStr) endDate = now;
+    } else if (dto.fromDate && dto.toDate) {
+      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).set({
+        hour: 6,
+        minute: 0,
+        second: 0,
+      });
+      endDate = DateTime.fromISO(dto.toDate, { zone: tz })
+        .set({ hour: 6, minute: 0, second: 0 })
+        .plus({ hours: 25 });
+      if (dto.toDate === todayStr) endDate = now;
+    } else if (dto.range) {
       const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
       startDate = DateTime.fromJSDate(dateRange.$gte, { zone: 'utc' })
         .setZone(tz)
-        .startOf('day');
-      endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' })
-        .setZone(tz)
-        .endOf('day');
-    } else if (dto.fromDate && dto.toDate) {
-      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
-      endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
-    } else if (dto.date) {
-      startDate = DateTime.fromISO(dto.date, { zone: tz }).startOf('day');
-      endDate = DateTime.fromISO(dto.date, { zone: tz }).endOf('day');
+        .set({ hour: 6, minute: 0, second: 0 });
+      endDate = startDate.plus({ hours: 25 });
+      if (startDate.toFormat('yyyy-MM-dd') === todayStr) endDate = now;
     } else {
       throw new Error('No date range provided');
     }
 
-    // --- Time filter ---
-    if (dto.startTime && dto.endTime) {
-      const timeFilter = this.mongoDateFilter.getCustomTimeRange(
-        dto.startTime,
-        dto.endTime,
-      );
-      Object.assign(filter, timeFilter);
-    }
-
-    // --- Timestamp filter ---
-    filter.timestamp = {
-      $gte: startDate.toISO(),
-      $lte: endDate.toISO(),
+    // --- MongoDB filter ---
+    const filter: any = {
+      timestamp: { $gte: startDate.toISO(), $lt: endDate.toISO() },
     };
+    if (dto.startTime && dto.endTime)
+      Object.assign(
+        filter,
+        this.mongoDateFilter.getCustomTimeRange(dto.startTime, dto.endTime),
+      );
 
     // --- Projection ---
     const towerPrefix = `${dto.towerType}_`;
     const projection: any = { _id: 0, timestamp: 1 };
-
     const sampleDoc = await this.AnalysisModel.findOne(filter).lean().exec();
     if (!sampleDoc) return { message: 'Analysis Chart 7 Data', rawdata: [] };
 
@@ -1994,9 +1457,8 @@ export class AnalysisService {
       `${towerPrefix}TEMP_RTD_01_AI`,
       `${towerPrefix}TEMP_RTD_02_AI`,
     ];
-    for (const field of requiredFields) {
+    for (const field of requiredFields)
       if (field in sampleDoc) projection[field] = 1;
-    }
 
     const data = await this.AnalysisModel.find(filter, projection)
       .lean()
@@ -2013,236 +1475,156 @@ export class AnalysisService {
           ? 'hour'
           : 'day';
 
-    // --- Empty Buckets ---
-    const emptyBuckets: { timestamp: string }[] = [];
-    let cursor = startDate;
-    while (cursor <= endDate) {
-      emptyBuckets.push({
-        timestamp:
-          interval === 'hour'
-            ? cursor.toFormat('yyyy-MM-dd HH:00')
-            : interval === '15min'
-              ? cursor.toFormat('yyyy-MM-dd HH:mm')
-              : cursor.toFormat('yyyy-MM-dd'),
-      });
-
-      cursor =
-        interval === 'hour'
-          ? cursor.plus({ hours: 1 })
-          : interval === '15min'
-            ? cursor.plus({ minutes: 15 })
-            : cursor.plus({ days: 1 });
-    }
-
-    // --- Grouping ---
-    const groupMap = new Map<
-      string,
-      { blowdownSum: number; evapSum: number; count: number }
-    >();
+    const result: {
+      label: string;
+      evaporationLoss: number;
+      blowdownRate: number;
+    }[] = [];
     const constant = 0.00085 * 1.8;
 
-    for (const doc of data) {
-      const docDate = DateTime.fromISO(doc.timestamp, { zone: tz });
-      let label: string;
+    if (interval === '15min') {
+      const cursorEnd24h = startDate.plus({ hours: 24 });
+      let cursor = startDate;
+      let lastEvap = 0,
+        lastBlow = 0;
 
-      if (interval === 'hour') {
-        label = docDate.toFormat('yyyy-MM-dd HH:00');
-      } else if (interval === '15min') {
-        const roundedMinutes = Math.floor(docDate.minute / 15) * 15;
-        label = docDate
-          .set({ minute: roundedMinutes, second: 0 })
-          .toFormat('yyyy-MM-dd HH:mm');
-      } else {
-        label = docDate.toFormat('yyyy-MM-dd');
+      while (cursor < cursorEnd24h && cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd HH:mm');
+        const docsInBucket = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ minutes: 15 });
+        });
+
+        let evapSum = 0,
+          blowSum = 0,
+          count = 0;
+        for (const doc of docsInBucket) {
+          const flow = doc[`${towerPrefix}FM_02_FR`];
+          const supply = doc[`${towerPrefix}TEMP_RTD_01_AI`];
+          const ret = doc[`${towerPrefix}TEMP_RTD_02_AI`];
+
+          if (
+            typeof flow === 'number' &&
+            typeof supply === 'number' &&
+            typeof ret === 'number'
+          ) {
+            const evapLoss = constant * flow * (ret - supply);
+            const blowdownRate = evapLoss / 6;
+            evapSum += evapLoss;
+            blowSum += blowdownRate;
+            count++;
+          }
+        }
+
+        const evap = count ? evapSum / count : lastEvap;
+        const blow = count ? blowSum / count : lastBlow;
+
+        result.push({ label, evaporationLoss: evap, blowdownRate: blow });
+
+        if (count) {
+          lastEvap = evap;
+          lastBlow = blow;
+        }
+
+        cursor = cursor.plus({ minutes: 15 });
       }
 
-      const flow = doc[`${towerPrefix}FM_02_FR`];
-      const supply = doc[`${towerPrefix}TEMP_RTD_01_AI`];
-      const ret = doc[`${towerPrefix}TEMP_RTD_02_AI`];
-
-      if (
-        typeof flow === 'number' &&
-        typeof supply === 'number' &&
-        typeof ret === 'number'
-      ) {
+      // --- 25th hour: first document only ---
+      if (data.length > 0 && cursor < endDate) {
+        const firstDoc = data[0];
+        const flow = firstDoc[`${towerPrefix}FM_02_FR`] ?? 0;
+        const supply = firstDoc[`${towerPrefix}TEMP_RTD_01_AI`] ?? 0;
+        const ret = firstDoc[`${towerPrefix}TEMP_RTD_02_AI`] ?? 0;
         const evapLoss = constant * flow * (ret - supply);
         const blowdownRate = evapLoss / 6;
 
-        if (!groupMap.has(label)) {
-          groupMap.set(label, { blowdownSum: 0, evapSum: 0, count: 0 });
+        const label25 = cursor.toFormat('yyyy-MM-dd HH:mm');
+        result.push({
+          label: label25,
+          evaporationLoss: evapLoss,
+          blowdownRate,
+        });
+      }
+    } else if (interval === 'hour') {
+      let cursor = startDate;
+      while (cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd HH:00');
+        const hourDocs = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ hours: 1 });
+        });
+
+        let evapSum = 0,
+          blowSum = 0,
+          count = 0;
+        for (const doc of hourDocs) {
+          const flow = doc[`${towerPrefix}FM_02_FR`];
+          const supply = doc[`${towerPrefix}TEMP_RTD_01_AI`];
+          const ret = doc[`${towerPrefix}TEMP_RTD_02_AI`];
+
+          if (
+            typeof flow === 'number' &&
+            typeof supply === 'number' &&
+            typeof ret === 'number'
+          ) {
+            const evapLoss = constant * flow * (ret - supply);
+            const blowdownRate = evapLoss / 6;
+            evapSum += evapLoss;
+            blowSum += blowdownRate;
+            count++;
+          }
         }
-        const g = groupMap.get(label)!;
-        g.blowdownSum += blowdownRate;
-        g.evapSum += evapLoss;
-        g.count++;
+
+        result.push({
+          label,
+          evaporationLoss: count ? evapSum / count : 0,
+          blowdownRate: count ? blowSum / count : 0,
+        });
+
+        cursor = cursor.plus({ hours: 1 });
+      }
+    } else if (interval === 'day') {
+      let cursor = startDate;
+      while (cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd');
+        const dayDocs = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ days: 1 });
+        });
+
+        let evapSum = 0,
+          blowSum = 0,
+          count = 0;
+        for (const doc of dayDocs) {
+          const flow = doc[`${towerPrefix}FM_02_FR`];
+          const supply = doc[`${towerPrefix}TEMP_RTD_01_AI`];
+          const ret = doc[`${towerPrefix}TEMP_RTD_02_AI`];
+
+          if (
+            typeof flow === 'number' &&
+            typeof supply === 'number' &&
+            typeof ret === 'number'
+          ) {
+            const evapLoss = constant * flow * (ret - supply);
+            const blowdownRate = evapLoss / 6;
+            evapSum += evapLoss;
+            blowSum += blowdownRate;
+            count++;
+          }
+        }
+
+        result.push({
+          label,
+          evaporationLoss: count ? evapSum / count : 0,
+          blowdownRate: count ? blowSum / count : 0,
+        });
+
+        cursor = cursor.plus({ days: 1 });
       }
     }
 
-    // --- Merge Buckets ---
-    const result = emptyBuckets.map(({ timestamp }) => {
-      const g = groupMap.get(timestamp);
-      const count = g?.count || 0;
-      return {
-        label: timestamp,
-        evaporationLoss: count ? g!.evapSum / count : 0,
-        blowdownRate: count ? g!.blowdownSum / count : 0,
-      };
-    });
-
     return { message: 'Analysis Chart 7 Data', rawdata: result };
   }
-
-  // async getAnalysisDataChart8(dto: {
-  //   date?: string;
-  //   range?: string;
-  //   fromDate?: string;
-  //   toDate?: string;
-  //   startTime?: string;
-  //   endTime?: string;
-  //   towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
-  // }) {
-  //   const filter: any = {};
-  //   let startDate: DateTime;
-  //   let endDate: DateTime;
-  //   const tz = 'Asia/Karachi';
-
-  //   // --- Date range ---
-  //   if (dto.range) {
-  //     const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
-  //     startDate = DateTime.fromJSDate(dateRange.$gte)
-  //       .setZone(tz)
-  //       .startOf('day');
-  //     endDate = DateTime.fromJSDate(dateRange.$lte).setZone(tz).endOf('day');
-  //   } else if (dto.fromDate && dto.toDate) {
-  //     startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
-  //     endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
-  //   } else if (dto.date) {
-  //     startDate = DateTime.fromISO(dto.date, { zone: tz }).startOf('day');
-  //     endDate = DateTime.fromISO(dto.date, { zone: tz }).endOf('day');
-  //   } else {
-  //     throw new Error('No date range provided');
-  //   }
-
-  //   if (dto.startTime && dto.endTime) {
-  //     const timeFilter = this.mongoDateFilter.getCustomTimeRange(
-  //       dto.startTime,
-  //       dto.endTime,
-  //     );
-  //     Object.assign(filter, timeFilter);
-  //   }
-
-  //   filter.timestamp = {
-  //     $gte: startDate.toISO(),
-  //     $lte: endDate.toISO(),
-  //   };
-
-  //   // --- Projection ---
-  //   const towerPrefix = `${dto.towerType}_`;
-  //   const projection: any = { _id: 0, timestamp: 1 };
-  //   const sampleDoc = await this.AnalysisModel.findOne(filter).lean().exec();
-  //   if (!sampleDoc) return { message: 'Analysis Chart 8 Data', rawdata: [] };
-
-  //   const requiredFields = [
-  //     `${towerPrefix}FM_02_FR`,
-  //     `${towerPrefix}TEMP_RTD_01_AI`,
-  //     `${towerPrefix}TEMP_RTD_02_AI`,
-  //   ];
-  //   for (const field of requiredFields) {
-  //     if (field in sampleDoc) projection[field] = 1;
-  //   }
-
-  //   const data = await this.AnalysisModel.find(filter, projection)
-  //     .lean()
-  //     .exec();
-  //   if (!data.length) return { message: 'Analysis Chart 8 Data', rawdata: [] };
-
-  //   const diffInDays = endDate.diff(startDate, 'days').days;
-  //   const groupBy: 'hour' | 'day' = diffInDays <= 1 ? 'hour' : 'day';
-
-  //   // --- Empty Buckets ---
-  //   const emptyBuckets: { timestamp: string }[] = [];
-  //   let cursor = startDate;
-  //   while (cursor <= endDate) {
-  //     emptyBuckets.push({
-  //       timestamp:
-  //         groupBy === 'hour'
-  //           ? cursor.toFormat('yyyy-MM-dd HH:00')
-  //           : cursor.toFormat('yyyy-MM-dd'),
-  //     });
-  //     cursor =
-  //       groupBy === 'hour'
-  //         ? cursor.plus({ hours: 1 })
-  //         : cursor.plus({ days: 1 });
-  //   }
-
-  //   // --- Grouping ---
-  //   const groupMap = new Map<
-  //     string,
-  //     {
-  //       blowdownSum: number;
-  //       evapSum: number;
-  //       driftSum: number;
-  //       makeupSum: number;
-  //       count: number;
-  //     }
-  //   >();
-  //   const constant = 0.00085 * 1.8;
-
-  //   for (const doc of data) {
-  //     const docDate = DateTime.fromISO(doc.timestamp, { zone: tz });
-  //     const label =
-  //       groupBy === 'hour'
-  //         ? docDate.toFormat('yyyy-MM-dd HH:00')
-  //         : docDate.toFormat('yyyy-MM-dd');
-
-  //     const flow = doc[`${towerPrefix}FM_02_FR`];
-  //     const supply = doc[`${towerPrefix}TEMP_RTD_01_AI`];
-  //     const ret = doc[`${towerPrefix}TEMP_RTD_02_AI`];
-
-  //     if (
-  //       typeof flow === 'number' &&
-  //       typeof supply === 'number' &&
-  //       typeof ret === 'number'
-  //     ) {
-  //       const evapLoss = constant * flow * (ret - supply);
-  //       const blowdownRate = evapLoss / 6;
-  //       const driftLoss = 0.0005 * flow;
-  //       const makeup = evapLoss + blowdownRate + driftLoss;
-
-  //       if (!groupMap.has(label)) {
-  //         groupMap.set(label, {
-  //           blowdownSum: 0,
-  //           evapSum: 0,
-  //           driftSum: 0,
-  //           makeupSum: 0,
-  //           count: 0,
-  //         });
-  //       }
-
-  //       const g = groupMap.get(label)!;
-  //       g.blowdownSum += blowdownRate;
-  //       g.evapSum += evapLoss;
-  //       g.driftSum += driftLoss;
-  //       g.makeupSum += makeup;
-  //       g.count++;
-  //     }
-  //   }
-
-  //   // --- Merge Buckets ---
-  //   const result = emptyBuckets.map(({ timestamp }) => {
-  //     const g = groupMap.get(timestamp);
-  //     const count = g?.count || 0;
-  //     return {
-  //       label: timestamp,
-  //       evaporationLoss: count ? g!.evapSum / count : 0,
-  //       blowdownRate: count ? g!.blowdownSum / count : 0,
-  //       driftLoss: count ? g!.driftSum / count : 0,
-  //       makeupWater: count ? g!.makeupSum / count : 0,
-  //     };
-  //   });
-
-  //   return { message: 'Analysis Chart 8 Data', rawdata: result };
-  // }
 
   async getAnalysisDataChart8(dto: {
     date?: string;
@@ -2252,51 +1634,58 @@ export class AnalysisService {
     startTime?: string;
     endTime?: string;
     towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
-    interval?: '15min' | 'hour' | 'day'; // ✅ added
+    interval?: '15min' | 'hour' | 'day';
   }) {
-    const filter: any = {};
     const tz = 'Asia/Karachi';
+    const now = DateTime.now().setZone(tz);
+    const todayStr = now.toFormat('yyyy-MM-dd');
+
+    // --- Determine start and end ---
     let startDate: DateTime;
     let endDate: DateTime;
 
-    // --- Date range ---
-    if (dto.range) {
+    if (dto.date) {
+      startDate = DateTime.fromISO(dto.date, { zone: tz }).set({
+        hour: 6,
+        minute: 0,
+        second: 0,
+      });
+      endDate = startDate.plus({ hours: 25 });
+      if (dto.date === todayStr) endDate = now;
+    } else if (dto.fromDate && dto.toDate) {
+      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).set({
+        hour: 6,
+        minute: 0,
+        second: 0,
+      });
+      endDate = DateTime.fromISO(dto.toDate, { zone: tz })
+        .set({ hour: 6, minute: 0, second: 0 })
+        .plus({ hours: 25 });
+      if (dto.toDate === todayStr) endDate = now;
+    } else if (dto.range) {
       const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
       startDate = DateTime.fromJSDate(dateRange.$gte, { zone: 'utc' })
         .setZone(tz)
-        .startOf('day');
-      endDate = DateTime.fromJSDate(dateRange.$lte, { zone: 'utc' })
-        .setZone(tz)
-        .endOf('day');
-    } else if (dto.fromDate && dto.toDate) {
-      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
-      endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
-    } else if (dto.date) {
-      startDate = DateTime.fromISO(dto.date, { zone: tz }).startOf('day');
-      endDate = DateTime.fromISO(dto.date, { zone: tz }).endOf('day');
+        .set({ hour: 6, minute: 0, second: 0 });
+      endDate = startDate.plus({ hours: 25 });
+      if (startDate.toFormat('yyyy-MM-dd') === todayStr) endDate = now;
     } else {
       throw new Error('No date range provided');
     }
 
-    // --- Time filter ---
-    if (dto.startTime && dto.endTime) {
-      const timeFilter = this.mongoDateFilter.getCustomTimeRange(
-        dto.startTime,
-        dto.endTime,
-      );
-      Object.assign(filter, timeFilter);
-    }
-
-    // --- Timestamp filter ---
-    filter.timestamp = {
-      $gte: startDate.toISO(),
-      $lte: endDate.toISO(),
+    // --- MongoDB filter ---
+    const filter: any = {
+      timestamp: { $gte: startDate.toISO(), $lt: endDate.toISO() },
     };
+    if (dto.startTime && dto.endTime)
+      Object.assign(
+        filter,
+        this.mongoDateFilter.getCustomTimeRange(dto.startTime, dto.endTime),
+      );
 
     // --- Projection ---
     const towerPrefix = `${dto.towerType}_`;
     const projection: any = { _id: 0, timestamp: 1 };
-
     const sampleDoc = await this.AnalysisModel.findOne(filter).lean().exec();
     if (!sampleDoc) return { message: 'Analysis Chart 8 Data', rawdata: [] };
 
@@ -2305,9 +1694,8 @@ export class AnalysisService {
       `${towerPrefix}TEMP_RTD_01_AI`,
       `${towerPrefix}TEMP_RTD_02_AI`,
     ];
-    for (const field of requiredFields) {
+    for (const field of requiredFields)
       if (field in sampleDoc) projection[field] = 1;
-    }
 
     const data = await this.AnalysisModel.find(filter, projection)
       .lean()
@@ -2324,100 +1712,192 @@ export class AnalysisService {
           ? 'hour'
           : 'day';
 
-    // --- Empty Buckets ---
-    const emptyBuckets: { timestamp: string }[] = [];
-    let cursor = startDate;
-    while (cursor <= endDate) {
-      emptyBuckets.push({
-        timestamp:
-          interval === 'hour'
-            ? cursor.toFormat('yyyy-MM-dd HH:00')
-            : interval === '15min'
-              ? cursor.toFormat('yyyy-MM-dd HH:mm')
-              : cursor.toFormat('yyyy-MM-dd'),
-      });
-
-      cursor =
-        interval === 'hour'
-          ? cursor.plus({ hours: 1 })
-          : interval === '15min'
-            ? cursor.plus({ minutes: 15 })
-            : cursor.plus({ days: 1 });
-    }
-
-    // --- Grouping ---
-    const groupMap = new Map<
-      string,
-      {
-        blowdownSum: number;
-        evapSum: number;
-        driftSum: number;
-        makeupSum: number;
-        count: number;
-      }
-    >();
+    const result: {
+      label: string;
+      evaporationLoss: number;
+      blowdownRate: number;
+      driftLoss: number;
+      makeupWater: number;
+    }[] = [];
     const constant = 0.00085 * 1.8;
 
-    for (const doc of data) {
-      const docDate = DateTime.fromISO(doc.timestamp, { zone: tz });
-      let label: string;
+    if (interval === '15min') {
+      const cursorEnd24h = startDate.plus({ hours: 24 });
+      let cursor = startDate;
+      let lastEvap = 0,
+        lastBlow = 0,
+        lastDrift = 0,
+        lastMakeup = 0;
 
-      if (interval === 'hour') {
-        label = docDate.toFormat('yyyy-MM-dd HH:00');
-      } else if (interval === '15min') {
-        const roundedMinutes = Math.floor(docDate.minute / 15) * 15;
-        label = docDate
-          .set({ minute: roundedMinutes, second: 0 })
-          .toFormat('yyyy-MM-dd HH:mm');
-      } else {
-        label = docDate.toFormat('yyyy-MM-dd');
+      while (cursor < cursorEnd24h && cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd HH:mm');
+        const docsInBucket = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ minutes: 15 });
+        });
+
+        let evapSum = 0,
+          blowSum = 0,
+          driftSum = 0,
+          makeupSum = 0,
+          count = 0;
+        for (const doc of docsInBucket) {
+          const flow = doc[`${towerPrefix}FM_02_FR`];
+          const supply = doc[`${towerPrefix}TEMP_RTD_01_AI`];
+          const ret = doc[`${towerPrefix}TEMP_RTD_02_AI`];
+
+          if (
+            typeof flow === 'number' &&
+            typeof supply === 'number' &&
+            typeof ret === 'number'
+          ) {
+            const evapLoss = constant * flow * (ret - supply);
+            const blowdownRate = evapLoss / 6;
+            const driftLoss = 0.0005 * flow;
+            const makeup = evapLoss + blowdownRate + driftLoss;
+
+            evapSum += evapLoss;
+            blowSum += blowdownRate;
+            driftSum += driftLoss;
+            makeupSum += makeup;
+            count++;
+          }
+        }
+
+        const evap = count ? evapSum / count : lastEvap;
+        const blow = count ? blowSum / count : lastBlow;
+        const drift = count ? driftSum / count : lastDrift;
+        const makeup = count ? makeupSum / count : lastMakeup;
+
+        result.push({
+          label,
+          evaporationLoss: evap,
+          blowdownRate: blow,
+          driftLoss: drift,
+          makeupWater: makeup,
+        });
+
+        if (count) {
+          lastEvap = evap;
+          lastBlow = blow;
+          lastDrift = drift;
+          lastMakeup = makeup;
+        }
+
+        cursor = cursor.plus({ minutes: 15 });
       }
 
-      const flow = doc[`${towerPrefix}FM_02_FR`];
-      const supply = doc[`${towerPrefix}TEMP_RTD_01_AI`];
-      const ret = doc[`${towerPrefix}TEMP_RTD_02_AI`];
-
-      if (
-        typeof flow === 'number' &&
-        typeof supply === 'number' &&
-        typeof ret === 'number'
-      ) {
+      // --- 25th hour: first document only ---
+      if (data.length > 0 && cursor < endDate) {
+        const firstDoc = data[0];
+        const flow = firstDoc[`${towerPrefix}FM_02_FR`] ?? 0;
+        const supply = firstDoc[`${towerPrefix}TEMP_RTD_01_AI`] ?? 0;
+        const ret = firstDoc[`${towerPrefix}TEMP_RTD_02_AI`] ?? 0;
         const evapLoss = constant * flow * (ret - supply);
         const blowdownRate = evapLoss / 6;
         const driftLoss = 0.0005 * flow;
         const makeup = evapLoss + blowdownRate + driftLoss;
 
-        if (!groupMap.has(label)) {
-          groupMap.set(label, {
-            blowdownSum: 0,
-            evapSum: 0,
-            driftSum: 0,
-            makeupSum: 0,
-            count: 0,
-          });
+        const label25 = cursor.toFormat('yyyy-MM-dd HH:mm');
+        result.push({
+          label: label25,
+          evaporationLoss: evapLoss,
+          blowdownRate,
+          driftLoss,
+          makeupWater: makeup,
+        });
+      }
+    } else if (interval === 'hour') {
+      let cursor = startDate;
+      while (cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd HH:00');
+        const hourDocs = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ hours: 1 });
+        });
+
+        let evapSum = 0,
+          blowSum = 0,
+          driftSum = 0,
+          makeupSum = 0,
+          count = 0;
+        for (const doc of hourDocs) {
+          const flow = doc[`${towerPrefix}FM_02_FR`];
+          const supply = doc[`${towerPrefix}TEMP_RTD_01_AI`];
+          const ret = doc[`${towerPrefix}TEMP_RTD_02_AI`];
+          if (
+            typeof flow === 'number' &&
+            typeof supply === 'number' &&
+            typeof ret === 'number'
+          ) {
+            const evapLoss = constant * flow * (ret - supply);
+            const blowdownRate = evapLoss / 6;
+            const driftLoss = 0.0005 * flow;
+            const makeup = evapLoss + blowdownRate + driftLoss;
+            evapSum += evapLoss;
+            blowSum += blowdownRate;
+            driftSum += driftLoss;
+            makeupSum += makeup;
+            count++;
+          }
         }
 
-        const g = groupMap.get(label)!;
-        g.blowdownSum += blowdownRate;
-        g.evapSum += evapLoss;
-        g.driftSum += driftLoss;
-        g.makeupSum += makeup;
-        g.count++;
+        result.push({
+          label,
+          evaporationLoss: count ? evapSum / count : 0,
+          blowdownRate: count ? blowSum / count : 0,
+          driftLoss: count ? driftSum / count : 0,
+          makeupWater: count ? makeupSum / count : 0,
+        });
+
+        cursor = cursor.plus({ hours: 1 });
+      }
+    } else if (interval === 'day') {
+      let cursor = startDate;
+      while (cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd');
+        const dayDocs = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ days: 1 });
+        });
+
+        let evapSum = 0,
+          blowSum = 0,
+          driftSum = 0,
+          makeupSum = 0,
+          count = 0;
+        for (const doc of dayDocs) {
+          const flow = doc[`${towerPrefix}FM_02_FR`];
+          const supply = doc[`${towerPrefix}TEMP_RTD_01_AI`];
+          const ret = doc[`${towerPrefix}TEMP_RTD_02_AI`];
+          if (
+            typeof flow === 'number' &&
+            typeof supply === 'number' &&
+            typeof ret === 'number'
+          ) {
+            const evapLoss = constant * flow * (ret - supply);
+            const blowdownRate = evapLoss / 6;
+            const driftLoss = 0.0005 * flow;
+            const makeup = evapLoss + blowdownRate + driftLoss;
+            evapSum += evapLoss;
+            blowSum += blowdownRate;
+            driftSum += driftLoss;
+            makeupSum += makeup;
+            count++;
+          }
+        }
+
+        result.push({
+          label,
+          evaporationLoss: count ? evapSum / count : 0,
+          blowdownRate: count ? blowSum / count : 0,
+          driftLoss: count ? driftSum / count : 0,
+          makeupWater: count ? makeupSum / count : 0,
+        });
+
+        cursor = cursor.plus({ days: 1 });
       }
     }
-
-    // --- Merge Buckets ---
-    const result = emptyBuckets.map(({ timestamp }) => {
-      const g = groupMap.get(timestamp);
-      const count = g?.count || 0;
-      return {
-        label: timestamp,
-        evaporationLoss: count ? g!.evapSum / count : 0,
-        blowdownRate: count ? g!.blowdownSum / count : 0,
-        driftLoss: count ? g!.driftSum / count : 0,
-        makeupWater: count ? g!.makeupSum / count : 0,
-      };
-    });
 
     return { message: 'Analysis Chart 8 Data', rawdata: result };
   }
@@ -2430,134 +1910,168 @@ export class AnalysisService {
     startTime?: string;
     endTime?: string;
     towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
-    interval?: '15min' | 'hour'; // NEW param
+    interval?: '15min' | 'hour';
   }) {
-    const filter: any = {};
     const tz = 'Asia/Karachi';
+    const now = DateTime.now().setZone(tz);
+    const todayStr = now.toFormat('yyyy-MM-dd');
+    const tower = dto.towerType!;
+
+    // --- Determine start and end ---
     let startDate: DateTime;
     let endDate: DateTime;
-
-    // --- Date range ---
-    if (dto.range) {
-      const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
-      startDate = DateTime.fromJSDate(dateRange.$gte)
-        .setZone(tz)
-        .startOf('day');
-      endDate = DateTime.fromJSDate(dateRange.$lte).setZone(tz).endOf('day');
+    if (dto.date) {
+      startDate = DateTime.fromISO(dto.date, { zone: tz }).set({
+        hour: 6,
+        minute: 0,
+        second: 0,
+      });
+      endDate = startDate.plus({ hours: 25 });
+      if (dto.date === todayStr) endDate = now;
     } else if (dto.fromDate && dto.toDate) {
-      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
-      endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
-    } else if (dto.date) {
-      startDate = DateTime.fromISO(dto.date, { zone: tz }).startOf('day');
-      endDate = DateTime.fromISO(dto.date, { zone: tz }).endOf('day');
+      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).set({
+        hour: 6,
+        minute: 0,
+        second: 0,
+      });
+      endDate = DateTime.fromISO(dto.toDate, { zone: tz })
+        .set({ hour: 6, minute: 0, second: 0 })
+        .plus({ hours: 25 });
+      if (dto.toDate === todayStr) endDate = now;
+    } else if (dto.range) {
+      const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
+      startDate = DateTime.fromJSDate(dateRange.$gte, { zone: tz }).set({
+        hour: 6,
+        minute: 0,
+        second: 0,
+      });
+      endDate = startDate.plus({ hours: 25 });
+      if (startDate.toFormat('yyyy-MM-dd') === todayStr) endDate = now;
     } else {
       throw new Error('No date range provided');
     }
 
-    if (dto.startTime && dto.endTime) {
-      const timeFilter = this.mongoDateFilter.getCustomTimeRange(
-        dto.startTime,
-        dto.endTime,
-      );
-      Object.assign(filter, timeFilter);
-    }
-
-    filter.timestamp = {
-      $gte: startDate.toISO(),
-      $lte: endDate.toISO(),
+    // --- Filter ---
+    const filter: any = {
+      timestamp: { $gte: startDate.toISO(), $lt: endDate.toISO() },
     };
+    if (dto.startTime && dto.endTime)
+      Object.assign(
+        filter,
+        this.mongoDateFilter.getCustomTimeRange(dto.startTime, dto.endTime),
+      );
 
     // --- Projection ---
-    const towerPrefix = `${dto.towerType}_`;
     const projection: any = { _id: 0, timestamp: 1 };
-
-    const ampFields = ['Current_AN_Amp', 'Current_BN_Amp', 'Current_CN_Amp'];
-    const speedField = `${towerPrefix}INV_01_SPD_AI`;
-
-    ampFields.forEach((suffix) => {
-      projection[`${towerPrefix}EM01_${suffix}`] = 1;
+    projection[`${tower}_INV_01_SPD_AI`] = 1;
+    ['Current_AN_Amp', 'Current_BN_Amp', 'Current_CN_Amp'].forEach((s) => {
+      projection[`${tower}_EM01_${s}`] = 1;
     });
-    projection[speedField] = 1;
 
     const data = await this.AnalysisModel.find(filter, projection)
       .lean()
       .exec();
-    if (!data.length)
-      return { message: 'Analysis Chart 9 - Fan Speed & Ampere', rawdata: [] };
+    if (!data.length) return { message: 'Analysis Chart 9 Data', rawdata: [] };
 
-    const interval = dto.interval ?? 'hour';
+    const interval: '15min' | 'hour' = dto.interval ?? 'hour';
+    const result: any[] = [];
 
-    // --- Empty Buckets ---
-    const emptyBuckets: { timestamp: string }[] = [];
-    let cursor = startDate;
-    while (cursor <= endDate) {
-      emptyBuckets.push({
-        timestamp:
-          interval === 'hour'
-            ? cursor.toFormat('yyyy-MM-dd HH:00')
-            : cursor.toFormat('yyyy-MM-dd HH:mm'),
-      });
-      cursor =
-        interval === 'hour'
-          ? cursor.plus({ hours: 1 })
-          : cursor.plus({ minutes: 15 });
-    }
+    if (interval === '15min') {
+      const cursorEnd24h = startDate.plus({ hours: 24 });
+      let cursor = startDate;
+      let lastValues = { fanSpeed: 0, fanAmp: 0 };
 
-    // --- Grouping ---
-    const groupMap = new Map<
-      string,
-      { fanSpeedSum: number; fanAmpSum: number; count: number }
-    >();
+      // --- First 24 hours
+      while (cursor < cursorEnd24h && cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd HH:mm');
+        const docsInBucket = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ minutes: 15 });
+        });
 
-    for (const doc of data) {
-      const docDate = DateTime.fromISO(doc.timestamp, { zone: tz });
-      let label: string;
+        let speedSum = 0,
+          ampSum = 0,
+          count = 0;
+        for (const doc of docsInBucket) {
+          const speed = doc[`${tower}_INV_01_SPD_AI`];
+          const ampA = doc[`${tower}_EM01_Current_AN_Amp`];
+          const ampB = doc[`${tower}_EM01_Current_BN_Amp`];
+          const ampC = doc[`${tower}_EM01_Current_CN_Amp`];
+          const fanAmp = [ampA, ampB, ampC].every((a) => typeof a === 'number')
+            ? (ampA + ampB + ampC) / 3
+            : null;
 
-      if (interval === 'hour') {
-        label = docDate.toFormat('yyyy-MM-dd HH:00');
-      } else {
-        const roundedMinutes = Math.floor(docDate.minute / 15) * 15;
-        label = docDate
-          .set({ minute: roundedMinutes, second: 0 })
-          .toFormat('yyyy-MM-dd HH:mm');
+          if (typeof speed === 'number') speedSum += speed;
+          if (typeof fanAmp === 'number') ampSum += fanAmp;
+          count++;
+        }
+
+        if (count === 0 && cursor.toFormat('yyyy-MM-dd') === todayStr) {
+          result.push({
+            label,
+            fanSpeed: lastValues.fanSpeed,
+            fanAmp: lastValues.fanAmp,
+          });
+        } else {
+          const avgSpeed = count ? speedSum / count : 0;
+          const avgAmp = count ? ampSum / count : 0;
+          result.push({ label, fanSpeed: avgSpeed, fanAmp: avgAmp });
+          lastValues = { fanSpeed: avgSpeed, fanAmp: avgAmp };
+        }
+
+        cursor = cursor.plus({ minutes: 15 });
       }
 
-      if (!groupMap.has(label)) {
-        groupMap.set(label, { fanSpeedSum: 0, fanAmpSum: 0, count: 0 });
+      // --- 25th hour: only first document
+      if (data.length > 0 && cursor < endDate) {
+        const firstDoc = data[0];
+        const speed = firstDoc[`${tower}_INV_01_SPD_AI`] ?? 0;
+        const ampA = firstDoc[`${tower}_EM01_Current_AN_Amp`] ?? 0;
+        const ampB = firstDoc[`${tower}_EM01_Current_BN_Amp`] ?? 0;
+        const ampC = firstDoc[`${tower}_EM01_Current_CN_Amp`] ?? 0;
+        const fanAmp = (ampA + ampB + ampC) / 3;
+
+        const label25 = cursor.toFormat('yyyy-MM-dd HH:mm');
+        result.push({ label: label25, fanSpeed: speed, fanAmp });
       }
+    } else if (interval === 'hour') {
+      let cursor = startDate;
+      while (cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd HH:00');
+        const hourDocs = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ hours: 1 });
+        });
 
-      const g = groupMap.get(label)!;
+        let speedSum = 0,
+          ampSum = 0,
+          count = 0;
+        for (const doc of hourDocs) {
+          const speed = doc[`${tower}_INV_01_SPD_AI`];
+          const ampA = doc[`${tower}_EM01_Current_AN_Amp`];
+          const ampB = doc[`${tower}_EM01_Current_BN_Amp`];
+          const ampC = doc[`${tower}_EM01_Current_CN_Amp`];
+          const fanAmp = [ampA, ampB, ampC].every((a) => typeof a === 'number')
+            ? (ampA + ampB + ampC) / 3
+            : null;
 
-      const speed = doc[speedField];
-      const ampA = doc[`${towerPrefix}EM01_Current_AN_Amp`];
-      const ampB = doc[`${towerPrefix}EM01_Current_BN_Amp`];
-      const ampC = doc[`${towerPrefix}EM01_Current_CN_Amp`];
+          if (typeof speed === 'number') speedSum += speed;
+          if (typeof fanAmp === 'number') ampSum += fanAmp;
+          count++;
+        }
 
-      const fanAmp = [ampA, ampB, ampC].every((a) => typeof a === 'number')
-        ? (ampA + ampB + ampC) / 3
-        : null;
-
-      if (typeof speed === 'number') g.fanSpeedSum += speed;
-      if (typeof fanAmp === 'number') g.fanAmpSum += fanAmp;
-      g.count++;
+        result.push({
+          label,
+          fanSpeed: count ? speedSum / count : 0,
+          fanAmp: count ? ampSum / count : 0,
+        });
+        cursor = cursor.plus({ hours: 1 });
+      }
     }
 
-    // --- Merge Buckets ---
-    const result = emptyBuckets.map(({ timestamp }) => {
-      const g = groupMap.get(timestamp);
-      const count = g?.count || 0;
-      return {
-        label: timestamp,
-        fanSpeed: count ? g!.fanSpeedSum / count : 0,
-        fanAmpere: count ? g!.fanAmpSum / count : 0,
-      };
-    });
-
-    return {
-      message: 'Analysis Chart 9 - Fan Speed & Ampere',
-      rawdata: result,
-    };
+    return { message: 'Analysis Chart 9 Data', rawdata: result };
   }
+
   async getAnalysisDataChart10(dto: {
     date?: string;
     range?: string;
@@ -2568,99 +2082,136 @@ export class AnalysisService {
     towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
     interval?: '15min' | 'hour';
   }) {
-    const filter: any = {};
     const tz = 'Asia/Karachi';
+    const now = DateTime.now().setZone(tz);
+    const todayStr = now.toFormat('yyyy-MM-dd');
+    const tower = dto.towerType!;
+
+    // --- Determine start and end ---
     let startDate: DateTime;
     let endDate: DateTime;
-
-    // --- Date range ---
-    if (dto.range) {
-      const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
-      startDate = DateTime.fromJSDate(dateRange.$gte)
-        .setZone(tz)
-        .startOf('day');
-      endDate = DateTime.fromJSDate(dateRange.$lte).setZone(tz).endOf('day');
+    if (dto.date) {
+      startDate = DateTime.fromISO(dto.date, { zone: tz }).set({
+        hour: 6,
+        minute: 0,
+        second: 0,
+      });
+      endDate = startDate.plus({ hours: 25 });
+      if (dto.date === todayStr) endDate = now;
     } else if (dto.fromDate && dto.toDate) {
-      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
-      endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
-    } else if (dto.date) {
-      startDate = DateTime.fromISO(dto.date, { zone: tz }).startOf('day');
-      endDate = DateTime.fromISO(dto.date, { zone: tz }).endOf('day');
+      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).set({
+        hour: 6,
+        minute: 0,
+        second: 0,
+      });
+      endDate = DateTime.fromISO(dto.toDate, { zone: tz })
+        .set({ hour: 6, minute: 0, second: 0 })
+        .plus({ hours: 25 });
+      if (dto.toDate === todayStr) endDate = now;
+    } else if (dto.range) {
+      const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
+      startDate = DateTime.fromJSDate(dateRange.$gte, { zone: tz }).set({
+        hour: 6,
+        minute: 0,
+        second: 0,
+      });
+      endDate = startDate.plus({ hours: 25 });
+      if (startDate.toFormat('yyyy-MM-dd') === todayStr) endDate = now;
     } else {
       throw new Error('No date range provided');
     }
 
-    if (dto.startTime && dto.endTime) {
-      const timeFilter = this.mongoDateFilter.getCustomTimeRange(
-        dto.startTime,
-        dto.endTime,
-      );
-      Object.assign(filter, timeFilter);
-    }
-
-    filter.timestamp = {
-      $gte: startDate.toISO(),
-      $lte: endDate.toISO(),
+    // --- Filter ---
+    const filter: any = {
+      timestamp: { $gte: startDate.toISO(), $lt: endDate.toISO() },
     };
+    if (dto.startTime && dto.endTime)
+      Object.assign(
+        filter,
+        this.mongoDateFilter.getCustomTimeRange(dto.startTime, dto.endTime),
+      );
 
     // --- Projection ---
     const projection: any = { _id: 0, timestamp: 1 };
-    const towerPrefix = `${dto.towerType}_`;
-
-    projection[`${towerPrefix}TEMP_RTD_01_AI`] = 1; // cold
-    projection[`${towerPrefix}TEMP_RTD_02_AI`] = 1; // hot
+    projection[`${tower}_TEMP_RTD_01_AI`] = 1; // cold
+    projection[`${tower}_TEMP_RTD_02_AI`] = 1; // hot
 
     const data = await this.AnalysisModel.find(filter, projection)
       .lean()
       .exec();
-    if (!data.length) {
-      return { message: 'Analysis Chart 10 Data', rawdata: [] };
-    }
+    if (!data.length) return { message: 'Analysis Chart 10 Data', rawdata: [] };
 
-    const interval = dto.interval ?? 'hour';
+    const interval: '15min' | 'hour' = dto.interval ?? 'hour';
     const wetBulb = 28;
     const ambientAirTemp = 36;
-
-    // --- Grouping ---
-    const groupMap = new Map<string, { deltaTempSum: number; count: number }>();
-
-    for (const doc of data) {
-      const docDate = DateTime.fromISO(doc.timestamp, { zone: tz });
-      let label: string;
-
-      if (interval === 'hour') {
-        label = docDate.toFormat('yyyy-MM-dd HH:00');
-      } else {
-        const roundedMinutes = Math.floor(docDate.minute / 15) * 15;
-        label = docDate
-          .set({ minute: roundedMinutes, second: 0 })
-          .toFormat('yyyy-MM-dd HH:mm');
-      }
-
-      if (!groupMap.has(label)) {
-        groupMap.set(label, { deltaTempSum: 0, count: 0 });
-      }
-
-      const g = groupMap.get(label)!;
-      const hot = doc[`${towerPrefix}TEMP_RTD_02_AI`];
-      const cold = doc[`${towerPrefix}TEMP_RTD_01_AI`];
-
-      if (typeof hot === 'number' && typeof cold === 'number') {
-        g.deltaTempSum += hot - cold;
-        g.count++;
-      }
-    }
-
-    // --- Only keep intervals with data ---
     const result: any[] = [];
-    for (const [label, g] of groupMap.entries()) {
-      if (g.count > 0) {
+
+    if (interval === '15min') {
+      const cursorEnd24h = startDate.plus({ hours: 24 });
+      let cursor = startDate;
+      let lastDelta = 0;
+
+      while (cursor < cursorEnd24h && cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd HH:mm');
+        const docsInBucket = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ minutes: 15 });
+        });
+
+        let deltaSum = 0,
+          count = 0;
+        for (const doc of docsInBucket) {
+          const hot = doc[`${tower}_TEMP_RTD_02_AI`];
+          const cold = doc[`${tower}_TEMP_RTD_01_AI`];
+          if (typeof hot === 'number' && typeof cold === 'number') {
+            deltaSum += hot - cold;
+            count++;
+          }
+        }
+
+        const deltaTemp = count ? deltaSum / count : lastDelta;
+        if (count) lastDelta = deltaTemp;
+        result.push({ label, deltaTemp, wetBulb, ambientAirTemp });
+
+        cursor = cursor.plus({ minutes: 15 });
+      }
+
+      // --- 25th hour: only first document ---
+      if (data.length > 0 && cursor < endDate) {
+        const firstDoc = data[0];
+        const hot = firstDoc[`${tower}_TEMP_RTD_02_AI`] ?? 0;
+        const cold = firstDoc[`${tower}_TEMP_RTD_01_AI`] ?? 0;
+        const deltaTemp = hot - cold;
+        const label25 = cursor.toFormat('yyyy-MM-dd HH:mm');
+        result.push({ label: label25, deltaTemp, wetBulb, ambientAirTemp });
+      }
+    } else if (interval === 'hour') {
+      let cursor = startDate;
+      while (cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd HH:00');
+        const hourDocs = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ hours: 1 });
+        });
+
+        let deltaSum = 0,
+          count = 0;
+        for (const doc of hourDocs) {
+          const hot = doc[`${tower}_TEMP_RTD_02_AI`];
+          const cold = doc[`${tower}_TEMP_RTD_01_AI`];
+          if (typeof hot === 'number' && typeof cold === 'number') {
+            deltaSum += hot - cold;
+            count++;
+          }
+        }
+
         result.push({
           label,
-          deltaTemp: g.deltaTempSum / g.count,
+          deltaTemp: count ? deltaSum / count : 0,
           wetBulb,
           ambientAirTemp,
         });
+        cursor = cursor.plus({ hours: 1 });
       }
     }
 
@@ -2677,131 +2228,162 @@ export class AnalysisService {
     towerType?: 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
     interval?: '15min' | 'hour';
   }) {
-    const filter: any = {};
     const tz = 'Asia/Karachi';
+    const now = DateTime.now().setZone(tz);
+    const todayStr = now.toFormat('yyyy-MM-dd');
+    const tower = dto.towerType!;
+
+    // --- Determine start and end ---
     let startDate: DateTime;
     let endDate: DateTime;
-
-    // --- Date range ---
-    if (dto.range) {
-      const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
-      startDate = DateTime.fromJSDate(dateRange.$gte)
-        .setZone(tz)
-        .startOf('day');
-      endDate = DateTime.fromJSDate(dateRange.$lte).setZone(tz).endOf('day');
+    if (dto.date) {
+      startDate = DateTime.fromISO(dto.date, { zone: tz }).set({
+        hour: 6,
+        minute: 0,
+        second: 0,
+      });
+      endDate = startDate.plus({ hours: 25 });
+      if (dto.date === todayStr) endDate = now;
     } else if (dto.fromDate && dto.toDate) {
-      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).startOf('day');
-      endDate = DateTime.fromISO(dto.toDate, { zone: tz }).endOf('day');
-    } else if (dto.date) {
-      startDate = DateTime.fromISO(dto.date, { zone: tz }).startOf('day');
-      endDate = DateTime.fromISO(dto.date, { zone: tz }).endOf('day');
+      startDate = DateTime.fromISO(dto.fromDate, { zone: tz }).set({
+        hour: 6,
+        minute: 0,
+        second: 0,
+      });
+      endDate = DateTime.fromISO(dto.toDate, { zone: tz })
+        .set({ hour: 6, minute: 0, second: 0 })
+        .plus({ hours: 25 });
+      if (dto.toDate === todayStr) endDate = now;
+    } else if (dto.range) {
+      const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
+      startDate = DateTime.fromJSDate(dateRange.$gte, { zone: tz }).set({
+        hour: 6,
+        minute: 0,
+        second: 0,
+      });
+      endDate = startDate.plus({ hours: 25 });
+      if (startDate.toFormat('yyyy-MM-dd') === todayStr) endDate = now;
     } else {
       throw new Error('No date range provided');
     }
 
-    if (dto.startTime && dto.endTime) {
-      const timeFilter = this.mongoDateFilter.getCustomTimeRange(
-        dto.startTime,
-        dto.endTime,
-      );
-      Object.assign(filter, timeFilter);
-    }
-
-    filter.timestamp = {
-      $gte: startDate.toISO(),
-      $lte: endDate.toISO(),
+    // --- Filter ---
+    const filter: any = {
+      timestamp: { $gte: startDate.toISO(), $lt: endDate.toISO() },
     };
+    if (dto.startTime && dto.endTime)
+      Object.assign(
+        filter,
+        this.mongoDateFilter.getCustomTimeRange(dto.startTime, dto.endTime),
+      );
 
     // --- Projection ---
     const projection: any = { _id: 0, timestamp: 1 };
-    const tower = dto.towerType!;
-
-    projection[`${tower}_EM01_Current_AN_Amp`] = 1;
-    projection[`${tower}_EM01_Current_BN_Amp`] = 1;
-    projection[`${tower}_EM01_Current_CN_Amp`] = 1;
+    [
+      'EM01_Current_AN_Amp',
+      'EM01_Current_BN_Amp',
+      'EM01_Current_CN_Amp',
+    ].forEach((s) => {
+      projection[`${tower}_${s}`] = 1;
+    });
     projection[`${tower}_TEMP_RTD_01_AI`] = 1; // supply
     projection[`${tower}_TEMP_RTD_02_AI`] = 1; // return
 
     const data = await this.AnalysisModel.find(filter, projection)
       .lean()
       .exec();
-    if (!data.length) {
-      return { message: 'Analysis Chart 11 Data', rawdata: [] };
-    }
+    if (!data.length) return { message: 'Analysis Chart 11 Data', rawdata: [] };
 
-    const interval = dto.interval ?? 'hour';
+    const interval: '15min' | 'hour' = dto.interval ?? 'hour';
+    const result: any[] = [];
 
-    // --- Empty buckets ---
-    const emptyBuckets: { timestamp: string }[] = [];
-    let cursor = startDate;
-    while (cursor <= endDate) {
-      emptyBuckets.push({
-        timestamp:
-          interval === 'hour'
-            ? cursor.toFormat('yyyy-MM-dd HH:00')
-            : cursor.toFormat('yyyy-MM-dd HH:mm'),
-      });
-      cursor =
-        interval === 'hour'
-          ? cursor.plus({ hours: 1 })
-          : cursor.plus({ minutes: 15 });
-    }
+    if (interval === '15min') {
+      const cursorEnd24h = startDate.plus({ hours: 24 });
+      let cursor = startDate;
+      let lastValues = { fanPower: 0, supplyTemp: 0, returnTemp: 0 };
 
-    // --- Grouping ---
-    const groupMap = new Map<
-      string,
-      { powerSum: number; supplySum: number; returnSum: number; count: number }
-    >();
-
-    for (const doc of data) {
-      const docDate = DateTime.fromISO(doc.timestamp, { zone: tz });
-      let label: string;
-
-      if (interval === 'hour') {
-        label = docDate.toFormat('yyyy-MM-dd HH:00');
-      } else {
-        const roundedMinutes = Math.floor(docDate.minute / 15) * 15;
-        label = docDate
-          .set({ minute: roundedMinutes, second: 0 })
-          .toFormat('yyyy-MM-dd HH:mm');
-      }
-
-      if (!groupMap.has(label)) {
-        groupMap.set(label, {
-          powerSum: 0,
-          supplySum: 0,
-          returnSum: 0,
-          count: 0,
+      while (cursor < cursorEnd24h && cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd HH:mm');
+        const docsInBucket = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ minutes: 15 });
         });
+
+        let powerSum = 0,
+          supplySum = 0,
+          returnSum = 0,
+          count = 0;
+        for (const doc of docsInBucket) {
+          const an = doc[`${tower}_EM01_Current_AN_Amp`] ?? 0;
+          const bn = doc[`${tower}_EM01_Current_BN_Amp`] ?? 0;
+          const cn = doc[`${tower}_EM01_Current_CN_Amp`] ?? 0;
+          const avgPower = (an + bn + cn) / 3;
+          powerSum += avgPower;
+
+          const supply = doc[`${tower}_TEMP_RTD_01_AI`];
+          const ret = doc[`${tower}_TEMP_RTD_02_AI`];
+          if (typeof supply === 'number') supplySum += supply;
+          if (typeof ret === 'number') returnSum += ret;
+          count++;
+        }
+
+        const fanPower = count ? powerSum / count : lastValues.fanPower;
+        const supplyTemp = count ? supplySum / count : lastValues.supplyTemp;
+        const returnTemp = count ? returnSum / count : lastValues.returnTemp;
+
+        result.push({ label, fanPower, supplyTemp, returnTemp });
+        lastValues = { fanPower, supplyTemp, returnTemp };
+
+        cursor = cursor.plus({ minutes: 15 });
       }
 
-      const g = groupMap.get(label)!;
-      const an = doc[`${tower}_EM01_Current_AN_Amp`] ?? 0;
-      const bn = doc[`${tower}_EM01_Current_BN_Amp`] ?? 0;
-      const cn = doc[`${tower}_EM01_Current_CN_Amp`] ?? 0;
+      // --- 25th hour: only first document ---
+      if (data.length > 0 && cursor < endDate) {
+        const firstDoc = data[0];
+        const an = firstDoc[`${tower}_EM01_Current_AN_Amp`] ?? 0;
+        const bn = firstDoc[`${tower}_EM01_Current_BN_Amp`] ?? 0;
+        const cn = firstDoc[`${tower}_EM01_Current_CN_Amp`] ?? 0;
+        const fanPower = (an + bn + cn) / 3;
+        const supplyTemp = firstDoc[`${tower}_TEMP_RTD_01_AI`] ?? 0;
+        const returnTemp = firstDoc[`${tower}_TEMP_RTD_02_AI`] ?? 0;
+        const label25 = cursor.toFormat('yyyy-MM-dd HH:mm');
+        result.push({ label: label25, fanPower, supplyTemp, returnTemp });
+      }
+    } else if (interval === 'hour') {
+      let cursor = startDate;
+      while (cursor < endDate) {
+        const label = cursor.toFormat('yyyy-MM-dd HH:00');
+        const hourDocs = data.filter((d) => {
+          const ts = DateTime.fromISO(d.timestamp, { zone: tz });
+          return ts >= cursor && ts < cursor.plus({ hours: 1 });
+        });
 
-      const avgPower = (an + bn + cn) / 3;
+        let powerSum = 0,
+          supplySum = 0,
+          returnSum = 0,
+          count = 0;
+        for (const doc of hourDocs) {
+          const an = doc[`${tower}_EM01_Current_AN_Amp`] ?? 0;
+          const bn = doc[`${tower}_EM01_Current_BN_Amp`] ?? 0;
+          const cn = doc[`${tower}_EM01_Current_CN_Amp`] ?? 0;
+          powerSum += (an + bn + cn) / 3;
 
-      const supplyTemp = doc[`${tower}_TEMP_RTD_01_AI`];
-      const returnTemp = doc[`${tower}_TEMP_RTD_02_AI`];
+          const supply = doc[`${tower}_TEMP_RTD_01_AI`];
+          const ret = doc[`${tower}_TEMP_RTD_02_AI`];
+          if (typeof supply === 'number') supplySum += supply;
+          if (typeof ret === 'number') returnSum += ret;
+          count++;
+        }
 
-      g.powerSum += avgPower;
-      if (typeof supplyTemp === 'number') g.supplySum += supplyTemp;
-      if (typeof returnTemp === 'number') g.returnSum += returnTemp;
-      g.count++;
+        result.push({
+          label,
+          fanPower: count ? powerSum / count : 0,
+          supplyTemp: count ? supplySum / count : 0,
+          returnTemp: count ? returnSum / count : 0,
+        });
+        cursor = cursor.plus({ hours: 1 });
+      }
     }
-
-    // --- Merge buckets ---
-    const result = emptyBuckets.map(({ timestamp }) => {
-      const g = groupMap.get(timestamp);
-      const count = g?.count || 0;
-      return {
-        label: timestamp,
-        fanPower: count ? g!.powerSum / count : 0,
-        supplyTemp: count ? g!.supplySum / count : 0,
-        returnTemp: count ? g!.returnSum / count : 0,
-      };
-    });
 
     return { message: 'Analysis Chart 11 Data', rawdata: result };
   }

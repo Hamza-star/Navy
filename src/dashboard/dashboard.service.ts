@@ -5,6 +5,7 @@ import { Model } from 'mongoose';
 import { DashboardData } from './schemas/dashboard.schema';
 import { MongoDateFilterService } from 'src/helpers/mongodbfilter-utils';
 import { TowerDataProcessor } from 'src/helpers/towerdataformulating-utils';
+import * as moment from 'moment-timezone';
 
 @Injectable()
 export class DashboardService {
@@ -1678,6 +1679,82 @@ export class DashboardService {
       },
     };
   }
+
+  // async getDashboardDataChart17(dto: {
+  //   date?: string;
+  //   range?: string;
+  //   fromDate?: string;
+  //   toDate?: string;
+  //   startTime?: string;
+  //   endTime?: string;
+  //   towerType?: 'CHCT' | 'CT' | 'all';
+  // }) {
+  //   const query: any = {};
+  //   let startDate: Date = new Date();
+  //   let endDate: Date = new Date();
+
+  //   if (dto.date) {
+  //     query.timestamp = this.mongoDateFilter.getSingleDateFilter(dto.date);
+  //     startDate = new Date(dto.date);
+  //     endDate = new Date(dto.date);
+  //   } else if (dto.range) {
+  //     try {
+  //       const rangeFilter = this.mongoDateFilter.getDateRangeFilter(dto.range);
+  //       query.timestamp = rangeFilter;
+  //       startDate = new Date(rangeFilter.$gte);
+  //       endDate = new Date(rangeFilter.$lte);
+  //     } catch (err) {
+  //       console.error('\n[ERROR] Date range filter error:', err.message);
+  //     }
+  //   } else if (dto.fromDate && dto.toDate) {
+  //     startDate = new Date(dto.fromDate);
+  //     endDate = new Date(dto.toDate);
+  //     query.timestamp = this.mongoDateFilter.getCustomDateRange(
+  //       startDate,
+  //       endDate,
+  //     );
+  //   }
+
+  //   if (dto.startTime && dto.endTime) {
+  //     const timeFilter = this.mongoDateFilter.getCustomTimeRange(
+  //       dto.startTime,
+  //       dto.endTime,
+  //     );
+  //     Object.assign(query, timeFilter);
+  //   }
+
+  //   const data = await this.DashboardModel.find(query).lean();
+
+  //   // Determine breakdown type based on range
+  //   let breakdownType: 'hour' | 'day' | 'month' | 'none' = 'none';
+
+  //   if (dto.range) {
+  //     if (dto.range === 'today' || dto.range === 'yesterday')
+  //       breakdownType = 'hour';
+  //     else if (dto.range === 'week' || dto.range === 'month')
+  //       breakdownType = 'day';
+  //     else if (dto.range === 'year') breakdownType = 'month';
+  //   } else if (dto.fromDate && dto.toDate) {
+  //     const diffDays =
+  //       (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+  //     if (diffDays <= 1) breakdownType = 'hour';
+  //     else if (diffDays <= 60) breakdownType = 'day';
+  //     else breakdownType = 'month';
+  //   }
+
+  //   const waterMetrics = TowerDataProcessor.calculateWaterMetricsByTower(
+  //     data,
+  //     breakdownType,
+  //   );
+
+  //   return {
+  //     message: 'Dashboard Data',
+  //     data: waterMetrics,
+  //   };
+  // }
+
+  // Service function
+
   async getDashboardDataChart17(dto: {
     date?: string;
     range?: string;
@@ -1686,27 +1763,73 @@ export class DashboardService {
     startTime?: string;
     endTime?: string;
     towerType?: 'CHCT' | 'CT' | 'all';
+    interval?: 'hour' | '15min';
   }) {
     const query: any = {};
     let startDate: Date = new Date();
     let endDate: Date = new Date();
 
     if (dto.date) {
-      query.timestamp = this.mongoDateFilter.getSingleDateFilter(dto.date);
-      startDate = new Date(dto.date);
-      endDate = new Date(dto.date);
+      // ✅ Karachi timezone 6:00AM → next day 6:00AM
+      startDate = moment
+        .tz(dto.date, 'Asia/Karachi')
+        .hour(6)
+        .minute(0)
+        .second(0)
+        .toDate();
+      endDate = moment
+        .tz(dto.date, 'Asia/Karachi')
+        .add(1, 'day')
+        .hour(6)
+        .minute(0)
+        .second(0)
+        .toDate();
+
+      query.timestamp = this.mongoDateFilter.getCustomDateRange(
+        startDate,
+        endDate,
+      );
     } else if (dto.range) {
       try {
         const rangeFilter = this.mongoDateFilter.getDateRangeFilter(dto.range);
-        query.timestamp = rangeFilter;
-        startDate = new Date(rangeFilter.$gte);
-        endDate = new Date(rangeFilter.$lte);
+
+        startDate = moment
+          .tz(rangeFilter.$gte, 'Asia/Karachi')
+          .hour(6)
+          .minute(0)
+          .second(0)
+          .toDate();
+        endDate = moment
+          .tz(rangeFilter.$lte, 'Asia/Karachi')
+          .add(1, 'day')
+          .hour(6)
+          .minute(0)
+          .second(0)
+          .toDate();
+
+        query.timestamp = this.mongoDateFilter.getCustomDateRange(
+          startDate,
+          endDate,
+        );
       } catch (err) {
         console.error('\n[ERROR] Date range filter error:', err.message);
       }
     } else if (dto.fromDate && dto.toDate) {
-      startDate = new Date(dto.fromDate);
-      endDate = new Date(dto.toDate);
+      // ✅ Custom date bhi Karachi time 6AM → next day 6AM
+      startDate = moment
+        .tz(dto.fromDate, 'Asia/Karachi')
+        .hour(6)
+        .minute(0)
+        .second(0)
+        .toDate();
+      endDate = moment
+        .tz(dto.toDate, 'Asia/Karachi')
+        .add(1, 'day')
+        .hour(6)
+        .minute(0)
+        .second(0)
+        .toDate();
+
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
         startDate,
         endDate,
@@ -1723,10 +1846,12 @@ export class DashboardService {
 
     const data = await this.DashboardModel.find(query).lean();
 
-    // Determine breakdown type based on range
-    let breakdownType: 'hour' | 'day' | 'month' | 'none' = 'none';
+    // ✅ Interval logic same
+    let breakdownType: 'hour' | 'day' | 'month' | '15min' | 'none' = 'none';
 
-    if (dto.range) {
+    if (dto.interval) {
+      breakdownType = dto.interval;
+    } else if (dto.range) {
       if (dto.range === 'today' || dto.range === 'yesterday')
         breakdownType = 'hour';
       else if (dto.range === 'week' || dto.range === 'month')
@@ -1747,9 +1872,12 @@ export class DashboardService {
 
     return {
       message: 'Dashboard Data',
+      breakdownType,
       data: waterMetrics,
+      range: { startDate, endDate }, // ✅ Debugging ke liye de raha hoon
     };
   }
+
   async getDashboardDataChart18(dto: {
     date?: string;
     range?: string;

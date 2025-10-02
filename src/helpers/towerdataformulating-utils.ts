@@ -2723,9 +2723,322 @@ export class TowerDataProcessor {
       .sort((a, b) => a.interval.localeCompare(b.interval));
   }
 
+  // static calculateWaterMetricsByTower(
+  //   data: any[],
+  //   breakdownType: 'hour' | 'day' | 'month' | '15min' | 'none' = 'none',
+  // ): {
+  //   overall: {
+  //     [towerId: string]: {
+  //       driftLoss: number;
+  //       evaporationLoss: number;
+  //       blowdownRate: number;
+  //       makeupWater: number;
+  //     };
+  //   };
+  //   breakdown?: Array<{
+  //     interval: string;
+  //     values: {
+  //       [towerId: string]: {
+  //         driftLoss: number;
+  //         evaporationLoss: number;
+  //         blowdownRate: number;
+  //         makeupWater: number;
+  //       };
+  //     };
+  //   }>;
+  // } {
+  //   const constant = 0.00085 * 1.8;
+  //   const towers = ['CHCT1', 'CHCT2', 'CT1', 'CT2'];
+
+  //   // Initialize overall accumulator
+  //   const overallAccumulator: any = {};
+  //   towers.forEach((tower) => {
+  //     overallAccumulator[tower] = {
+  //       driftLoss: { sum: 0, count: 0 },
+  //       evaporationLoss: { sum: 0, count: 0 },
+  //       blowdownRate: { sum: 0, count: 0 },
+  //       makeupWater: { sum: 0, count: 0 },
+  //     };
+  //   });
+
+  //   // Initialize breakdown accumulator
+  //   const breakdownAccumulator: Record<string, typeof overallAccumulator> = {};
+
+  //   // Helper to calculate metrics
+  //   const calculateLosses = (flow: number, hot: number, cold: number) => {
+  //     const drift = 0.0005 * flow;
+  //     const evap = constant * flow * (hot - cold);
+  //     const blowdown = evap / 6;
+  //     const makeup = drift + evap + blowdown;
+  //     return { drift, evap, blowdown, makeup };
+  //   };
+
+  //   // Helper to update accumulator
+  //   const updateAccumulator = (acc: any, doc: any, tower: string) => {
+  //     const flowField = `${tower}_FM_02_FR`;
+  //     const hotField = `${tower}_TEMP_RTD_02_AI`;
+  //     const coldField = `${tower}_TEMP_RTD_01_AI`;
+
+  //     if (
+  //       typeof doc[flowField] === 'number' &&
+  //       typeof doc[hotField] === 'number' &&
+  //       typeof doc[coldField] === 'number'
+  //     ) {
+  //       const { drift, evap, blowdown, makeup } = calculateLosses(
+  //         doc[flowField],
+  //         doc[hotField],
+  //         doc[coldField],
+  //       );
+
+  //       acc[tower].driftLoss.sum += drift;
+  //       acc[tower].driftLoss.count++;
+  //       acc[tower].evaporationLoss.sum += evap;
+  //       acc[tower].evaporationLoss.count++;
+  //       acc[tower].blowdownRate.sum += blowdown;
+  //       acc[tower].blowdownRate.count++;
+  //       acc[tower].makeupWater.sum += makeup;
+  //       acc[tower].makeupWater.count++;
+  //     }
+  //   };
+
+  //   // Process each document
+  //   for (const doc of data) {
+  //     // Update overall metrics
+  //     towers.forEach((tower) =>
+  //       updateAccumulator(overallAccumulator, doc, tower),
+  //     );
+
+  //     // Process breakdown if needed
+  //     if (breakdownType !== 'none' && doc.timestamp) {
+  //       const date = new Date(doc.timestamp);
+  //       let intervalKey: string;
+
+  //       switch (breakdownType) {
+  //         case 'hour':
+  //           intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
+  //             .toString()
+  //             .padStart(2, '0')}-${date
+  //             .getDate()
+  //             .toString()
+  //             .padStart(
+  //               2,
+  //               '0',
+  //             )} ${date.getHours().toString().padStart(2, '0')}`;
+  //           break;
+
+  //         case '15min': {
+  //           const minutes = Math.floor(date.getMinutes() / 15) * 15; // 0, 15, 30, 45
+  //           intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
+  //             .toString()
+  //             .padStart(2, '0')}-${date
+  //             .getDate()
+  //             .toString()
+  //             .padStart(2, '0')} ${date
+  //             .getHours()
+  //             .toString()
+  //             .padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  //           break;
+  //         }
+
+  //         case 'day':
+  //           intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
+  //             .toString()
+  //             .padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+  //           break;
+
+  //         case 'month':
+  //           intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
+  //             .toString()
+  //             .padStart(2, '0')}`;
+  //           break;
+
+  //         default:
+  //           intervalKey = '';
+  //       }
+
+  //       if (!breakdownAccumulator[intervalKey]) {
+  //         breakdownAccumulator[intervalKey] = {};
+  //         towers.forEach((tower) => {
+  //           breakdownAccumulator[intervalKey][tower] = {
+  //             driftLoss: { sum: 0, count: 0 },
+  //             evaporationLoss: { sum: 0, count: 0 },
+  //             blowdownRate: { sum: 0, count: 0 },
+  //             makeupWater: { sum: 0, count: 0 },
+  //           };
+  //         });
+  //       }
+
+  //       towers.forEach((tower) =>
+  //         updateAccumulator(breakdownAccumulator[intervalKey], doc, tower),
+  //       );
+  //     }
+  //   }
+
+  //   // Calculate overall averages
+  //   const overallResult: any = {};
+  //   towers.forEach((tower) => {
+  //     overallResult[tower] = {
+  //       driftLoss:
+  //         overallAccumulator[tower].driftLoss.count > 0
+  //           ? overallAccumulator[tower].driftLoss.sum /
+  //             overallAccumulator[tower].driftLoss.count
+  //           : 0,
+  //       evaporationLoss:
+  //         overallAccumulator[tower].evaporationLoss.count > 0
+  //           ? overallAccumulator[tower].evaporationLoss.sum /
+  //             overallAccumulator[tower].evaporationLoss.count
+  //           : 0,
+  //       blowdownRate:
+  //         overallAccumulator[tower].blowdownRate.count > 0
+  //           ? overallAccumulator[tower].blowdownRate.sum /
+  //             overallAccumulator[tower].blowdownRate.count
+  //           : 0,
+  //       makeupWater:
+  //         overallAccumulator[tower].makeupWater.count > 0
+  //           ? overallAccumulator[tower].makeupWater.sum /
+  //             overallAccumulator[tower].makeupWater.count
+  //           : 0,
+  //     };
+  //   });
+
+  //   // Process breakdown if exists
+  //   let breakdownResult: Array<{ interval: string; values: any }> | undefined;
+
+  //   if (breakdownType !== 'none') {
+  //     breakdownResult = Object.entries(breakdownAccumulator).map(
+  //       ([interval, acc]) => {
+  //         const values: any = {};
+  //         towers.forEach((tower) => {
+  //           values[tower] = {
+  //             driftLoss:
+  //               acc[tower].driftLoss.count > 0
+  //                 ? acc[tower].driftLoss.sum / acc[tower].driftLoss.count
+  //                 : 0,
+  //             evaporationLoss:
+  //               acc[tower].evaporationLoss.count > 0
+  //                 ? acc[tower].evaporationLoss.sum /
+  //                   acc[tower].evaporationLoss.count
+  //                 : 0,
+  //             blowdownRate:
+  //               acc[tower].blowdownRate.count > 0
+  //                 ? acc[tower].blowdownRate.sum / acc[tower].blowdownRate.count
+  //                 : 0,
+  //             makeupWater:
+  //               acc[tower].makeupWater.count > 0
+  //                 ? acc[tower].makeupWater.sum / acc[tower].makeupWater.count
+  //                 : 0,
+  //           };
+  //         });
+  //         return { interval, values };
+  //       },
+  //     );
+
+  //     // Sort chronologically
+  //     breakdownResult.sort((a, b) => a.interval.localeCompare(b.interval));
+  //   }
+
+  //   return {
+  //     overall: overallResult,
+  //     breakdown: breakdownResult,
+  //   };
+  // }
+
+  // ======================== SERVICE FUNCTION ========================
+  mongoDateFilter: any;
+  DashboardModel: any;
+
+  async getDashboardDataChart17(dto: {
+    date?: string;
+    range?: string;
+    fromDate?: string;
+    toDate?: string;
+    startTime?: string;
+    endTime?: string;
+    towerType?: 'CHCT' | 'CT' | 'all';
+    interval?: 'hour' | '15min'; // ✅ custom interval
+  }) {
+    const query: any = {};
+    let startDate: Date = new Date();
+    let endDate: Date = new Date();
+
+    if (dto.date) {
+      if (!this.mongoDateFilter) throw new Error('mongoDateFilter is not set');
+      query.timestamp = this.mongoDateFilter.getSingleDateFilter(dto.date);
+      startDate = new Date(dto.date);
+      endDate = new Date(dto.date);
+    } else if (dto.range) {
+      try {
+        if (!this.mongoDateFilter)
+          throw new Error('mongoDateFilter is not set');
+        const rangeFilter = this.mongoDateFilter.getDateRangeFilter(dto.range);
+        query.timestamp = rangeFilter;
+        startDate = new Date(rangeFilter.$gte);
+        endDate = new Date(rangeFilter.$lte);
+      } catch (err: any) {
+        console.error(
+          '\n[ERROR] Date range filter error:',
+          err?.message ?? err,
+        );
+      }
+    } else if (dto.fromDate && dto.toDate) {
+      startDate = new Date(dto.fromDate);
+      endDate = new Date(dto.toDate);
+
+      // ✅ Make endDate inclusive (full day)
+      endDate.setHours(23, 59, 59, 999);
+
+      if (!this.mongoDateFilter) throw new Error('mongoDateFilter is not set');
+      query.timestamp = this.mongoDateFilter.getCustomDateRange(
+        startDate,
+        endDate,
+      );
+    }
+
+    if (dto.startTime && dto.endTime) {
+      const timeFilter = this.mongoDateFilter.getCustomTimeRange(
+        dto.startTime,
+        dto.endTime,
+      );
+      Object.assign(query, timeFilter);
+    }
+
+    const data = await this.DashboardModel.find(query).lean();
+
+    // ✅ Support custom interval (hour / 15min)
+    let breakdownType: 'hour' | 'day' | 'month' | '15min' | 'none' = 'none';
+
+    if (dto.interval) {
+      breakdownType = dto.interval;
+    } else if (dto.range) {
+      if (dto.range === 'today' || dto.range === 'yesterday')
+        breakdownType = 'hour';
+      else if (dto.range === 'week' || dto.range === 'month')
+        breakdownType = 'day';
+      else if (dto.range === 'year') breakdownType = 'month';
+    } else if (dto.fromDate && dto.toDate) {
+      const diffDays =
+        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+      if (diffDays <= 1) breakdownType = 'hour';
+      else if (diffDays <= 60) breakdownType = 'day';
+      else breakdownType = 'month';
+    }
+
+    const waterMetrics = TowerDataProcessor.calculateWaterMetricsByTower(
+      data,
+      breakdownType,
+    );
+
+    return {
+      message: 'Dashboard Data',
+      breakdownType,
+      data: waterMetrics,
+    };
+  }
+
+  // ======================== TOWER DATA PROCESSOR ========================
   static calculateWaterMetricsByTower(
     data: any[],
-    breakdownType: 'hour' | 'day' | 'month' | 'none' = 'none',
+    breakdownType: 'hour' | 'day' | 'month' | '15min' | 'none' = 'none',
   ): {
     overall: {
       [towerId: string]: {
@@ -2815,14 +3128,43 @@ export class TowerDataProcessor {
 
         switch (breakdownType) {
           case 'hour':
-            intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}`;
+            intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
+              .toString()
+              .padStart(2, '0')}-${date
+              .getDate()
+              .toString()
+              .padStart(
+                2,
+                '0',
+              )} ${date.getHours().toString().padStart(2, '0')}`;
             break;
+
+          case '15min': {
+            const minutes = Math.floor(date.getMinutes() / 15) * 15; // 0, 15, 30, 45
+            intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
+              .toString()
+              .padStart(2, '0')}-${date
+              .getDate()
+              .toString()
+              .padStart(2, '0')} ${date
+              .getHours()
+              .toString()
+              .padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+            break;
+          }
+
           case 'day':
-            intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+            intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
+              .toString()
+              .padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
             break;
+
           case 'month':
-            intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+            intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
+              .toString()
+              .padStart(2, '0')}`;
             break;
+
           default:
             intervalKey = '';
         }

@@ -34,13 +34,36 @@ export interface CombinedResult {
 
 export class TowerDataProcessor {
   // resolve tower keys from input (supports "CT", "CHCT", "all" and single tower names)
-  private static getTowerKeys(
+  // private static getTowerKeys(
+  //   towerType: 'CHCT' | 'CT' | 'all' | 'CT1' | 'CT2' | 'CHCT1' | 'CHCT2',
+  // ): string[] {
+  //   if (towerType === 'CHCT') return ['CHCT1', 'CHCT2'];
+  //   if (towerType === 'CT') return ['CT1', 'CT2'];
+  //   if (towerType === 'all') return ['CHCT1', 'CHCT2', 'CT1', 'CT2'];
+  //   return [towerType]; // single tower name passed
+  // }
+
+  static getTowerKeys(
     towerType: 'CHCT' | 'CT' | 'all' | 'CT1' | 'CT2' | 'CHCT1' | 'CHCT2',
   ): string[] {
-    if (towerType === 'CHCT') return ['CHCT1', 'CHCT2'];
-    if (towerType === 'CT') return ['CT1', 'CT2'];
-    if (towerType === 'all') return ['CHCT1', 'CHCT2', 'CT1', 'CT2'];
-    return [towerType]; // single tower name passed
+    switch (towerType) {
+      case 'CT':
+        return ['CT1', 'CT2'];
+      case 'CHCT':
+        return ['CHCT1', 'CHCT2'];
+      case 'all':
+        return ['CT1', 'CT2', 'CHCT1', 'CHCT2'];
+      case 'CT1':
+        return ['CT1'];
+      case 'CT2':
+        return ['CT2'];
+      case 'CHCT1':
+        return ['CHCT1'];
+      case 'CHCT2':
+        return ['CHCT2'];
+      default:
+        return [];
+    }
   }
 
   private static getDocumentDate(doc: Record<string, unknown>): Date {
@@ -80,29 +103,44 @@ export class TowerDataProcessor {
     }
   }
 
-  // private static combineTowerResults(
+  // static combineTowerResults(
   //   perTowerResults: Record<string, TowerResult>,
   // ): CombinedResult {
-  //   const combinedGroupedMap = new Map<
-  //     string,
-  //     { sum: number; count: number }
-  //   >();
+  //   const towers = Object.keys(perTowerResults);
+
+  //   // ✅ Agar sirf ek tower hai to uska data hi combined ke roop me return karo
+  //   if (towers.length === 1) {
+  //     const onlyTower = towers[0];
+  //     return {
+  //       grouped: perTowerResults[onlyTower].grouped,
+  //       overallAverage: perTowerResults[onlyTower].overallAverage,
+  //       perTower: {
+  //         [onlyTower]: perTowerResults[onlyTower],
+  //       },
+  //     };
+  //   }
+
+  //   // ✅ Agar multiple towers hain to unka combine karo
+  //   const combinedMap = new Map<string, { sum: number; count: number }>();
   //   let totalSum = 0;
   //   let totalCount = 0;
 
-  //   for (const r of Object.values(perTowerResults)) {
-  //     for (const g of r.grouped) {
-  //       if (!combinedGroupedMap.has(g.label))
-  //         combinedGroupedMap.set(g.label, { sum: 0, count: 0 });
-  //       const mg = combinedGroupedMap.get(g.label)!;
-  //       mg.sum += g.value;
-  //       mg.count++;
+  //   for (const tower of towers) {
+  //     const result = perTowerResults[tower];
+  //     totalSum += result.overallAverage * result.grouped.length;
+  //     totalCount += result.grouped.length;
+
+  //     for (const g of result.grouped) {
+  //       if (!combinedMap.has(g.label)) {
+  //         combinedMap.set(g.label, { sum: 0, count: 0 });
+  //       }
+  //       const entry = combinedMap.get(g.label)!;
+  //       entry.sum += g.value;
+  //       entry.count++;
   //     }
-  //     totalSum += r.overallAverage;
-  //     totalCount++;
   //   }
 
-  //   const grouped = Array.from(combinedGroupedMap.entries()).map(
+  //   const grouped = Array.from(combinedMap.entries()).map(
   //     ([label, { sum, count }]) => ({
   //       label,
   //       value: sum / count,
@@ -119,101 +157,38 @@ export class TowerDataProcessor {
   static combineTowerResults(
     perTowerResults: Record<string, TowerResult>,
   ): CombinedResult {
-    const towers = Object.keys(perTowerResults);
-
-    // ✅ Agar sirf ek tower hai to uska data hi combined ke roop me return karo
-    if (towers.length === 1) {
-      const onlyTower = towers[0];
-      return {
-        grouped: perTowerResults[onlyTower].grouped,
-        overallAverage: perTowerResults[onlyTower].overallAverage,
-        perTower: {
-          [onlyTower]: perTowerResults[onlyTower],
-        },
-      };
-    }
-
-    // ✅ Agar multiple towers hain to unka combine karo
-    const combinedMap = new Map<string, { sum: number; count: number }>();
+    const allGrouped: Record<string, { sum: number; count: number }> = {};
     let totalSum = 0;
     let totalCount = 0;
 
-    for (const tower of towers) {
-      const result = perTowerResults[tower];
-      totalSum += result.overallAverage * result.grouped.length;
-      totalCount += result.grouped.length;
+    // Har tower ka data merge karna
+    for (const tower in perTowerResults) {
+      const towerRes = perTowerResults[tower];
+      totalSum += towerRes.overallAverage * towerRes.grouped.length;
+      totalCount += towerRes.grouped.length;
 
-      for (const g of result.grouped) {
-        if (!combinedMap.has(g.label)) {
-          combinedMap.set(g.label, { sum: 0, count: 0 });
-        }
-        const entry = combinedMap.get(g.label)!;
-        entry.sum += g.value;
-        entry.count++;
+      for (const g of towerRes.grouped) {
+        if (!allGrouped[g.label]) allGrouped[g.label] = { sum: 0, count: 0 };
+        allGrouped[g.label].sum += g.value;
+        allGrouped[g.label].count++;
       }
     }
 
-    const grouped = Array.from(combinedMap.entries()).map(
+    const grouped = Object.entries(allGrouped).map(
       ([label, { sum, count }]) => ({
         label,
         value: sum / count,
       }),
     );
 
+    const overallAverage = totalCount > 0 ? totalSum / totalCount : 0;
+
     return {
       grouped,
-      overallAverage: totalCount > 0 ? totalSum / totalCount : 0,
+      overallAverage,
       perTower: perTowerResults,
     };
   }
-
-  // static calculateRange(
-  //   data: Array<Record<string, unknown>>,
-  //   towerType: 'CHCT' | 'CT' | 'all' | 'CT1' | 'CT2' | 'CHCT1' | 'CHCT2',
-  //   groupBy: 'hour' | 'day' | 'week' | 'month',
-  //   startDate: Date,
-  //   endDate: Date,
-  // ): CombinedResult {
-  //   const towerKeys = this.getTowerKeys(towerType);
-  //   const perTowerResults: Record<string, TowerResult> = {};
-
-  //   for (const tower of towerKeys) {
-  //     const groupMap = new Map<string, { sum: number; count: number }>();
-  //     let totalSum = 0;
-  //     let totalCount = 0;
-
-  //     for (const doc of data) {
-  //       const val = (doc as any)[`${tower}_Range`];
-  //       if (typeof val !== 'number') continue;
-
-  //       totalSum += val;
-  //       totalCount++;
-
-  //       const docDate = TowerDataProcessor.getDocumentDate(doc);
-  //       const groupKey = TowerDataProcessor.getGroupKey(docDate, groupBy);
-
-  //       if (!groupMap.has(groupKey))
-  //         groupMap.set(groupKey, { sum: 0, count: 0 });
-  //       const g = groupMap.get(groupKey)!;
-  //       g.sum += val;
-  //       g.count++;
-  //     }
-
-  //     const grouped = Array.from(groupMap.entries()).map(
-  //       ([label, { sum, count }]) => ({
-  //         label,
-  //         value: sum / count,
-  //       }),
-  //     );
-
-  //     perTowerResults[tower] = {
-  //       grouped,
-  //       overallAverage: totalCount > 0 ? totalSum / totalCount : 0,
-  //     };
-  //   }
-
-  //   return TowerDataProcessor.combineTowerResults(perTowerResults);
-  // }
 
   static calculateRange(
     data: Array<Record<string, unknown>>,
@@ -1190,271 +1165,397 @@ export class TowerDataProcessor {
     return TowerDataProcessor.combineTowerResults(perTowerResults);
   }
 
+  // static calculateFanPowerConsumption(
+  //   data: any[],
+  //   towerType: 'CHCT' | 'CT' | 'all',
+  //   groupBy: 'hour' | 'day' | 'week' | 'month',
+  //   startDate: Date,
+  //   endDate: Date,
+  // ): { grouped: { label: string; value: number }[]; overallAverage: number } {
+  //   if (data.length === 0) {
+  //     return { grouped: [], overallAverage: 0 };
+  //   }
+
+  //   const getDocumentDate = (doc: any): Date => {
+  //     if (doc.timestamp?.$date) return new Date(doc.timestamp.$date);
+  //     if (typeof doc.timestamp === 'string') return new Date(doc.timestamp);
+  //     if (doc.Time) return new Date(doc.Time);
+  //     if (doc.UNIXtimestamp) return new Date(doc.UNIXtimestamp * 1000);
+  //     if (doc.PLC_Date_Time) {
+  //       return new Date(
+  //         doc.PLC_Date_Time.replace('DT#', '').replace(/-/g, '/'),
+  //       );
+  //     }
+  //     return new Date();
+  //   };
+
+  //   const calculateDocumentPower = (doc: any): number | null => {
+  //     const powers: number[] = [];
+
+  //     const getTowerPower = (
+  //       phaseA?: number,
+  //       phaseB?: number,
+  //       phaseC?: number,
+  //     ): number | null => {
+  //       if (
+  //         typeof phaseA === 'number' &&
+  //         typeof phaseB === 'number' &&
+  //         typeof phaseC === 'number'
+  //       ) {
+  //         return phaseA + phaseB + phaseC;
+  //       }
+  //       return null;
+  //     };
+
+  //     if (towerType === 'CHCT' || towerType === 'all') {
+  //       const chct1Power = getTowerPower(
+  //         doc.CHCT1_EM01_ActivePower_A_kW,
+  //         doc.CHCT1_EM01_ActivePower_B_kW,
+  //         doc.CHCT1_EM01_ActivePower_C_kW,
+  //       );
+  //       if (chct1Power !== null) powers.push(chct1Power);
+
+  //       const chct2Power = getTowerPower(
+  //         doc.CHCT2_EM01_ActivePower_A_kW,
+  //         doc.CHCT2_EM01_ActivePower_B_kW,
+  //         doc.CHCT2_EM01_ActivePower_C_kW,
+  //       );
+  //       if (chct2Power !== null) powers.push(chct2Power);
+  //     }
+
+  //     if (towerType === 'CT' || towerType === 'all') {
+  //       const ct1Power = getTowerPower(
+  //         doc.CT1_EM01_ActivePower_A_kW,
+  //         doc.CT1_EM01_ActivePower_B_kW,
+  //         doc.CT1_EM01_ActivePower_C_kW,
+  //       );
+  //       if (ct1Power !== null) powers.push(ct1Power);
+
+  //       const ct2Power = getTowerPower(
+  //         doc.CT2_EM01_ActivePower_A_kW,
+  //         doc.CT2_EM01_ActivePower_B_kW,
+  //         doc.CT2_EM01_ActivePower_C_kW,
+  //       );
+  //       if (ct2Power !== null) powers.push(ct2Power);
+  //     }
+
+  //     return powers.length > 0
+  //       ? powers.reduce((a, b) => a + b, 0) / powers.length
+  //       : null;
+  //   };
+
+  //   const groupMap = new Map<string, { sum: number; count: number }>();
+  //   let totalSum = 0;
+  //   let totalCount = 0;
+
+  //   for (const doc of data) {
+  //     const docPower = calculateDocumentPower(doc);
+  //     if (docPower === null) continue;
+
+  //     const docDate = getDocumentDate(doc);
+  //     totalSum += docPower;
+  //     totalCount++;
+
+  //     let groupKey = '';
+  //     switch (groupBy) {
+  //       case 'hour':
+  //         groupKey = format(docDate, 'yyyy-MM-dd HH:00');
+  //         break;
+  //       case 'day':
+  //         groupKey = format(docDate, 'yyyy-MM-dd');
+  //         break;
+  //       case 'week':
+  //         groupKey = `${getYear(docDate)}-W${String(getWeek(docDate)).padStart(2, '0')}`;
+  //         break;
+  //       case 'month':
+  //         groupKey = format(docDate, 'yyyy-MM');
+  //         break;
+  //     }
+
+  //     if (!groupMap.has(groupKey)) {
+  //       groupMap.set(groupKey, { sum: 0, count: 0 });
+  //     }
+  //     const group = groupMap.get(groupKey)!;
+  //     group.sum += docPower;
+  //     group.count++;
+  //   }
+
+  //   const grouped = Array.from(groupMap.entries()).map(
+  //     ([label, { sum, count }]) => ({
+  //       label,
+  //       value: sum / count,
+  //     }),
+  //   );
+
+  //   const overallAverage = totalCount > 0 ? totalSum / totalCount : 0;
+
+  //   return { grouped, overallAverage };
+  // }
+
   static calculateFanPowerConsumption(
     data: any[],
-    towerType: 'CHCT' | 'CT' | 'all',
+    towerType: 'CHCT' | 'CT' | 'all' | 'CT1' | 'CT2' | 'CHCT1' | 'CHCT2',
     groupBy: 'hour' | 'day' | 'week' | 'month',
     startDate: Date,
     endDate: Date,
-  ): { grouped: { label: string; value: number }[]; overallAverage: number } {
-    if (data.length === 0) {
-      return { grouped: [], overallAverage: 0 };
-    }
+  ): CombinedResult {
+    const towerKeys = this.getTowerKeys(towerType);
+    const perTowerResults: Record<string, TowerResult> = {};
 
-    const getDocumentDate = (doc: any): Date => {
-      if (doc.timestamp?.$date) return new Date(doc.timestamp.$date);
-      if (typeof doc.timestamp === 'string') return new Date(doc.timestamp);
-      if (doc.Time) return new Date(doc.Time);
-      if (doc.UNIXtimestamp) return new Date(doc.UNIXtimestamp * 1000);
-      if (doc.PLC_Date_Time) {
-        return new Date(
-          doc.PLC_Date_Time.replace('DT#', '').replace(/-/g, '/'),
-        );
-      }
-      return new Date();
-    };
+    for (const tower of towerKeys) {
+      const groupMap = new Map<string, { sum: number; count: number }>();
+      let totalSum = 0;
+      let totalCount = 0;
 
-    const calculateDocumentPower = (doc: any): number | null => {
-      const powers: number[] = [];
+      for (const doc of data) {
+        const a = (doc as any)[`${tower}_EM01_ActivePower_A_kW`];
+        const b = (doc as any)[`${tower}_EM01_ActivePower_B_kW`];
+        const c = (doc as any)[`${tower}_EM01_ActivePower_C_kW`];
 
-      const getTowerPower = (
-        phaseA?: number,
-        phaseB?: number,
-        phaseC?: number,
-      ): number | null => {
         if (
-          typeof phaseA === 'number' &&
-          typeof phaseB === 'number' &&
-          typeof phaseC === 'number'
-        ) {
-          return phaseA + phaseB + phaseC;
-        }
-        return null;
+          typeof a !== 'number' ||
+          typeof b !== 'number' ||
+          typeof c !== 'number'
+        )
+          continue;
+
+        const val = a + b + c;
+
+        totalSum += val;
+        totalCount++;
+
+        const docDate = TowerDataProcessor.getDocumentDate(doc);
+        const groupKey = TowerDataProcessor.getGroupKey(docDate, groupBy);
+
+        if (!groupMap.has(groupKey))
+          groupMap.set(groupKey, { sum: 0, count: 0 });
+        const g = groupMap.get(groupKey)!;
+        g.sum += val;
+        g.count++;
+      }
+
+      const grouped = Array.from(groupMap.entries()).map(
+        ([label, { sum, count }]) => ({
+          label,
+          value: sum / count,
+        }),
+      );
+
+      perTowerResults[tower] = {
+        grouped,
+        overallAverage: totalCount > 0 ? totalSum / totalCount : 0,
       };
-
-      if (towerType === 'CHCT' || towerType === 'all') {
-        const chct1Power = getTowerPower(
-          doc.CHCT1_EM01_ActivePower_A_kW,
-          doc.CHCT1_EM01_ActivePower_B_kW,
-          doc.CHCT1_EM01_ActivePower_C_kW,
-        );
-        if (chct1Power !== null) powers.push(chct1Power);
-
-        const chct2Power = getTowerPower(
-          doc.CHCT2_EM01_ActivePower_A_kW,
-          doc.CHCT2_EM01_ActivePower_B_kW,
-          doc.CHCT2_EM01_ActivePower_C_kW,
-        );
-        if (chct2Power !== null) powers.push(chct2Power);
-      }
-
-      if (towerType === 'CT' || towerType === 'all') {
-        const ct1Power = getTowerPower(
-          doc.CT1_EM01_ActivePower_A_kW,
-          doc.CT1_EM01_ActivePower_B_kW,
-          doc.CT1_EM01_ActivePower_C_kW,
-        );
-        if (ct1Power !== null) powers.push(ct1Power);
-
-        const ct2Power = getTowerPower(
-          doc.CT2_EM01_ActivePower_A_kW,
-          doc.CT2_EM01_ActivePower_B_kW,
-          doc.CT2_EM01_ActivePower_C_kW,
-        );
-        if (ct2Power !== null) powers.push(ct2Power);
-      }
-
-      return powers.length > 0
-        ? powers.reduce((a, b) => a + b, 0) / powers.length
-        : null;
-    };
-
-    const groupMap = new Map<string, { sum: number; count: number }>();
-    let totalSum = 0;
-    let totalCount = 0;
-
-    for (const doc of data) {
-      const docPower = calculateDocumentPower(doc);
-      if (docPower === null) continue;
-
-      const docDate = getDocumentDate(doc);
-      totalSum += docPower;
-      totalCount++;
-
-      let groupKey = '';
-      switch (groupBy) {
-        case 'hour':
-          groupKey = format(docDate, 'yyyy-MM-dd HH:00');
-          break;
-        case 'day':
-          groupKey = format(docDate, 'yyyy-MM-dd');
-          break;
-        case 'week':
-          groupKey = `${getYear(docDate)}-W${String(getWeek(docDate)).padStart(2, '0')}`;
-          break;
-        case 'month':
-          groupKey = format(docDate, 'yyyy-MM');
-          break;
-      }
-
-      if (!groupMap.has(groupKey)) {
-        groupMap.set(groupKey, { sum: 0, count: 0 });
-      }
-      const group = groupMap.get(groupKey)!;
-      group.sum += docPower;
-      group.count++;
     }
 
-    const grouped = Array.from(groupMap.entries()).map(
-      ([label, { sum, count }]) => ({
-        label,
-        value: sum / count,
-      }),
-    );
-
-    const overallAverage = totalCount > 0 ? totalSum / totalCount : 0;
-
-    return { grouped, overallAverage };
+    return TowerDataProcessor.combineTowerResults(perTowerResults);
   }
+
+  // static calculateFanEfficiencyIndex(
+  //   data: any[],
+  //   towerType: 'CHCT' | 'CT' | 'all',
+  //   groupBy: 'hour' | 'day' | 'week' | 'month',
+  //   startDate: Date,
+  //   endDate: Date,
+  // ): { grouped: { label: string; value: number }[]; overallAverage: number } {
+  //   if (data.length === 0) {
+  //     return { grouped: [], overallAverage: 0 };
+  //   }
+
+  //   const getDocumentDate = (doc: any): Date => {
+  //     if (doc.timestamp?.$date) return new Date(doc.timestamp.$date);
+  //     if (typeof doc.timestamp === 'string') return new Date(doc.timestamp);
+  //     if (doc.Time) return new Date(doc.Time);
+  //     if (doc.UNIXtimestamp) return new Date(doc.UNIXtimestamp * 1000);
+  //     if (doc.PLC_Date_Time) {
+  //       const dateString = doc.PLC_Date_Time.replace('DT#', '').replace(
+  //         /-/g,
+  //         '/',
+  //       );
+  //       return new Date(dateString);
+  //     }
+  //     return new Date();
+  //   };
+
+  //   const Cp = 4.186; // kJ/kg°C
+
+  //   const calculateTowerData = (
+  //     flow: number,
+  //     hot: number,
+  //     cold: number,
+  //     pA: number,
+  //     pB: number,
+  //     pC: number,
+  //   ) => {
+  //     if ([flow, hot, cold, pA, pB, pC].some((v) => typeof v !== 'number'))
+  //       return { capacity: 0, power: 0 };
+  //     const capacity = Cp * flow * (hot - cold); // kW
+  //     const power = pA + pB + pC; // kW
+  //     return { capacity, power };
+  //   };
+
+  //   const groupMap = new Map<
+  //     string,
+  //     { totalCapacity: number; totalPower: number }
+  //   >();
+  //   let grandCapacity = 0;
+  //   let grandPower = 0;
+
+  //   for (const doc of data) {
+  //     const date = getDocumentDate(doc);
+
+  //     let totalCapacityThisDoc = 0;
+  //     let totalPowerThisDoc = 0;
+
+  //     if (towerType === 'CHCT' || towerType === 'all') {
+  //       const chct1 = calculateTowerData(
+  //         doc.CHCT1_FM_02_FR,
+  //         doc.CHCT1_TEMP_RTD_02_AI,
+  //         doc.CHCT1_TEMP_RTD_01_AI,
+  //         doc.CHCT1_EM01_ActivePower_A_kW,
+  //         doc.CHCT1_EM01_ActivePower_B_kW,
+  //         doc.CHCT1_EM01_ActivePower_C_kW,
+  //       );
+  //       const chct2 = calculateTowerData(
+  //         doc.CHCT2_FM_02_FR,
+  //         doc.CHCT2_TEMP_RTD_02_AI,
+  //         doc.CHCT2_TEMP_RTD_01_AI,
+  //         doc.CHCT2_EM01_ActivePower_A_kW,
+  //         doc.CHCT2_EM01_ActivePower_B_kW,
+  //         doc.CHCT2_EM01_ActivePower_C_kW,
+  //       );
+
+  //       totalCapacityThisDoc += chct1.capacity + chct2.capacity;
+  //       totalPowerThisDoc += chct1.power + chct2.power;
+  //     }
+
+  //     if (towerType === 'CT' || towerType === 'all') {
+  //       const ct1 = calculateTowerData(
+  //         doc.CT1_FM_02_FR,
+  //         doc.CT1_TEMP_RTD_02_AI,
+  //         doc.CT1_TEMP_RTD_01_AI,
+  //         doc.CT1_EM01_ActivePower_A_kW,
+  //         doc.CT1_EM01_ActivePower_B_kW,
+  //         doc.CT1_EM01_ActivePower_C_kW,
+  //       );
+  //       const ct2 = calculateTowerData(
+  //         doc.CT2_FM_02_FR,
+  //         doc.CT2_TEMP_RTD_02_AI,
+  //         doc.CT2_TEMP_RTD_01_AI,
+  //         doc.CT2_EM01_ActivePower_A_kW,
+  //         doc.CT2_EM01_ActivePower_B_kW,
+  //         doc.CT2_EM01_ActivePower_C_kW,
+  //       );
+
+  //       totalCapacityThisDoc += ct1.capacity + ct2.capacity;
+  //       totalPowerThisDoc += ct1.power + ct2.power;
+  //     }
+
+  //     if (totalPowerThisDoc > 0) {
+  //       grandCapacity += totalCapacityThisDoc;
+  //       grandPower += totalPowerThisDoc;
+
+  //       let groupKey = '';
+  //       switch (groupBy) {
+  //         case 'hour':
+  //           groupKey = format(date, 'yyyy-MM-dd HH:00');
+  //           break;
+  //         case 'day':
+  //           groupKey = format(date, 'yyyy-MM-dd');
+  //           break;
+  //         case 'week':
+  //           groupKey = `${getYear(date)}-W${String(getWeek(date)).padStart(2, '0')}`;
+  //           break;
+  //         case 'month':
+  //           groupKey = format(date, 'yyyy-MM');
+  //           break;
+  //       }
+
+  //       if (!groupMap.has(groupKey)) {
+  //         groupMap.set(groupKey, { totalCapacity: 0, totalPower: 0 });
+  //       }
+  //       const group = groupMap.get(groupKey)!;
+  //       group.totalCapacity += totalCapacityThisDoc;
+  //       group.totalPower += totalPowerThisDoc;
+  //     }
+  //   }
+
+  //   const grouped = Array.from(groupMap.entries()).map(
+  //     ([label, { totalCapacity, totalPower }]) => ({
+  //       label,
+  //       value: totalPower > 0 ? totalCapacity / totalPower : 0, // matches Excel's total-sum logic
+  //     }),
+  //   );
+
+  //   const overallAverage = grandPower > 0 ? grandCapacity / grandPower : 0;
+
+  //   return { grouped, overallAverage };
+  // }
+
   static calculateFanEfficiencyIndex(
     data: any[],
-    towerType: 'CHCT' | 'CT' | 'all',
+    towerType: 'CHCT' | 'CT' | 'all' | 'CT1' | 'CT2' | 'CHCT1' | 'CHCT2',
     groupBy: 'hour' | 'day' | 'week' | 'month',
     startDate: Date,
     endDate: Date,
-  ): { grouped: { label: string; value: number }[]; overallAverage: number } {
-    if (data.length === 0) {
-      return { grouped: [], overallAverage: 0 };
-    }
-
-    const getDocumentDate = (doc: any): Date => {
-      if (doc.timestamp?.$date) return new Date(doc.timestamp.$date);
-      if (typeof doc.timestamp === 'string') return new Date(doc.timestamp);
-      if (doc.Time) return new Date(doc.Time);
-      if (doc.UNIXtimestamp) return new Date(doc.UNIXtimestamp * 1000);
-      if (doc.PLC_Date_Time) {
-        const dateString = doc.PLC_Date_Time.replace('DT#', '').replace(
-          /-/g,
-          '/',
-        );
-        return new Date(dateString);
-      }
-      return new Date();
-    };
+  ): CombinedResult {
+    const towerKeys = this.getTowerKeys(towerType);
+    const perTowerResults: Record<string, TowerResult> = {};
 
     const Cp = 4.186; // kJ/kg°C
 
-    const calculateTowerData = (
-      flow: number,
-      hot: number,
-      cold: number,
-      pA: number,
-      pB: number,
-      pC: number,
-    ) => {
-      if ([flow, hot, cold, pA, pB, pC].some((v) => typeof v !== 'number'))
-        return { capacity: 0, power: 0 };
-      const capacity = Cp * flow * (hot - cold); // kW
-      const power = pA + pB + pC; // kW
-      return { capacity, power };
-    };
+    for (const tower of towerKeys) {
+      const groupMap = new Map<string, { sum: number; count: number }>();
+      let totalCapacity = 0;
+      let totalPower = 0;
 
-    const groupMap = new Map<
-      string,
-      { totalCapacity: number; totalPower: number }
-    >();
-    let grandCapacity = 0;
-    let grandPower = 0;
+      for (const doc of data) {
+        const flow = (doc as any)[`${tower}_FM_02_FR`];
+        const hot = (doc as any)[`${tower}_TEMP_RTD_02_AI`];
+        const cold = (doc as any)[`${tower}_TEMP_RTD_01_AI`];
+        const a = (doc as any)[`${tower}_EM01_ActivePower_A_kW`];
+        const b = (doc as any)[`${tower}_EM01_ActivePower_B_kW`];
+        const c = (doc as any)[`${tower}_EM01_ActivePower_C_kW`];
 
-    for (const doc of data) {
-      const date = getDocumentDate(doc);
+        if (
+          typeof flow !== 'number' ||
+          typeof hot !== 'number' ||
+          typeof cold !== 'number' ||
+          typeof a !== 'number' ||
+          typeof b !== 'number' ||
+          typeof c !== 'number'
+        )
+          continue;
 
-      let totalCapacityThisDoc = 0;
-      let totalPowerThisDoc = 0;
+        const capacity = Cp * flow * (hot - cold);
+        const power = a + b + c;
 
-      if (towerType === 'CHCT' || towerType === 'all') {
-        const chct1 = calculateTowerData(
-          doc.CHCT1_FM_02_FR,
-          doc.CHCT1_TEMP_RTD_02_AI,
-          doc.CHCT1_TEMP_RTD_01_AI,
-          doc.CHCT1_EM01_ActivePower_A_kW,
-          doc.CHCT1_EM01_ActivePower_B_kW,
-          doc.CHCT1_EM01_ActivePower_C_kW,
-        );
-        const chct2 = calculateTowerData(
-          doc.CHCT2_FM_02_FR,
-          doc.CHCT2_TEMP_RTD_02_AI,
-          doc.CHCT2_TEMP_RTD_01_AI,
-          doc.CHCT2_EM01_ActivePower_A_kW,
-          doc.CHCT2_EM01_ActivePower_B_kW,
-          doc.CHCT2_EM01_ActivePower_C_kW,
-        );
+        totalCapacity += capacity;
+        totalPower += power;
 
-        totalCapacityThisDoc += chct1.capacity + chct2.capacity;
-        totalPowerThisDoc += chct1.power + chct2.power;
+        const docDate = TowerDataProcessor.getDocumentDate(doc);
+        const groupKey = TowerDataProcessor.getGroupKey(docDate, groupBy);
+
+        if (!groupMap.has(groupKey))
+          groupMap.set(groupKey, { sum: 0, count: 0 });
+        const g = groupMap.get(groupKey)!;
+        g.sum += power > 0 ? capacity / power : 0;
+        g.count++;
       }
 
-      if (towerType === 'CT' || towerType === 'all') {
-        const ct1 = calculateTowerData(
-          doc.CT1_FM_02_FR,
-          doc.CT1_TEMP_RTD_02_AI,
-          doc.CT1_TEMP_RTD_01_AI,
-          doc.CT1_EM01_ActivePower_A_kW,
-          doc.CT1_EM01_ActivePower_B_kW,
-          doc.CT1_EM01_ActivePower_C_kW,
-        );
-        const ct2 = calculateTowerData(
-          doc.CT2_FM_02_FR,
-          doc.CT2_TEMP_RTD_02_AI,
-          doc.CT2_TEMP_RTD_01_AI,
-          doc.CT2_EM01_ActivePower_A_kW,
-          doc.CT2_EM01_ActivePower_B_kW,
-          doc.CT2_EM01_ActivePower_C_kW,
-        );
+      const grouped = Array.from(groupMap.entries()).map(
+        ([label, { sum, count }]) => ({
+          label,
+          value: sum / count,
+        }),
+      );
 
-        totalCapacityThisDoc += ct1.capacity + ct2.capacity;
-        totalPowerThisDoc += ct1.power + ct2.power;
-      }
-
-      if (totalPowerThisDoc > 0) {
-        grandCapacity += totalCapacityThisDoc;
-        grandPower += totalPowerThisDoc;
-
-        let groupKey = '';
-        switch (groupBy) {
-          case 'hour':
-            groupKey = format(date, 'yyyy-MM-dd HH:00');
-            break;
-          case 'day':
-            groupKey = format(date, 'yyyy-MM-dd');
-            break;
-          case 'week':
-            groupKey = `${getYear(date)}-W${String(getWeek(date)).padStart(2, '0')}`;
-            break;
-          case 'month':
-            groupKey = format(date, 'yyyy-MM');
-            break;
-        }
-
-        if (!groupMap.has(groupKey)) {
-          groupMap.set(groupKey, { totalCapacity: 0, totalPower: 0 });
-        }
-        const group = groupMap.get(groupKey)!;
-        group.totalCapacity += totalCapacityThisDoc;
-        group.totalPower += totalPowerThisDoc;
-      }
+      perTowerResults[tower] = {
+        grouped,
+        overallAverage: totalPower > 0 ? totalCapacity / totalPower : 0,
+      };
     }
 
-    const grouped = Array.from(groupMap.entries()).map(
-      ([label, { totalCapacity, totalPower }]) => ({
-        label,
-        value: totalPower > 0 ? totalCapacity / totalPower : 0, // matches Excel's total-sum logic
-      }),
-    );
-
-    const overallAverage = grandPower > 0 ? grandCapacity / grandPower : 0;
-
-    return { grouped, overallAverage };
+    return TowerDataProcessor.combineTowerResults(perTowerResults);
   }
 
   static calculateWaterConsumption(

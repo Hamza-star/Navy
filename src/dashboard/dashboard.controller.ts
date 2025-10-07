@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Body, Controller, Post } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
@@ -7,11 +8,46 @@ import { DashboardDto } from './dto/dashboard.dto';
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
+  // dashboard.controller.ts
   @Post('dashboard-data')
-  async getDashoardDataChart1(@Body() dto: DashboardDto) {
-    const data = await this.dashboardService.getDashboardDataChart1(dto);
-    return { message: 'Dashoard Data', data };
+  async getDashboardDataChart1(
+    @Body()
+    dto: {
+      fromDate?: string;
+      toDate?: string;
+      date?: string;
+      range?:
+        | 'today'
+        | 'yesterday'
+        | 'week'
+        | 'lastWeek'
+        | 'month'
+        | 'lastMonth'
+        | 'year'
+        | 'lastYear';
+      interval?: '15min' | 'hour' | 'day' | 'month';
+      towerType?: 'CHCT' | 'CT' | 'all' | 'CT1' | 'CT2' | 'CHCT1' | 'CHCT2';
+      startTime?: string;
+      endTime?: string;
+    },
+  ) {
+    const serviceDto = {
+      ...dto,
+      range: dto.range as
+        | 'today'
+        | 'yesterday'
+        | 'week'
+        | 'lastWeek'
+        | 'month'
+        | 'lastMonth'
+        | 'year'
+        | 'lastYear'
+        | undefined,
+    };
+
+    return this.dashboardService.getDashboardDataChart1(serviceDto);
   }
+
   @Post('dashboard-data2')
   async getDashoardDataChart2(@Body() dto: DashboardDto) {
     console.log('Received DashboardDto:', dto);
@@ -43,46 +79,209 @@ export class DashboardController {
     return { message: 'Dashoard Data', data };
   }
   @Post('dashboard-data7')
-  async getDashoardDataChart7(@Body() dto: DashboardDto) {
-    console.log('Received DashboardDto:', dto);
-    const data = await this.dashboardService.getDashboardDataChart7(dto);
-    return { message: 'Dashoard Data', data };
+  async getDashboardDataChart7(
+    @Body()
+    dto: {
+      fromDate?: string;
+      toDate?: string;
+      date?: string;
+      range?:
+        | 'today'
+        | 'yesterday'
+        | 'week'
+        | 'lastWeek'
+        | 'month'
+        | 'lastMonth'
+        | 'year'
+        | 'lastYear';
+      interval?: '15min' | 'hour' | 'day' | 'month';
+      towerType?: 'CHCT' | 'CT' | 'all' | 'CT1' | 'CT2' | 'CHCT1' | 'CHCT2';
+      startTime?: string;
+      endTime?: string;
+    },
+  ) {
+    return this.dashboardService.getDashboardDataChart7(dto);
   }
+
   @Post('dashboard-data8')
-  async getDashoardDataChart8(@Body() dto: DashboardDto) {
-    console.log('Received DashboardDto:', dto);
-    const data = await this.dashboardService.getDashboardDataChart8(dto);
-    return { message: 'Dashoard Data', data };
+  async getDashboardDataChart8(
+    @Body()
+    dto: {
+      fromDate?: string;
+      toDate?: string;
+      date?: string;
+      range?: string;
+      interval?: '15min' | 'hour' | 'day' | 'month';
+      towerType?: 'CHCT' | 'CT' | 'all' | 'CT1' | 'CT2' | 'CHCT1' | 'CHCT2';
+      startTime?: string;
+      endTime?: string;
+    },
+  ) {
+    const serviceDto = {
+      ...dto,
+      range: dto.range as
+        | 'today'
+        | 'yesterday'
+        | 'week'
+        | 'lastWeek'
+        | 'month'
+        | 'lastMonth'
+        | 'year'
+        | 'lastYear'
+        | undefined,
+    };
+
+    return this.dashboardService.getDashboardDataChart8(serviceDto);
   }
   @Post('dashboard-data9')
-  async getDashoardDataChart9(@Body() dto: DashboardDto) {
-    console.log('Received DashboardDto:', dto);
-    const data = await this.dashboardService.getDashboardDataChart9(dto);
-    return { message: 'Dashoard Data', data };
+  async getDashboardDataChart9(
+    @Body()
+    dto: {
+      fromDate?: string;
+      toDate?: string;
+      date?: string;
+      range?: string;
+      interval?: '15min' | 'hour' | 'day' | 'month';
+      towerType?: 'CHCT' | 'CT' | 'all' | 'CT1' | 'CT2' | 'CHCT1' | 'CHCT2';
+      startTime?: string;
+      endTime?: string;
+    },
+  ) {
+    const serviceDto = {
+      ...dto,
+      range: dto.range as
+        | 'today'
+        | 'yesterday'
+        | 'week'
+        | 'lastWeek'
+        | 'month'
+        | 'lastMonth'
+        | 'year'
+        | 'lastYear'
+        | undefined,
+    };
+
+    return this.dashboardService.getDashboardDataChart9(serviceDto);
   }
   @Post('dashboard-data10')
-  async getDashoardDataChart10(@Body() dto: DashboardDto) {
-    console.log('Received DashboardDto:', dto);
-    const data = await this.dashboardService.getDashboardDataChart10(dto);
-    return { message: 'Dashoard Data', data };
+  async getDashboardDataChart10(
+    @Body()
+    dto: {
+      fromDate?: string;
+      toDate?: string;
+      date?: string;
+      range?: string;
+      interval?: '15min' | 'hour' | 'day' | 'month';
+      towerType?: 'CHCT' | 'CT' | 'all' | 'CT1' | 'CT2' | 'CHCT1' | 'CHCT2';
+      startTime?: string;
+      endTime?: string;
+    },
+  ) {
+    const serviceDto = {
+      ...dto,
+      range: dto.range as
+        | 'today'
+        | 'yesterday'
+        | 'week'
+        | 'lastWeek'
+        | 'month'
+        | 'lastMonth'
+        | 'year'
+        | 'lastYear'
+        | undefined,
+    };
+
+    return this.dashboardService.getDashboardDataChart10(serviceDto);
   }
   @Post('dashboard-data11')
-  async getDashoardDataChart11(@Body() dto: DashboardDto) {
-    console.log('Received DashboardDto:', dto);
-    const data = await this.dashboardService.getDashboardDataChart11(dto);
-    return { message: 'Dashoard Data', data };
+  async getDashboardDataChart11(
+    @Body()
+    dto: {
+      fromDate?: string;
+      toDate?: string;
+      date?: string;
+      range?: string;
+      interval?: '15min' | 'hour' | 'day' | 'month';
+      towerType?: 'CHCT' | 'CT' | 'all' | 'CT1' | 'CT2' | 'CHCT1' | 'CHCT2';
+      startTime?: string;
+      endTime?: string;
+    },
+  ) {
+    const serviceDto = {
+      ...dto,
+      range: dto.range as
+        | 'today'
+        | 'yesterday'
+        | 'week'
+        | 'lastWeek'
+        | 'month'
+        | 'lastMonth'
+        | 'year'
+        | 'lastYear'
+        | undefined,
+    };
+
+    return this.dashboardService.getDashboardDataChart11(serviceDto);
   }
   @Post('dashboard-data12')
-  async getDashoardDataChart12(@Body() dto: DashboardDto) {
-    console.log('Received DashboardDto:', dto);
-    const data = await this.dashboardService.getDashboardDataChart12(dto);
-    return { message: 'Dashoard Data', data };
+  async getDashboardDataChart12(
+    @Body()
+    dto: {
+      fromDate?: string;
+      toDate?: string;
+      date?: string;
+      range?: string;
+      interval?: '15min' | 'hour' | 'day' | 'month';
+      towerType?: 'CHCT' | 'CT' | 'all' | 'CT1' | 'CT2' | 'CHCT1' | 'CHCT2';
+      startTime?: string;
+      endTime?: string;
+    },
+  ) {
+    const serviceDto = {
+      ...dto,
+      range: dto.range as
+        | 'today'
+        | 'yesterday'
+        | 'week'
+        | 'lastWeek'
+        | 'month'
+        | 'lastMonth'
+        | 'year'
+        | 'lastYear'
+        | undefined,
+    };
+
+    return this.dashboardService.getDashboardDataChart12(serviceDto);
   }
   @Post('dashboard-data13')
-  async getDashoardDataChart13(@Body() dto: DashboardDto) {
-    console.log('Received DashboardDto:', dto);
-    const data = await this.dashboardService.getDashboardDataChart13(dto);
-    return { message: 'Dashoard Data', data };
+  async getDashboardDataChart13(
+    @Body()
+    dto: {
+      fromDate?: string;
+      toDate?: string;
+      date?: string;
+      range?: string;
+      interval?: '15min' | 'hour' | 'day' | 'month';
+      towerType?: 'CHCT' | 'CT' | 'all' | 'CT1' | 'CT2' | 'CHCT1' | 'CHCT2';
+      startTime?: string;
+      endTime?: string;
+    },
+  ) {
+    const serviceDto = {
+      ...dto,
+      range: dto.range as
+        | 'today'
+        | 'yesterday'
+        | 'week'
+        | 'lastWeek'
+        | 'month'
+        | 'lastMonth'
+        | 'year'
+        | 'lastYear'
+        | undefined,
+    };
+
+    return this.dashboardService.getDashboardDataChart13(serviceDto);
   }
   @Post('dashboard-data14')
   async getDashoardDataChart14(@Body() dto: DashboardDto) {
@@ -97,7 +296,7 @@ export class DashboardController {
     return { message: 'Dashoard Data', data };
   }
   @Post('dashboard-data16')
-  async getDashoardDataChart16(@Body() dto: DashboardDto) {
+  async getDashoardDataChart16(@Body() dto: any) {
     console.log('Received DashboardDto:', dto);
     const data = await this.dashboardService.getDashboardDataChart16(dto);
     return { message: 'Dashoard Data', data };
@@ -109,16 +308,37 @@ export class DashboardController {
     return { message: 'Dashoard Data', data };
   }
   @Post('dashboard-data18')
-  async getDashoardDataChart18(@Body() dto: DashboardDto) {
-    console.log('Received DashboardDto:', dto);
-    const data = await this.dashboardService.getDashboardDataChart18(dto);
-    return { message: 'Dashoard Data', data };
+  async getChart18(
+    @Body()
+    dto: {
+      date?: string;
+      range?: string;
+      fromDate?: string;
+      toDate?: string;
+      startTime?: string;
+      endTime?: string;
+      towerType?: 'CHCT' | 'CT' | 'all';
+      interval?: '15min' | 'hour' | 'day' | 'month';
+    },
+  ) {
+    return this.dashboardService.getDashboardDataChart18(dto);
   }
 
   @Post('dashboard-data19')
-  async getDashoardDataChart19(@Body() dto: DashboardDto) {
-    console.log('Received DashboardDto:', dto);
-    const data = await this.dashboardService.getDashboardDataChart19(dto);
-    return { message: 'Dashoard Data', data };
+  async getChart19(
+    @Body()
+    dto: {
+      date?: string;
+      range?: string;
+      fromDate?: string;
+      toDate?: string;
+      startTime?: string;
+      endTime?: string;
+      towerType?: 'CHCT' | 'CT' | 'all';
+      interval?: 'hour' | '15min';
+    },
+  ) {
+    const result = await this.dashboardService.getDashboardDataChart19(dto);
+    return result;
   }
 }

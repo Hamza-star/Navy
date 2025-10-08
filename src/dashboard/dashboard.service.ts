@@ -6,15 +6,14 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { DashboardData } from './schemas/dashboard.schema';
 import { MongoDateFilterService } from 'src/helpers/mongodbfilter-utils';
 import { TowerDataProcessor } from 'src/helpers/towerdataformulating-utils';
+import { DashboardData } from './schemas/dashboard.schema';
 // For TypeScript + NestJS
 import * as moment from 'moment-timezone';
 
-import { format, format as formatDate, getWeek, getYear } from 'date-fns';
-import { RangeService } from 'src/helpers/tower-metrics.service';
 import { MongoService } from 'src/helpers/mongo.data.filter.service';
+import { RangeService } from 'src/helpers/tower-metrics.service';
 // import { TowerMetricsService } from 'src/helpers/tower-metrics.service';
 
 @Injectable()
@@ -26,6 +25,229 @@ export class DashboardService {
     private readonly mongoService: MongoService,
     private readonly rangeService: RangeService, // <-- inject here
   ) {}
+
+  // async getDashboardDataChart1(dto: {
+  //   fromDate?: string;
+  //   toDate?: string;
+  //   date?: string;
+  //   range?:
+  //     | 'today'
+  //     | 'yesterday'
+  //     | 'week'
+  //     | 'lastWeek'
+  //     | 'month'
+  //     | 'lastMonth'
+  //     | 'year'
+  //     | 'lastYear';
+  //   interval?: '15min' | 'hour' | 'day' | 'month';
+  //   towerType?: 'CHCT' | 'CT' | 'all' | 'CT1' | 'CT2' | 'CHCT1' | 'CHCT2';
+  //   startTime?: string;
+  //   endTime?: string;
+  // }) {
+  //   const towerType = dto.towerType || 'all';
+  //   const query: any = {};
+  //   let startDate: Date = new Date();
+  //   let endDate: Date = new Date();
+
+  //   // ------------------------------
+  //   // 1️⃣ Build 6AM–6AM Date Filter (Asia/Karachi, 25-hour window)
+  //   // ------------------------------
+  //   if (dto.date) {
+  //     startDate = moment
+  //       .tz(dto.date, 'Asia/Karachi')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+
+  //     // ✅ 25-hour window for inclusive 6→6
+  //     endDate = moment
+  //       .tz(dto.date, 'Asia/Karachi')
+  //       .add(1, 'day')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .add(1, 'hour') // Include next day 06:00
+  //       .toDate();
+
+  //     query.timestamp = this.mongoDateFilter.getCustomDateRange(
+  //       startDate,
+  //       endDate,
+  //     );
+  //   } else if (dto.range) {
+  //     const rangeFilter = this.mongoDateFilter.getDateRangeFilter(dto.range);
+  //     startDate = moment
+  //       .tz(rangeFilter.$gte, 'Asia/Karachi')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+
+  //     endDate = moment
+  //       .tz(rangeFilter.$lte, 'Asia/Karachi')
+  //       .add(1, 'day')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .add(1, 'hour')
+  //       .toDate();
+
+  //     query.timestamp = this.mongoDateFilter.getCustomDateRange(
+  //       startDate,
+  //       endDate,
+  //     );
+  //   } else if (dto.fromDate && dto.toDate) {
+  //     startDate = moment
+  //       .tz(dto.fromDate, 'Asia/Karachi')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+
+  //     endDate = moment
+  //       .tz(dto.toDate, 'Asia/Karachi')
+  //       .add(1, 'day')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .add(1, 'hour')
+  //       .toDate();
+
+  //     query.timestamp = this.mongoDateFilter.getCustomDateRange(
+  //       startDate,
+  //       endDate,
+  //     );
+  //   } else {
+  //     const rangeFilter = this.mongoDateFilter.getDateRangeFilter('today');
+  //     startDate = moment
+  //       .tz(rangeFilter.$gte, 'Asia/Karachi')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+
+  //     endDate = moment
+  //       .tz(rangeFilter.$lte, 'Asia/Karachi')
+  //       .add(1, 'day')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .add(1, 'hour')
+  //       .toDate();
+
+  //     query.timestamp = this.mongoDateFilter.getCustomDateRange(
+  //       startDate,
+  //       endDate,
+  //     );
+  //   }
+
+  //   // ------------------------------
+  //   // 2️⃣ Optional Time Filter
+  //   // ------------------------------
+  //   if (dto.startTime && dto.endTime) {
+  //     Object.assign(
+  //       query,
+  //       this.mongoDateFilter.getCustomTimeRange(dto.startTime, dto.endTime),
+  //     );
+  //   }
+
+  //   // ------------------------------
+  //   // 3️⃣ Smart Interval Logic
+  //   // ------------------------------
+  //   let breakdownType: '15min' | 'hour' | 'day' | 'month' = 'hour';
+
+  //   if (dto.range) {
+  //     switch (dto.range) {
+  //       case 'today':
+  //       case 'yesterday':
+  //         breakdownType = dto.interval || 'hour';
+  //         break;
+  //       case 'week':
+  //       case 'lastWeek':
+  //       case 'month':
+  //       case 'lastMonth':
+  //         breakdownType = 'day';
+  //         break;
+  //       case 'year':
+  //       case 'lastYear':
+  //         breakdownType = 'month';
+  //         break;
+  //     }
+  //   } else if (dto.fromDate && dto.toDate) {
+  //     breakdownType = 'day'; // ✅ Custom range → daily grouping
+  //   } else if (dto.interval) {
+  //     breakdownType = dto.interval;
+  //   }
+
+  //   // ------------------------------
+  //   // 4️⃣ Fetch Data
+  //   // ------------------------------
+  //   const data = await this.DashboardModel.find(query).lean();
+
+  //   if (!data.length) {
+  //     return {
+  //       message: 'Dashboard Data',
+  //       data: {
+  //         message: 'No Data Found for the selected filters',
+  //         data: {},
+  //       },
+  //     };
+  //   }
+
+  //   // ------------------------------
+  //   // 5️⃣ Calculate All Metrics
+  //   // ------------------------------
+  //   const range = RangeService.calculateRange(data, towerType, breakdownType);
+  //   const approach = RangeService.calculateApproach(
+  //     data,
+  //     towerType,
+  //     breakdownType,
+  //   );
+  //   const efficiency = RangeService.calculateCoolingEfficiency(
+  //     data,
+  //     towerType,
+  //     breakdownType,
+  //   );
+  //   const capacity = RangeService.calculateCoolingCapacity(
+  //     data,
+  //     towerType,
+  //     breakdownType,
+  //   );
+  //   const waterEfficiency = RangeService.calculateWaterEfficiencyIndex(
+  //     data,
+  //     towerType,
+  //     breakdownType,
+  //   );
+  //   const waterConsumption = RangeService.calculateWaterConsumption(
+  //     data,
+  //     towerType,
+  //     breakdownType,
+  //   );
+  //   const energy = RangeService.calculateAverageEnergyUsage(
+  //     data,
+  //     towerType,
+  //     breakdownType,
+  //   );
+
+  //   // ------------------------------
+  //   // 6️⃣ Unified Nested Response (Chart7-style)
+  //   // ------------------------------
+  //   return {
+  //     message: 'Dashboard Data',
+  //     data: {
+  //       message: 'Dashboard Data',
+  //       data: {
+  //         range,
+  //         approach,
+  //         coolingefficiency: efficiency,
+  //         coolingCapacity: capacity,
+  //         waterEfficiency,
+  //         waterConsumption,
+  //         energyUsage: energy,
+  //       },
+  //     },
+  //   };
+  // }
 
   async getDashboardDataChart1(dto: {
     fromDate?: string;
@@ -51,7 +273,7 @@ export class DashboardService {
     let endDate: Date = new Date();
 
     // ------------------------------
-    // 1️⃣ Build 6AM–6AM Date Filter (Asia/Karachi)
+    // 1️⃣ Build 6AM–6AM Date Filter (Asia/Karachi, 25-hour window)
     // ------------------------------
     if (dto.date) {
       startDate = moment
@@ -60,12 +282,15 @@ export class DashboardService {
         .minute(0)
         .second(0)
         .toDate();
+
+      // ✅ 25-hour window for inclusive 6→6
       endDate = moment
         .tz(dto.date, 'Asia/Karachi')
         .add(1, 'day')
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour') // Include next day 06:00
         .toDate();
 
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -80,12 +305,14 @@ export class DashboardService {
         .minute(0)
         .second(0)
         .toDate();
+
       endDate = moment
         .tz(rangeFilter.$lte, 'Asia/Karachi')
         .add(1, 'day')
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour')
         .toDate();
 
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -99,12 +326,14 @@ export class DashboardService {
         .minute(0)
         .second(0)
         .toDate();
+
       endDate = moment
         .tz(dto.toDate, 'Asia/Karachi')
         .add(1, 'day')
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour')
         .toDate();
 
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -119,12 +348,14 @@ export class DashboardService {
         .minute(0)
         .second(0)
         .toDate();
+
       endDate = moment
         .tz(rangeFilter.$lte, 'Asia/Karachi')
         .add(1, 'day')
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour')
         .toDate();
 
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -174,7 +405,7 @@ export class DashboardService {
     // ------------------------------
     // 4️⃣ Fetch Data
     // ------------------------------
-    const data = await this.DashboardModel.find(query).lean();
+    let data = await this.DashboardModel.find(query).lean();
 
     if (!data.length) {
       return {
@@ -187,7 +418,38 @@ export class DashboardService {
     }
 
     // ------------------------------
-    // 5️⃣ Calculate All Metrics
+    // 5️⃣ Filter: Only keep last 6:00 AM (remove 6:15, 6:30, 6:45)
+    // ------------------------------
+    if (dto.interval === '15min') {
+      const startMoment = moment(startDate).tz('Asia/Karachi');
+      const nextDaySixAM = startMoment
+        .clone()
+        .add(1, 'day')
+        .hour(6)
+        .minute(0)
+        .second(0);
+
+      // ✅ Include everything before next-day 6:00 + exactly 6:00
+      data = data.filter((doc) => {
+        const m = moment(doc.timestamp).tz('Asia/Karachi');
+        return m.isBefore(nextDaySixAM) || m.isSame(nextDaySixAM, 'minute');
+      });
+
+      // ✅ Remove next-day 6:15, 6:30, 6:45
+      data = data.filter((doc) => {
+        const m = moment(doc.timestamp).tz('Asia/Karachi');
+        const isNextDay = m.isSame(nextDaySixAM, 'day');
+        const hour = m.hour();
+        const minute = m.minute();
+        if (isNextDay && hour === 6 && minute > 0) {
+          return false;
+        }
+        return true;
+      });
+    }
+
+    // ------------------------------
+    // 6️⃣ Calculate All Metrics
     // ------------------------------
     const range = RangeService.calculateRange(data, towerType, breakdownType);
     const approach = RangeService.calculateApproach(
@@ -222,10 +484,10 @@ export class DashboardService {
     );
 
     // ------------------------------
-    // 6️⃣ Unified Nested Response (Chart7-style)
+    // 7️⃣ Unified Nested Response (Chart7-style)
     // ------------------------------
     return {
-      message: 'Dashoard Data',
+      message: 'Dashboard Data',
       data: {
         message: 'Dashboard Data',
         data: {
@@ -763,60 +1025,98 @@ export class DashboardService {
   //   endTime?: string;
   // }) {
   //   const towerType = dto.towerType || 'all';
+  //   const query: any = {};
+  //   let startDate: Date = new Date();
+  //   let endDate: Date = new Date();
 
   //   // ------------------------------
-  //   // 1️⃣ Determine date range (6AM-6AM)
+  //   // 1️⃣ Build 6AM–6AM date range
   //   // ------------------------------
-  //   let dateFilter: any;
+  //   if (dto.date) {
+  //     startDate = moment
+  //       .tz(dto.date, 'Asia/Karachi')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+  //     endDate = moment
+  //       .tz(dto.date, 'Asia/Karachi')
+  //       .add(1, 'day')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
 
-  //   if (dto.fromDate && dto.toDate) {
-  //     dateFilter = this.mongoService.getCustom6AMDateRange(
-  //       new Date(dto.fromDate),
-  //       new Date(dto.toDate),
+  //     query.timestamp = this.mongoDateFilter.getCustomDateRange(
+  //       startDate,
+  //       endDate,
   //     );
-  //   } else if (dto.date) {
-  //     dateFilter = this.mongoService.getCustom6AMDateRange(new Date(dto.date));
   //   } else if (dto.range) {
-  //     dateFilter = this.mongoService.get6AMDateRange(dto.range);
+  //     const rangeFilter = this.mongoDateFilter.getDateRangeFilter(dto.range);
+
+  //     startDate = moment
+  //       .tz(rangeFilter.$gte, 'Asia/Karachi')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+  //     endDate = moment
+  //       .tz(rangeFilter.$lte, 'Asia/Karachi')
+  //       .add(1, 'day')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+
+  //     query.timestamp = this.mongoDateFilter.getCustomDateRange(
+  //       startDate,
+  //       endDate,
+  //     );
+  //   } else if (dto.fromDate && dto.toDate) {
+  //     // ✅ Custom range (6AM → 6AM)
+  //     startDate = moment
+  //       .tz(dto.fromDate, 'Asia/Karachi')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+  //     endDate = moment
+  //       .tz(dto.toDate, 'Asia/Karachi')
+  //       .add(1, 'day')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+
+  //     query.timestamp = this.mongoDateFilter.getCustomDateRange(
+  //       startDate,
+  //       endDate,
+  //     );
   //   } else {
-  //     dateFilter = this.mongoService.get6AMDateRange('today');
+  //     const rangeFilter = this.mongoDateFilter.getDateRangeFilter('today');
+  //     startDate = moment
+  //       .tz(rangeFilter.$gte, 'Asia/Karachi')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+  //     endDate = moment
+  //       .tz(rangeFilter.$lte, 'Asia/Karachi')
+  //       .add(1, 'day')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+
+  //     query.timestamp = this.mongoDateFilter.getCustomDateRange(
+  //       startDate,
+  //       endDate,
+  //     );
   //   }
 
   //   // ------------------------------
-  //   // 2️⃣ Smart interval logic
+  //   // 2️⃣ Optional time filter
   //   // ------------------------------
-  //   let interval: '15min' | 'hour' | 'day' | 'month' = 'hour';
-
-  //   switch (dto.range) {
-  //     case 'today':
-  //     case 'yesterday':
-  //       // ✅ Use whatever user sends (hour, 15min, etc.)
-  //       interval = dto.interval || 'hour';
-  //       break;
-
-  //     case 'week':
-  //     case 'lastWeek':
-  //     case 'month':
-  //     case 'lastMonth':
-  //       // ✅ Always group by day (ignore user interval)
-  //       interval = 'day';
-  //       break;
-
-  //     case 'year':
-  //     case 'lastYear':
-  //       // ✅ Always group by month
-  //       interval = 'month';
-  //       break;
-
-  //     default:
-  //       interval = dto.interval || 'hour';
-  //   }
-
-  //   // ------------------------------
-  //   // 3️⃣ Build Mongo query
-  //   // ------------------------------
-  //   const query: any = { timestamp: dateFilter };
-
   //   if (dto.startTime && dto.endTime) {
   //     Object.assign(
   //       query,
@@ -825,26 +1125,58 @@ export class DashboardService {
   //   }
 
   //   // ------------------------------
-  //   // 4️⃣ Fetch data
+  //   // 3️⃣ Smart interval (breakdown)
+  //   // ------------------------------
+  //   let breakdownType: '15min' | 'hour' | 'day' | 'month' = 'hour';
+
+  //   if (dto.range) {
+  //     switch (dto.range) {
+  //       case 'today':
+  //       case 'yesterday':
+  //         breakdownType = dto.interval || 'hour';
+  //         break;
+  //       case 'week':
+  //       case 'lastWeek':
+  //       case 'month':
+  //       case 'lastMonth':
+  //         breakdownType = 'day';
+  //         break;
+  //       case 'year':
+  //       case 'lastYear':
+  //         breakdownType = 'month';
+  //         break;
+  //     }
+  //   } else if (dto.fromDate && dto.toDate) {
+  //     breakdownType = 'day'; // ✅ Custom range always by day
+  //   } else if (dto.interval) {
+  //     breakdownType = dto.interval;
+  //   }
+
+  //   // ------------------------------
+  //   // 4️⃣ Fetch Data
   //   // ------------------------------
   //   const data = await this.DashboardModel.find(query).lean();
 
   //   // ------------------------------
-  //   // 5️⃣ Compute metrics
+  //   // 5️⃣ Compute KPIs
   //   // ------------------------------
-  //   const range = RangeService.calculateRange(data, towerType, interval);
-  //   const approach = RangeService.calculateApproach(data, towerType, interval);
+  //   const range = RangeService.calculateRange(data, towerType, breakdownType);
+  //   const approach = RangeService.calculateApproach(
+  //     data,
+  //     towerType,
+  //     breakdownType,
+  //   );
   //   const capacity = RangeService.calculateCoolingCapacity(
   //     data,
   //     towerType,
-  //     interval,
+  //     breakdownType,
   //   );
 
   //   // ------------------------------
-  //   // 6️⃣ Return response
+  //   // Final Response (Same Format)
   //   // ------------------------------
   //   return {
-  //     message: 'Dashboard Data',
+  //     message: 'Dashoard Data',
   //     data: {
   //       message: 'Dashboard Data',
   //       data: {
@@ -855,188 +1187,6 @@ export class DashboardService {
   //     },
   //   };
   // }
-
-  async getDashboardDataChart7(dto: {
-    fromDate?: string;
-    toDate?: string;
-    date?: string;
-    range?:
-      | 'today'
-      | 'yesterday'
-      | 'week'
-      | 'lastWeek'
-      | 'month'
-      | 'lastMonth'
-      | 'year'
-      | 'lastYear';
-    interval?: '15min' | 'hour' | 'day' | 'month';
-    towerType?: 'CHCT' | 'CT' | 'all' | 'CT1' | 'CT2' | 'CHCT1' | 'CHCT2';
-    startTime?: string;
-    endTime?: string;
-  }) {
-    const towerType = dto.towerType || 'all';
-    const query: any = {};
-    let startDate: Date = new Date();
-    let endDate: Date = new Date();
-
-    // ------------------------------
-    // 1️⃣ Build 6AM–6AM date range
-    // ------------------------------
-    if (dto.date) {
-      startDate = moment
-        .tz(dto.date, 'Asia/Karachi')
-        .hour(6)
-        .minute(0)
-        .second(0)
-        .toDate();
-      endDate = moment
-        .tz(dto.date, 'Asia/Karachi')
-        .add(1, 'day')
-        .hour(6)
-        .minute(0)
-        .second(0)
-        .toDate();
-
-      query.timestamp = this.mongoDateFilter.getCustomDateRange(
-        startDate,
-        endDate,
-      );
-    } else if (dto.range) {
-      const rangeFilter = this.mongoDateFilter.getDateRangeFilter(dto.range);
-
-      startDate = moment
-        .tz(rangeFilter.$gte, 'Asia/Karachi')
-        .hour(6)
-        .minute(0)
-        .second(0)
-        .toDate();
-      endDate = moment
-        .tz(rangeFilter.$lte, 'Asia/Karachi')
-        .add(1, 'day')
-        .hour(6)
-        .minute(0)
-        .second(0)
-        .toDate();
-
-      query.timestamp = this.mongoDateFilter.getCustomDateRange(
-        startDate,
-        endDate,
-      );
-    } else if (dto.fromDate && dto.toDate) {
-      // ✅ Custom range (6AM → 6AM)
-      startDate = moment
-        .tz(dto.fromDate, 'Asia/Karachi')
-        .hour(6)
-        .minute(0)
-        .second(0)
-        .toDate();
-      endDate = moment
-        .tz(dto.toDate, 'Asia/Karachi')
-        .add(1, 'day')
-        .hour(6)
-        .minute(0)
-        .second(0)
-        .toDate();
-
-      query.timestamp = this.mongoDateFilter.getCustomDateRange(
-        startDate,
-        endDate,
-      );
-    } else {
-      const rangeFilter = this.mongoDateFilter.getDateRangeFilter('today');
-      startDate = moment
-        .tz(rangeFilter.$gte, 'Asia/Karachi')
-        .hour(6)
-        .minute(0)
-        .second(0)
-        .toDate();
-      endDate = moment
-        .tz(rangeFilter.$lte, 'Asia/Karachi')
-        .add(1, 'day')
-        .hour(6)
-        .minute(0)
-        .second(0)
-        .toDate();
-
-      query.timestamp = this.mongoDateFilter.getCustomDateRange(
-        startDate,
-        endDate,
-      );
-    }
-
-    // ------------------------------
-    // 2️⃣ Optional time filter
-    // ------------------------------
-    if (dto.startTime && dto.endTime) {
-      Object.assign(
-        query,
-        this.mongoDateFilter.getCustomTimeRange(dto.startTime, dto.endTime),
-      );
-    }
-
-    // ------------------------------
-    // 3️⃣ Smart interval (breakdown)
-    // ------------------------------
-    let breakdownType: '15min' | 'hour' | 'day' | 'month' = 'hour';
-
-    if (dto.range) {
-      switch (dto.range) {
-        case 'today':
-        case 'yesterday':
-          breakdownType = dto.interval || 'hour';
-          break;
-        case 'week':
-        case 'lastWeek':
-        case 'month':
-        case 'lastMonth':
-          breakdownType = 'day';
-          break;
-        case 'year':
-        case 'lastYear':
-          breakdownType = 'month';
-          break;
-      }
-    } else if (dto.fromDate && dto.toDate) {
-      breakdownType = 'day'; // ✅ Custom range always by day
-    } else if (dto.interval) {
-      breakdownType = dto.interval;
-    }
-
-    // ------------------------------
-    // 4️⃣ Fetch Data
-    // ------------------------------
-    const data = await this.DashboardModel.find(query).lean();
-
-    // ------------------------------
-    // 5️⃣ Compute KPIs
-    // ------------------------------
-    const range = RangeService.calculateRange(data, towerType, breakdownType);
-    const approach = RangeService.calculateApproach(
-      data,
-      towerType,
-      breakdownType,
-    );
-    const capacity = RangeService.calculateCoolingCapacity(
-      data,
-      towerType,
-      breakdownType,
-    );
-
-    // ------------------------------
-    // Final Response (Same Format)
-    // ------------------------------
-    return {
-      message: 'Dashoard Data',
-      data: {
-        message: 'Dashboard Data',
-        data: {
-          range,
-          approach,
-          coolingCapacity: capacity,
-        },
-      },
-    };
-  }
 
   // async getDashboardDataChart8(dto: {
   //   date?: string;
@@ -1262,6 +1412,450 @@ export class DashboardService {
   //   };
   // }
 
+  async getDashboardDataChart7(dto: {
+    fromDate?: string;
+    toDate?: string;
+    date?: string;
+    range?:
+      | 'today'
+      | 'yesterday'
+      | 'week'
+      | 'lastWeek'
+      | 'month'
+      | 'lastMonth'
+      | 'year'
+      | 'lastYear';
+    interval?: '15min' | 'hour' | 'day' | 'month';
+    towerType?: 'CHCT' | 'CT' | 'all' | 'CT1' | 'CT2' | 'CHCT1' | 'CHCT2';
+    startTime?: string;
+    endTime?: string;
+  }) {
+    const towerType = dto.towerType || 'all';
+    const query: any = {};
+    let startDate: Date = new Date();
+    let endDate: Date = new Date();
+
+    // ------------------------------
+    // 1️⃣ Build 6AM–6AM Date Range
+    // ------------------------------
+    if (dto.date) {
+      startDate = moment
+        .tz(dto.date, 'Asia/Karachi')
+        .hour(6)
+        .minute(0)
+        .second(0)
+        .toDate();
+
+      endDate = moment
+        .tz(dto.date, 'Asia/Karachi')
+        .add(1, 'day')
+        .hour(6)
+        .minute(0)
+        .second(0)
+        .add(1, 'hour')
+        .toDate();
+
+      query.timestamp = this.mongoDateFilter.getCustomDateRange(
+        startDate,
+        endDate,
+      );
+    } else if (dto.range) {
+      const rangeFilter = this.mongoDateFilter.getDateRangeFilter(dto.range);
+
+      startDate = moment
+        .tz(rangeFilter.$gte, 'Asia/Karachi')
+        .hour(6)
+        .minute(0)
+        .second(0)
+        .toDate();
+      endDate = moment
+        .tz(rangeFilter.$lte, 'Asia/Karachi')
+        .add(1, 'day')
+        .hour(6)
+        .minute(0)
+        .second(0)
+        .add(1, 'hour')
+        .toDate();
+
+      query.timestamp = this.mongoDateFilter.getCustomDateRange(
+        startDate,
+        endDate,
+      );
+    } else if (dto.fromDate && dto.toDate) {
+      startDate = moment
+        .tz(dto.fromDate, 'Asia/Karachi')
+        .hour(6)
+        .minute(0)
+        .second(0)
+        .toDate();
+
+      endDate = moment
+        .tz(dto.toDate, 'Asia/Karachi')
+        .add(1, 'day')
+        .hour(6)
+        .minute(0)
+        .second(0)
+        .add(1, 'hour')
+        .toDate();
+
+      query.timestamp = this.mongoDateFilter.getCustomDateRange(
+        startDate,
+        endDate,
+      );
+    } else {
+      const rangeFilter = this.mongoDateFilter.getDateRangeFilter('today');
+      startDate = moment
+        .tz(rangeFilter.$gte, 'Asia/Karachi')
+        .hour(6)
+        .minute(0)
+        .second(0)
+        .toDate();
+
+      endDate = moment
+        .tz(rangeFilter.$lte, 'Asia/Karachi')
+        .add(1, 'day')
+        .hour(6)
+        .minute(0)
+        .second(0)
+        .add(1, 'hour')
+        .toDate();
+
+      query.timestamp = this.mongoDateFilter.getCustomDateRange(
+        startDate,
+        endDate,
+      );
+    }
+
+    // ------------------------------
+    // 2️⃣ Optional Time Filter
+    // ------------------------------
+    if (dto.startTime && dto.endTime) {
+      Object.assign(
+        query,
+        this.mongoDateFilter.getCustomTimeRange(dto.startTime, dto.endTime),
+      );
+    }
+
+    // ------------------------------
+    // 3️⃣ Smart Interval Logic
+    // ------------------------------
+    let breakdownType: '15min' | 'hour' | 'day' | 'month' = 'hour';
+
+    if (dto.range) {
+      switch (dto.range) {
+        case 'today':
+        case 'yesterday':
+          breakdownType = dto.interval || 'hour';
+          break;
+        case 'week':
+        case 'lastWeek':
+        case 'month':
+        case 'lastMonth':
+          breakdownType = 'day';
+          break;
+        case 'year':
+        case 'lastYear':
+          breakdownType = 'month';
+          break;
+      }
+    } else if (dto.fromDate && dto.toDate) {
+      breakdownType = 'day';
+    } else if (dto.interval) {
+      breakdownType = dto.interval;
+    }
+
+    // ------------------------------
+    // 4️⃣ Fetch Data
+    // ------------------------------
+    const data = await this.DashboardModel.find(query).lean();
+    if (!data.length) {
+      return {
+        message: 'Dashboard Data',
+        data: {
+          message: 'No Data Found for the selected filters',
+          data: {},
+        },
+      };
+    }
+
+    // ------------------------------
+    // 5️⃣ Filter last hour for 15-min interval
+    // ------------------------------
+    if (breakdownType === '15min' && data.length > 0) {
+      const lastHour = moment(data[data.length - 1].timestamp)
+        .tz('Asia/Karachi')
+        .hour();
+      const lastHourStart = moment(data[data.length - 1].timestamp)
+        .tz('Asia/Karachi')
+        .startOf('hour')
+        .minute(0)
+        .second(0);
+
+      // keep only :00 record in last hour
+      const filteredData = data.filter((d, idx) => {
+        const ts = moment(d.timestamp).tz('Asia/Karachi');
+        if (ts.hour() === lastHour && ts.minute() > 0) return false;
+        return true;
+      });
+
+      data.splice(0, data.length, ...filteredData);
+    }
+
+    // ------------------------------
+    // 6️⃣ Compute KPIs
+    // ------------------------------
+    const range = RangeService.calculateRange(data, towerType, breakdownType);
+    const approach = RangeService.calculateApproach(
+      data,
+      towerType,
+      breakdownType,
+    );
+    const capacity = RangeService.calculateCoolingCapacity(
+      data,
+      towerType,
+      breakdownType,
+    );
+
+    // ------------------------------
+    // ✅ Final Response (unchanged)
+    // ------------------------------
+    return {
+      message: 'Dashboard Data',
+      data: {
+        message: 'Dashboard Data',
+        data: {
+          range,
+          approach,
+          coolingCapacity: capacity,
+        },
+      },
+    };
+  }
+
+  // async getDashboardDataChart8(dto: {
+  //   date?: string;
+  //   range?: string;
+  //   fromDate?: string;
+  //   toDate?: string;
+  //   interval?: '15min' | 'hour' | 'day' | 'month';
+  //   towerType?: 'CHCT' | 'CT' | 'all' | 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
+  //   startTime?: string;
+  //   endTime?: string;
+  // }) {
+  //   // ------------------------
+  //   // 🕕 6 AM → 6 AM Date handling (Karachi)
+  //   // ------------------------
+  //   let startDate: Date;
+  //   let endDate: Date;
+
+  //   if (dto.fromDate && dto.toDate) {
+  //     startDate = moment
+  //       .tz(dto.fromDate, 'Asia/Karachi')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+  //     endDate = moment
+  //       .tz(dto.toDate, 'Asia/Karachi')
+  //       .add(1, 'day')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+  //   } else if (dto.date) {
+  //     startDate = moment
+  //       .tz(dto.date, 'Asia/Karachi')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+  //     endDate = moment(startDate).add(1, 'day').toDate();
+  //   } else if (dto.range) {
+  //     const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
+  //     startDate = moment
+  //       .tz(dateRange.$gte, 'Asia/Karachi')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+  //     endDate = moment
+  //       .tz(dateRange.$lte, 'Asia/Karachi')
+  //       .add(1, 'day')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+  //   } else {
+  //     throw new Error('Date or range is required');
+  //   }
+
+  //   // ------------------------
+  //   // 🌟 Determine interval
+  //   // ------------------------
+  //   let interval: '15min' | 'hour' | 'day' | 'month';
+
+  //   if (dto.range === 'today' || dto.range === 'yesterday') {
+  //     // For single-day ranges, use user interval if provided
+  //     interval = dto.interval || 'hour';
+  //   } else if (
+  //     dto.range &&
+  //     ['week', 'lastWeek', 'month', 'lastMonth'].includes(dto.range)
+  //   ) {
+  //     interval = 'day';
+  //   } else if (dto.range && ['year', 'lastYear'].includes(dto.range)) {
+  //     interval = 'month';
+  //   } else if (dto.fromDate && dto.toDate) {
+  //     // ✅ Ignore user interval for custom date range
+  //     interval = 'day';
+  //   } else {
+  //     interval = 'hour';
+  //   }
+
+  //   // ------------------------
+  //   // 🧾 Mongo Aggregation
+  //   // ------------------------
+  //   let groupByFormat = '%Y-%m-%d %H:00';
+  //   if (interval === '15min') groupByFormat = '%Y-%m-%d %H:%M';
+  //   else if (interval === 'day') groupByFormat = '%Y-%m-%d';
+  //   else if (interval === 'month') groupByFormat = '%Y-%m';
+
+  //   const pipeline: any[] = [
+  //     { $addFields: { parsedTimestamp: { $toDate: '$timestamp' } } },
+  //     { $match: { parsedTimestamp: { $gte: startDate, $lt: endDate } } },
+  //     {
+  //       $project: {
+  //         timestamp: '$parsedTimestamp',
+  //         CHCT1_flow: '$CHCT1_FM_02_FR',
+  //         CHCT1_hot: '$CHCT1_TEMP_RTD_02_AI',
+  //         CHCT1_cold: '$CHCT1_TEMP_RTD_01_AI',
+  //         CHCT1_speed: '$CHCT1_INV_01_SPD_AI',
+  //         CHCT2_flow: '$CHCT2_FM_02_FR',
+  //         CHCT2_hot: '$CHCT2_TEMP_RTD_02_AI',
+  //         CHCT2_cold: '$CHCT2_TEMP_RTD_01_AI',
+  //         CHCT2_speed: '$CHCT2_INV_01_SPD_AI',
+  //         CT1_flow: '$CT1_FM_02_FR',
+  //         CT1_hot: '$CT1_TEMP_RTD_02_AI',
+  //         CT1_cold: '$CT1_TEMP_RTD_01_AI',
+  //         CT1_speed: '$CT1_INV_01_SPD_AI',
+  //         CT2_flow: '$CT2_FM_02_FR',
+  //         CT2_hot: '$CT2_TEMP_RTD_02_AI',
+  //         CT2_cold: '$CT2_TEMP_RTD_01_AI',
+  //         CT2_speed: '$CT2_INV_01_SPD_AI',
+  //       },
+  //     },
+  //     {
+  //       $addFields: {
+  //         CHCT1_heat: {
+  //           $multiply: [
+  //             1000,
+  //             4.186,
+  //             '$CHCT1_flow',
+  //             { $subtract: ['$CHCT1_hot', '$CHCT1_cold'] },
+  //           ],
+  //         },
+  //         CHCT2_heat: {
+  //           $multiply: [
+  //             1000,
+  //             4.186,
+  //             '$CHCT2_flow',
+  //             { $subtract: ['$CHCT2_hot', '$CHCT2_cold'] },
+  //           ],
+  //         },
+  //         CT1_heat: {
+  //           $multiply: [
+  //             1000,
+  //             4.186,
+  //             '$CT1_flow',
+  //             { $subtract: ['$CT1_hot', '$CT1_cold'] },
+  //           ],
+  //         },
+  //         CT2_heat: {
+  //           $multiply: [
+  //             1000,
+  //             4.186,
+  //             '$CT2_flow',
+  //             { $subtract: ['$CT2_hot', '$CT2_cold'] },
+  //           ],
+  //         },
+  //       },
+  //     },
+  //     {
+  //       $group: {
+  //         _id: {
+  //           $dateToString: {
+  //             format: groupByFormat,
+  //             date: '$timestamp',
+  //             timezone: 'Asia/Karachi',
+  //           },
+  //         },
+  //         heat_CHCT: { $avg: { $add: ['$CHCT1_heat', '$CHCT2_heat'] } },
+  //         heat_CT: { $avg: { $add: ['$CT1_heat', '$CT2_heat'] } },
+  //         speed_CHCT: { $avg: { $avg: ['$CHCT1_speed', '$CHCT2_speed'] } },
+  //         speed_CT: { $avg: { $avg: ['$CT1_speed', '$CT2_speed'] } },
+  //       },
+  //     },
+  //     {
+  //       $project: {
+  //         label: '$_id',
+  //         heatRejectionRate: {
+  //           $switch: {
+  //             branches: [
+  //               { case: { $eq: [dto.towerType, 'CHCT'] }, then: '$heat_CHCT' },
+  //               { case: { $eq: [dto.towerType, 'CT'] }, then: '$heat_CT' },
+  //             ],
+  //             default: { $add: ['$heat_CHCT', '$heat_CT'] },
+  //           },
+  //         },
+  //         towerUtilization: {
+  //           $switch: {
+  //             branches: [
+  //               { case: { $eq: [dto.towerType, 'CHCT'] }, then: '$speed_CHCT' },
+  //               { case: { $eq: [dto.towerType, 'CT'] }, then: '$speed_CT' },
+  //             ],
+  //             default: { $avg: ['$speed_CHCT', '$speed_CT'] },
+  //           },
+  //         },
+  //       },
+  //     },
+  //     { $sort: { label: 1 } },
+  //   ];
+
+  //   const result = await this.DashboardModel.aggregate(pipeline);
+
+  //   const heatRejectionRate = {
+  //     grouped: result.map((r) => ({
+  //       label: r.label,
+  //       value: +r.heatRejectionRate?.toFixed(2) || 0,
+  //     })),
+  //     overallAverage: +(
+  //       result.reduce((sum, r) => sum + (r.heatRejectionRate || 0), 0) /
+  //       (result.length || 1)
+  //     ).toFixed(2),
+  //   };
+
+  //   const towerUtilizationRate = {
+  //     grouped: result.map((r) => ({
+  //       label: r.label,
+  //       value: +r.towerUtilization?.toFixed(2) || 0,
+  //     })),
+  //     overallAverage: +(
+  //       result.reduce((sum, r) => sum + (r.towerUtilization || 0), 0) /
+  //       (result.length || 1)
+  //     ).toFixed(2),
+  //   };
+
+  //   return {
+  //     message: 'Dashboard Data',
+  //     data: {
+  //       message: 'Dashboard Data',
+  //       data: {
+  //         heatRejectRate: heatRejectionRate,
+  //         towerUtilizationRate,
+  //       },
+  //     },
+  //   };
+  // }
+
   async getDashboardDataChart8(dto: {
     date?: string;
     range?: string;
@@ -1291,6 +1885,7 @@ export class DashboardService {
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour') // include next day 6:00
         .toDate();
     } else if (dto.date) {
       startDate = moment
@@ -1299,7 +1894,13 @@ export class DashboardService {
         .minute(0)
         .second(0)
         .toDate();
-      endDate = moment(startDate).add(1, 'day').toDate();
+      endDate = moment(startDate)
+        .add(1, 'day')
+        .hour(6)
+        .minute(0)
+        .second(0)
+        .add(1, 'hour')
+        .toDate();
     } else if (dto.range) {
       const dateRange = this.mongoDateFilter.getDateRangeFilter(dto.range);
       startDate = moment
@@ -1314,6 +1915,7 @@ export class DashboardService {
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour')
         .toDate();
     } else {
       throw new Error('Date or range is required');
@@ -1323,9 +1925,7 @@ export class DashboardService {
     // 🌟 Determine interval
     // ------------------------
     let interval: '15min' | 'hour' | 'day' | 'month';
-
     if (dto.range === 'today' || dto.range === 'yesterday') {
-      // For single-day ranges, use user interval if provided
       interval = dto.interval || 'hour';
     } else if (
       dto.range &&
@@ -1335,7 +1935,6 @@ export class DashboardService {
     } else if (dto.range && ['year', 'lastYear'].includes(dto.range)) {
       interval = 'month';
     } else if (dto.fromDate && dto.toDate) {
-      // ✅ Ignore user interval for custom date range
       interval = 'day';
     } else {
       interval = 'hour';
@@ -1450,8 +2049,42 @@ export class DashboardService {
       { $sort: { label: 1 } },
     ];
 
-    const result = await this.DashboardModel.aggregate(pipeline);
+    let result = await this.DashboardModel.aggregate(pipeline);
 
+    // ------------------------
+    // 🚫 15-min interval fix (remove 6:15, 6:30, 6:45 in last doc)
+    // ------------------------
+    if (interval === '15min' && result.length) {
+      const startMoment = moment(startDate).tz('Asia/Karachi');
+      const nextDaySixAM = startMoment
+        .clone()
+        .add(1, 'day')
+        .hour(6)
+        .minute(0)
+        .second(0);
+
+      // ✅ keep all before 6:00 + exactly 6:00
+      result = result.filter((r) => {
+        const m = moment.tz(r.label, 'YYYY-MM-DD HH:mm', 'Asia/Karachi');
+        return m.isBefore(nextDaySixAM) || m.isSame(nextDaySixAM, 'minute');
+      });
+
+      // ✅ remove 6:15, 6:30, 6:45 for last day
+      result = result.filter((r) => {
+        const m = moment.tz(r.label, 'YYYY-MM-DD HH:mm', 'Asia/Karachi');
+        const isNextDay = m.isSame(nextDaySixAM, 'day');
+        const hour = m.hour();
+        const minute = m.minute();
+        if (isNextDay && hour === 6 && minute > 0) {
+          return false;
+        }
+        return true;
+      });
+    }
+
+    // ------------------------
+    // 📊 Prepare Response
+    // ------------------------
     const heatRejectionRate = {
       grouped: result.map((r) => ({
         label: r.label,
@@ -1510,7 +2143,7 @@ export class DashboardService {
     let endDate: Date = new Date();
 
     // ------------------------------
-    // 1️⃣ Build 6AM–6AM Date Filter
+    // 🕕 1️⃣ Build 6AM–6AM Date Filter
     // ------------------------------
     if (dto.date) {
       startDate = moment
@@ -1519,12 +2152,14 @@ export class DashboardService {
         .minute(0)
         .second(0)
         .toDate();
+
       endDate = moment
         .tz(dto.date, 'Asia/Karachi')
         .add(1, 'day')
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour') // include 6:00 next day
         .toDate();
 
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -1540,12 +2175,14 @@ export class DashboardService {
         .minute(0)
         .second(0)
         .toDate();
+
       endDate = moment
         .tz(rangeFilter.$lte, 'Asia/Karachi')
         .add(1, 'day')
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour')
         .toDate();
 
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -1553,19 +2190,20 @@ export class DashboardService {
         endDate,
       );
     } else if (dto.fromDate && dto.toDate) {
-      // ✅ Custom date range → 6AM to 6AM
       startDate = moment
         .tz(dto.fromDate, 'Asia/Karachi')
         .hour(6)
         .minute(0)
         .second(0)
         .toDate();
+
       endDate = moment
         .tz(dto.toDate, 'Asia/Karachi')
         .add(1, 'day')
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour')
         .toDate();
 
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -1580,12 +2218,14 @@ export class DashboardService {
         .minute(0)
         .second(0)
         .toDate();
+
       endDate = moment
         .tz(rangeFilter.$lte, 'Asia/Karachi')
         .add(1, 'day')
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour')
         .toDate();
 
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -1595,7 +2235,7 @@ export class DashboardService {
     }
 
     // ------------------------------
-    // 2️⃣ Optional Time Filter
+    // ⏱️ 2️⃣ Optional Time Filter
     // ------------------------------
     if (dto.startTime && dto.endTime) {
       Object.assign(
@@ -1605,10 +2245,9 @@ export class DashboardService {
     }
 
     // ------------------------------
-    // 3️⃣ Smart Interval Logic
+    // 🧠 3️⃣ Smart Interval Logic
     // ------------------------------
     let breakdownType: '15min' | 'hour' | 'day' | 'month' = 'hour';
-
     if (dto.range) {
       switch (dto.range) {
         case 'today':
@@ -1627,18 +2266,59 @@ export class DashboardService {
           break;
       }
     } else if (dto.fromDate && dto.toDate) {
-      breakdownType = 'day'; // ✅ Always daily for custom ranges
+      breakdownType = 'day';
     } else if (dto.interval) {
       breakdownType = dto.interval;
     }
 
     // ------------------------------
-    // 4️⃣ Fetch Data
+    // 📊 4️⃣ Fetch Data
     // ------------------------------
-    const data = await this.DashboardModel.find(query).lean();
+    let data = await this.DashboardModel.find(query).lean();
+
+    if (!data.length) {
+      return {
+        message: 'Dashboard Data',
+        data: {
+          message: 'No Data Found for the selected filters',
+          data: {},
+        },
+      };
+    }
 
     // ------------------------------
-    // 5️⃣ Compute Metrics
+    // 🚫 5️⃣ Filter last 6:00 only (remove 6:15, 6:30, 6:45)
+    // ------------------------------
+    if (dto.interval === '15min') {
+      const startMoment = moment(startDate).tz('Asia/Karachi');
+      const nextDaySixAM = startMoment
+        .clone()
+        .add(1, 'day')
+        .hour(6)
+        .minute(0)
+        .second(0);
+
+      // ✅ Keep all before 6:00 next day + exactly 6:00
+      data = data.filter((doc) => {
+        const m = moment(doc.timestamp).tz('Asia/Karachi');
+        return m.isBefore(nextDaySixAM) || m.isSame(nextDaySixAM, 'minute');
+      });
+
+      // ✅ Drop 6:15, 6:30, 6:45 from next day
+      data = data.filter((doc) => {
+        const m = moment(doc.timestamp).tz('Asia/Karachi');
+        const isNextDay = m.isSame(nextDaySixAM, 'day');
+        const hour = m.hour();
+        const minute = m.minute();
+        if (isNextDay && hour === 6 && minute > 0) {
+          return false;
+        }
+        return true;
+      });
+    }
+
+    // ------------------------------
+    // 🧮 6️⃣ Compute Metrics
     // ------------------------------
     const range = RangeService.calculateRange(data, towerType, breakdownType);
     const fanSpeed = RangeService.calculateFanSpeed(
@@ -1648,7 +2328,7 @@ export class DashboardService {
     );
 
     // ------------------------------
-    // 6️⃣ Response (Chart1 / Chart7 Style)
+    // ✅ 7️⃣ Final Response
     // ------------------------------
     return {
       message: 'Dashboard Data',
@@ -1681,47 +2361,98 @@ export class DashboardService {
   //   endTime?: string;
   // }) {
   //   const towerType = dto.towerType || 'all';
+  //   const query: any = {};
+  //   let startDate: Date = new Date();
+  //   let endDate: Date = new Date();
 
-  //   // ✅ Interval logic same as Chart1
-  //   let interval: '15min' | 'hour' | 'day' | 'month';
-  //   switch (dto.range) {
-  //     case 'today':
-  //     case 'yesterday':
-  //       interval = 'hour';
-  //       break;
-  //     case 'week':
-  //     case 'lastWeek':
-  //     case 'month':
-  //     case 'lastMonth':
-  //       interval = 'day';
-  //       break;
-  //     case 'year':
-  //     case 'lastYear':
-  //       interval = 'month';
-  //       break;
-  //     default:
-  //       interval = dto.interval || 'hour';
-  //       break;
-  //   }
+  //   // ------------------------------
+  //   // 1️⃣ Build 6AM–6AM Date Filter
+  //   // ------------------------------
+  //   if (dto.date) {
+  //     startDate = moment
+  //       .tz(dto.date, 'Asia/Karachi')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+  //     endDate = moment
+  //       .tz(dto.date, 'Asia/Karachi')
+  //       .add(1, 'day')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
 
-  //   // ✅ 6 AM → 6 AM Date Filter (same as Chart1)
-  //   let dateFilter: any;
-  //   if (dto.fromDate && dto.toDate) {
-  //     dateFilter = this.mongoService.getCustom6AMDateRange(
-  //       new Date(dto.fromDate),
-  //       new Date(dto.toDate),
+  //     query.timestamp = this.mongoDateFilter.getCustomDateRange(
+  //       startDate,
+  //       endDate,
   //     );
-  //   } else if (dto.date) {
-  //     dateFilter = this.mongoService.getCustom6AMDateRange(new Date(dto.date));
   //   } else if (dto.range) {
-  //     dateFilter = this.mongoService.get6AMDateRange(dto.range);
+  //     const rangeFilter = this.mongoDateFilter.getDateRangeFilter(dto.range);
+
+  //     startDate = moment
+  //       .tz(rangeFilter.$gte, 'Asia/Karachi')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+  //     endDate = moment
+  //       .tz(rangeFilter.$lte, 'Asia/Karachi')
+  //       .add(1, 'day')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+
+  //     query.timestamp = this.mongoDateFilter.getCustomDateRange(
+  //       startDate,
+  //       endDate,
+  //     );
+  //   } else if (dto.fromDate && dto.toDate) {
+  //     // ✅ Custom date range → 6AM to 6AM
+  //     startDate = moment
+  //       .tz(dto.fromDate, 'Asia/Karachi')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+  //     endDate = moment
+  //       .tz(dto.toDate, 'Asia/Karachi')
+  //       .add(1, 'day')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+
+  //     query.timestamp = this.mongoDateFilter.getCustomDateRange(
+  //       startDate,
+  //       endDate,
+  //     );
   //   } else {
-  //     dateFilter = this.mongoService.get6AMDateRange('today');
+  //     const rangeFilter = this.mongoDateFilter.getDateRangeFilter('today');
+  //     startDate = moment
+  //       .tz(rangeFilter.$gte, 'Asia/Karachi')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+  //     endDate = moment
+  //       .tz(rangeFilter.$lte, 'Asia/Karachi')
+  //       .add(1, 'day')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+
+  //     query.timestamp = this.mongoDateFilter.getCustomDateRange(
+  //       startDate,
+  //       endDate,
+  //     );
   //   }
 
-  //   // ✅ Mongo query build
-  //   const query: any = { timestamp: dateFilter };
-
+  //   // ------------------------------
+  //   // 2️⃣ Optional Time Filter
+  //   // ------------------------------
   //   if (dto.startTime && dto.endTime) {
   //     Object.assign(
   //       query,
@@ -1729,33 +2460,68 @@ export class DashboardService {
   //     );
   //   }
 
-  //   // ✅ Fetch data
+  //   // ------------------------------
+  //   // 3️⃣ Smart Interval Logic
+  //   // ------------------------------
+  //   let breakdownType: '15min' | 'hour' | 'day' | 'month' = 'hour';
+
+  //   if (dto.range) {
+  //     switch (dto.range) {
+  //       case 'today':
+  //       case 'yesterday':
+  //         breakdownType = dto.interval || 'hour';
+  //         break;
+  //       case 'week':
+  //       case 'lastWeek':
+  //       case 'month':
+  //       case 'lastMonth':
+  //         breakdownType = 'day';
+  //         break;
+  //       case 'year':
+  //       case 'lastYear':
+  //         breakdownType = 'month';
+  //         break;
+  //     }
+  //   } else if (dto.fromDate && dto.toDate) {
+  //     breakdownType = 'day'; // ✅ Custom range → daily
+  //   } else if (dto.interval) {
+  //     breakdownType = dto.interval;
+  //   }
+
+  //   // ------------------------------
+  //   // 4️⃣ Fetch Data
+  //   // ------------------------------
   //   const data = await this.DashboardModel.find(query).lean();
 
-  //   // ✅ Static wet-bulb (or dynamic later if needed)
-  //   const wetBulb = 25;
+  //   // ------------------------------
+  //   // 5️⃣ Calculate Metrics
+  //   // ------------------------------
+  //   const wetBulb = 25; // ✅ static or later make dynamic
 
-  //   // ✅ Use RangeService (same logic as other metrics)
-  //   const approachProcessed = RangeService.calculateApproach(
+  //   const approach = RangeService.calculateApproach(
   //     data,
   //     towerType,
-  //     interval,
+  //     breakdownType,
+  //     wetBulb,
+  //   );
+  //   const coolingEfficiency = RangeService.calculateCoolingEfficiency(
+  //     data,
+  //     towerType,
+  //     breakdownType,
   //     wetBulb,
   //   );
 
-  //   const efficiencyProcessed = RangeService.calculateCoolingEfficiency(
-  //     data,
-  //     towerType,
-  //     interval,
-  //     wetBulb,
-  //   );
-
-  //   // ✅ Final response
+  //   // ------------------------------
+  //   // 6️⃣ Final Response (Chart7 Style)
+  //   // ------------------------------
   //   return {
   //     message: 'Dashboard Data',
   //     data: {
-  //       approach: approachProcessed,
-  //       coolingefficiency: efficiencyProcessed,
+  //       message: 'Dashboard Data',
+  //       data: {
+  //         approach,
+  //         coolingefficiency: coolingEfficiency,
+  //       },
   //     },
   //   };
   // }
@@ -1784,7 +2550,7 @@ export class DashboardService {
     let endDate: Date = new Date();
 
     // ------------------------------
-    // 1️⃣ Build 6AM–6AM Date Filter
+    // 1️⃣ Build 6AM–6AM Date Filter (25-hour inclusive)
     // ------------------------------
     if (dto.date) {
       startDate = moment
@@ -1799,6 +2565,7 @@ export class DashboardService {
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour') // include next day 06:00
         .toDate();
 
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -1807,7 +2574,6 @@ export class DashboardService {
       );
     } else if (dto.range) {
       const rangeFilter = this.mongoDateFilter.getDateRangeFilter(dto.range);
-
       startDate = moment
         .tz(rangeFilter.$gte, 'Asia/Karachi')
         .hour(6)
@@ -1820,6 +2586,7 @@ export class DashboardService {
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour')
         .toDate();
 
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -1827,7 +2594,6 @@ export class DashboardService {
         endDate,
       );
     } else if (dto.fromDate && dto.toDate) {
-      // ✅ Custom date range → 6AM to 6AM
       startDate = moment
         .tz(dto.fromDate, 'Asia/Karachi')
         .hour(6)
@@ -1840,6 +2606,7 @@ export class DashboardService {
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour')
         .toDate();
 
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -1860,6 +2627,7 @@ export class DashboardService {
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour')
         .toDate();
 
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -1901,7 +2669,7 @@ export class DashboardService {
           break;
       }
     } else if (dto.fromDate && dto.toDate) {
-      breakdownType = 'day'; // ✅ Custom range → daily
+      breakdownType = 'day'; // ✅ custom range → daily
     } else if (dto.interval) {
       breakdownType = dto.interval;
     }
@@ -1909,12 +2677,51 @@ export class DashboardService {
     // ------------------------------
     // 4️⃣ Fetch Data
     // ------------------------------
-    const data = await this.DashboardModel.find(query).lean();
+    let data = await this.DashboardModel.find(query).lean();
+
+    if (!data.length) {
+      return {
+        message: 'Dashboard Data',
+        data: {
+          message: 'No Data Found for the selected filters',
+          data: {},
+        },
+      };
+    }
 
     // ------------------------------
-    // 5️⃣ Calculate Metrics
+    // 5️⃣ Filter: Remove next-day 6:15–6:45 entries (for 15-min interval)
     // ------------------------------
-    const wetBulb = 25; // ✅ static or later make dynamic
+    if (dto.interval === '15min') {
+      const startMoment = moment(startDate).tz('Asia/Karachi');
+      const nextDaySixAM = startMoment
+        .clone()
+        .add(1, 'day')
+        .hour(6)
+        .minute(0)
+        .second(0);
+
+      data = data.filter((doc) => {
+        const m = moment(doc.timestamp).tz('Asia/Karachi');
+        // keep before next-day 6:00 or exactly 6:00
+        return m.isBefore(nextDaySixAM) || m.isSame(nextDaySixAM, 'minute');
+      });
+
+      // remove 6:15, 6:30, 6:45 next day
+      data = data.filter((doc) => {
+        const m = moment(doc.timestamp).tz('Asia/Karachi');
+        const isNextDay = m.isSame(nextDaySixAM, 'day');
+        const hour = m.hour();
+        const minute = m.minute();
+        if (isNextDay && hour === 6 && minute > 0) return false;
+        return true;
+      });
+    }
+
+    // ------------------------------
+    // 6️⃣ Calculate Metrics
+    // ------------------------------
+    const wetBulb = 25; // or make dynamic later if required
 
     const approach = RangeService.calculateApproach(
       data,
@@ -1930,7 +2737,7 @@ export class DashboardService {
     );
 
     // ------------------------------
-    // 6️⃣ Final Response (Chart7 Style)
+    // 7️⃣ Unified Nested Response (Chart 1 style)
     // ------------------------------
     return {
       message: 'Dashboard Data',
@@ -1943,6 +2750,187 @@ export class DashboardService {
       },
     };
   }
+
+  // async getDashboardDataChart11(dto: {
+  //   date?: string;
+  //   range?:
+  //     | 'today'
+  //     | 'yesterday'
+  //     | 'week'
+  //     | 'lastWeek'
+  //     | 'month'
+  //     | 'lastMonth'
+  //     | 'year'
+  //     | 'lastYear';
+  //   fromDate?: string;
+  //   toDate?: string;
+  //   interval?: '15min' | 'hour' | 'day' | 'month';
+  //   towerType?: 'CHCT' | 'CT' | 'all' | 'CT1' | 'CT2' | 'CHCT1' | 'CHCT2';
+  //   startTime?: string;
+  //   endTime?: string;
+  // }) {
+  //   const towerType = dto.towerType || 'all';
+  //   const query: any = {};
+  //   let startDate: Date = new Date();
+  //   let endDate: Date = new Date();
+
+  //   // ------------------------------
+  //   // 1️⃣ Build 6AM–6AM Date Filter
+  //   // ------------------------------
+  //   if (dto.date) {
+  //     startDate = moment
+  //       .tz(dto.date, 'Asia/Karachi')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+  //     endDate = moment
+  //       .tz(dto.date, 'Asia/Karachi')
+  //       .add(1, 'day')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+
+  //     query.timestamp = this.mongoDateFilter.getCustomDateRange(
+  //       startDate,
+  //       endDate,
+  //     );
+  //   } else if (dto.range) {
+  //     const rangeFilter = this.mongoDateFilter.getDateRangeFilter(dto.range);
+
+  //     startDate = moment
+  //       .tz(rangeFilter.$gte, 'Asia/Karachi')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+  //     endDate = moment
+  //       .tz(rangeFilter.$lte, 'Asia/Karachi')
+  //       .add(1, 'day')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+
+  //     query.timestamp = this.mongoDateFilter.getCustomDateRange(
+  //       startDate,
+  //       endDate,
+  //     );
+  //   } else if (dto.fromDate && dto.toDate) {
+  //     // ✅ Custom range → always 6AM–6AM
+  //     startDate = moment
+  //       .tz(dto.fromDate, 'Asia/Karachi')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+  //     endDate = moment
+  //       .tz(dto.toDate, 'Asia/Karachi')
+  //       .add(1, 'day')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+
+  //     query.timestamp = this.mongoDateFilter.getCustomDateRange(
+  //       startDate,
+  //       endDate,
+  //     );
+  //   } else {
+  //     const rangeFilter = this.mongoDateFilter.getDateRangeFilter('today');
+  //     startDate = moment
+  //       .tz(rangeFilter.$gte, 'Asia/Karachi')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+  //     endDate = moment
+  //       .tz(rangeFilter.$lte, 'Asia/Karachi')
+  //       .add(1, 'day')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+
+  //     query.timestamp = this.mongoDateFilter.getCustomDateRange(
+  //       startDate,
+  //       endDate,
+  //     );
+  //   }
+
+  //   // ------------------------------
+  //   // 2️⃣ Optional Time Filter
+  //   // ------------------------------
+  //   if (dto.startTime && dto.endTime) {
+  //     Object.assign(
+  //       query,
+  //       this.mongoDateFilter.getCustomTimeRange(dto.startTime, dto.endTime),
+  //     );
+  //   }
+
+  //   // ------------------------------
+  //   // 3️⃣ Smart Interval Logic
+  //   // ------------------------------
+  //   let breakdownType: '15min' | 'hour' | 'day' | 'month' = 'hour';
+
+  //   if (dto.range) {
+  //     switch (dto.range) {
+  //       case 'today':
+  //       case 'yesterday':
+  //         breakdownType = dto.interval || 'hour';
+  //         break;
+  //       case 'week':
+  //       case 'lastWeek':
+  //       case 'month':
+  //       case 'lastMonth':
+  //         breakdownType = 'day';
+  //         break;
+  //       case 'year':
+  //       case 'lastYear':
+  //         breakdownType = 'month';
+  //         break;
+  //     }
+  //   } else if (dto.fromDate && dto.toDate) {
+  //     breakdownType = 'day'; // ✅ Custom range → daily
+  //   } else if (dto.interval) {
+  //     breakdownType = dto.interval;
+  //   }
+
+  //   // ------------------------------
+  //   // 4️⃣ Fetch Data
+  //   // ------------------------------
+  //   const data = await this.DashboardModel.find(query).lean();
+
+  //   // ------------------------------
+  //   // 5️⃣ Calculate Metrics
+  //   // ------------------------------
+  //   const fanPower = RangeService.calculateFanPowerConsumption(
+  //     data,
+  //     towerType,
+  //     breakdownType,
+  //   );
+
+  //   const fanEfficiencyIndex = RangeService.calculateFanEfficiencyIndex(
+  //     data,
+  //     towerType,
+  //     breakdownType,
+  //   );
+
+  //   // ------------------------------
+  //   // 6️⃣ Final Response (Chart7 Style)
+  //   // ------------------------------
+  //   return {
+  //     message: 'Dashboard Data',
+  //     data: {
+  //       message: 'Dashboard Data',
+  //       data: {
+  //         fanPower,
+  //         fanEfficiencyIndex,
+  //       },
+  //     },
+  //   };
+  // }
 
   async getDashboardDataChart11(dto: {
     date?: string;
@@ -1968,7 +2956,7 @@ export class DashboardService {
     let endDate: Date = new Date();
 
     // ------------------------------
-    // 1️⃣ Build 6AM–6AM Date Filter
+    // 1️⃣ Build 6AM–6AM Date Filter (25-hour inclusive)
     // ------------------------------
     if (dto.date) {
       startDate = moment
@@ -1983,6 +2971,7 @@ export class DashboardService {
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour') // include next-day 6:00
         .toDate();
 
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -2004,6 +2993,7 @@ export class DashboardService {
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour')
         .toDate();
 
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -2011,7 +3001,6 @@ export class DashboardService {
         endDate,
       );
     } else if (dto.fromDate && dto.toDate) {
-      // ✅ Custom range → always 6AM–6AM
       startDate = moment
         .tz(dto.fromDate, 'Asia/Karachi')
         .hour(6)
@@ -2024,6 +3013,7 @@ export class DashboardService {
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour')
         .toDate();
 
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -2044,6 +3034,7 @@ export class DashboardService {
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour')
         .toDate();
 
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -2093,10 +3084,49 @@ export class DashboardService {
     // ------------------------------
     // 4️⃣ Fetch Data
     // ------------------------------
-    const data = await this.DashboardModel.find(query).lean();
+    let data = await this.DashboardModel.find(query).lean();
+
+    if (!data.length) {
+      return {
+        message: 'Dashboard Data',
+        data: {
+          message: 'No Data Found for the selected filters',
+          data: {},
+        },
+      };
+    }
 
     // ------------------------------
-    // 5️⃣ Calculate Metrics
+    // 5️⃣ Filter: Remove next-day 6:15–6:45 (for 15-min interval)
+    // ------------------------------
+    if (dto.interval === '15min') {
+      const startMoment = moment(startDate).tz('Asia/Karachi');
+      const nextDaySixAM = startMoment
+        .clone()
+        .add(1, 'day')
+        .hour(6)
+        .minute(0)
+        .second(0);
+
+      // keep before 6:00 or exactly 6:00
+      data = data.filter((doc) => {
+        const m = moment(doc.timestamp).tz('Asia/Karachi');
+        return m.isBefore(nextDaySixAM) || m.isSame(nextDaySixAM, 'minute');
+      });
+
+      // remove next-day 6:15, 6:30, 6:45
+      data = data.filter((doc) => {
+        const m = moment(doc.timestamp).tz('Asia/Karachi');
+        const isNextDay = m.isSame(nextDaySixAM, 'day');
+        const hour = m.hour();
+        const minute = m.minute();
+        if (isNextDay && hour === 6 && minute > 0) return false;
+        return true;
+      });
+    }
+
+    // ------------------------------
+    // 6️⃣ Calculate Metrics
     // ------------------------------
     const fanPower = RangeService.calculateFanPowerConsumption(
       data,
@@ -2111,7 +3141,7 @@ export class DashboardService {
     );
 
     // ------------------------------
-    // 6️⃣ Final Response (Chart7 Style)
+    // 7️⃣ Unified Response (Chart1 style)
     // ------------------------------
     return {
       message: 'Dashboard Data',
@@ -2144,51 +3174,98 @@ export class DashboardService {
   //   endTime?: string;
   // }) {
   //   const towerType = dto.towerType || 'all';
+  //   const query: any = {};
+  //   let startDate: Date = new Date();
+  //   let endDate: Date = new Date();
 
-  //   // ------------------------
-  //   // Interval selection
-  //   // ------------------------
-  //   let interval: '15min' | 'hour' | 'day' | 'month' = dto.interval || 'hour';
-  //   if (!dto.interval && dto.range) {
-  //     switch (dto.range) {
-  //       case 'today':
-  //       case 'yesterday':
-  //         interval = 'hour';
-  //         break;
-  //       case 'week':
-  //       case 'lastWeek':
-  //       case 'month':
-  //       case 'lastMonth':
-  //         interval = 'day';
-  //         break;
-  //       case 'year':
-  //       case 'lastYear':
-  //         interval = 'month';
-  //         break;
-  //     }
-  //   }
+  //   // ------------------------------
+  //   // 1️⃣ Build 6AM–6AM Date Filter
+  //   // ------------------------------
+  //   if (dto.date) {
+  //     startDate = moment
+  //       .tz(dto.date, 'Asia/Karachi')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+  //     endDate = moment
+  //       .tz(dto.date, 'Asia/Karachi')
+  //       .add(1, 'day')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
 
-  //   // ------------------------
-  //   // 6 AM-based Date Filter
-  //   // ------------------------
-  //   let dateFilter: any;
-  //   if (dto.fromDate && dto.toDate) {
-  //     dateFilter = this.mongoService.getCustom6AMDateRange(
-  //       new Date(dto.fromDate),
-  //       new Date(dto.toDate),
+  //     query.timestamp = this.mongoDateFilter.getCustomDateRange(
+  //       startDate,
+  //       endDate,
   //     );
-  //   } else if (dto.date) {
-  //     dateFilter = this.mongoService.getCustom6AMDateRange(new Date(dto.date));
   //   } else if (dto.range) {
-  //     dateFilter = this.mongoService.get6AMDateRange(dto.range);
+  //     const rangeFilter = this.mongoDateFilter.getDateRangeFilter(dto.range);
+
+  //     startDate = moment
+  //       .tz(rangeFilter.$gte, 'Asia/Karachi')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+  //     endDate = moment
+  //       .tz(rangeFilter.$lte, 'Asia/Karachi')
+  //       .add(1, 'day')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+
+  //     query.timestamp = this.mongoDateFilter.getCustomDateRange(
+  //       startDate,
+  //       endDate,
+  //     );
+  //   } else if (dto.fromDate && dto.toDate) {
+  //     // ✅ Custom range → 6AM–6AM
+  //     startDate = moment
+  //       .tz(dto.fromDate, 'Asia/Karachi')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+  //     endDate = moment
+  //       .tz(dto.toDate, 'Asia/Karachi')
+  //       .add(1, 'day')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+
+  //     query.timestamp = this.mongoDateFilter.getCustomDateRange(
+  //       startDate,
+  //       endDate,
+  //     );
   //   } else {
-  //     dateFilter = this.mongoService.get6AMDateRange('today');
+  //     const rangeFilter = this.mongoDateFilter.getDateRangeFilter('today');
+  //     startDate = moment
+  //       .tz(rangeFilter.$gte, 'Asia/Karachi')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+  //     endDate = moment
+  //       .tz(rangeFilter.$lte, 'Asia/Karachi')
+  //       .add(1, 'day')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+
+  //     query.timestamp = this.mongoDateFilter.getCustomDateRange(
+  //       startDate,
+  //       endDate,
+  //     );
   //   }
 
-  //   // ------------------------
-  //   // Build Mongo Query
-  //   // ------------------------
-  //   const query: any = { timestamp: dateFilter };
+  //   // ------------------------------
+  //   // 2️⃣ Optional Time Filter
+  //   // ------------------------------
   //   if (dto.startTime && dto.endTime) {
   //     Object.assign(
   //       query,
@@ -2196,55 +3273,82 @@ export class DashboardService {
   //     );
   //   }
 
-  //   // ------------------------
-  //   // Fetch Data
-  //   // ------------------------
+  //   // ------------------------------
+  //   // 3️⃣ Smart Interval Logic
+  //   // ------------------------------
+  //   let breakdownType: '15min' | 'hour' | 'day' | 'month' = 'hour';
+
+  //   if (dto.range) {
+  //     switch (dto.range) {
+  //       case 'today':
+  //       case 'yesterday':
+  //         breakdownType = dto.interval || 'hour';
+  //         break;
+  //       case 'week':
+  //       case 'lastWeek':
+  //       case 'month':
+  //       case 'lastMonth':
+  //         breakdownType = 'day';
+  //         break;
+  //       case 'year':
+  //       case 'lastYear':
+  //         breakdownType = 'month';
+  //         break;
+  //     }
+  //   } else if (dto.fromDate && dto.toDate) {
+  //     breakdownType = 'day'; // ✅ Custom range → daily grouping
+  //   } else if (dto.interval) {
+  //     breakdownType = dto.interval;
+  //   }
+
+  //   // ------------------------------
+  //   // 4️⃣ Fetch Data
+  //   // ------------------------------
   //   const data = await this.DashboardModel.find(query).lean();
 
-  //   // ------------------------
-  //   // Calculate using RangeService
-  //   // ------------------------
+  //   // ------------------------------
+  //   // 5️⃣ Calculate Metrics
+  //   // ------------------------------
   //   const driftLossRate = RangeService.calculateDriftLossRate(
   //     data,
   //     towerType,
-  //     interval,
+  //     breakdownType,
   //   );
-
   //   const evaporationLossRate = RangeService.calculateEvaporationLossRate(
   //     data,
   //     towerType,
-  //     interval,
+  //     breakdownType,
   //   );
-
-  //   const blowdownRate = RangeService.calculateBlowdownRate(
+  //   const blowDownRate = RangeService.calculateBlowdownRate(
   //     data,
   //     towerType,
-  //     interval,
+  //     breakdownType,
   //   );
-
   //   const makeupWater = RangeService.calculateMakeupWater(
   //     data,
   //     towerType,
-  //     interval,
+  //     breakdownType,
   //   );
-
   //   const waterEfficiency = RangeService.calculateWaterEfficiencyIndex(
   //     data,
   //     towerType,
-  //     interval,
+  //     breakdownType,
   //   );
 
-  //   // ------------------------
-  //   // Return Response
-  //   // ------------------------
+  //   // ------------------------------
+  //   // 6️⃣ Final Response (Chart7 Style)
+  //   // ------------------------------
   //   return {
   //     message: 'Dashboard Data',
   //     data: {
-  //       driftLossRate,
-  //       evaporationLossRate,
-  //       blowdownRate,
-  //       makeupWater,
-  //       waterEfficiency,
+  //       message: 'Dashboard Data',
+  //       data: {
+  //         driftLossRate,
+  //         evaporationLossRate,
+  //         blowDownRate,
+  //         makeupWater,
+  //         waterEfficiency,
+  //       },
   //     },
   //   };
   // }
@@ -2273,7 +3377,7 @@ export class DashboardService {
     let endDate: Date = new Date();
 
     // ------------------------------
-    // 1️⃣ Build 6AM–6AM Date Filter
+    // 1️⃣ Build 6AM–6AM Date Filter (25-hour inclusive)
     // ------------------------------
     if (dto.date) {
       startDate = moment
@@ -2288,6 +3392,7 @@ export class DashboardService {
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour') // include next-day 6:00
         .toDate();
 
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -2309,6 +3414,7 @@ export class DashboardService {
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour')
         .toDate();
 
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -2316,7 +3422,6 @@ export class DashboardService {
         endDate,
       );
     } else if (dto.fromDate && dto.toDate) {
-      // ✅ Custom range → 6AM–6AM
       startDate = moment
         .tz(dto.fromDate, 'Asia/Karachi')
         .hour(6)
@@ -2329,6 +3434,7 @@ export class DashboardService {
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour')
         .toDate();
 
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -2349,6 +3455,7 @@ export class DashboardService {
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour')
         .toDate();
 
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -2398,10 +3505,49 @@ export class DashboardService {
     // ------------------------------
     // 4️⃣ Fetch Data
     // ------------------------------
-    const data = await this.DashboardModel.find(query).lean();
+    let data = await this.DashboardModel.find(query).lean();
+
+    if (!data.length) {
+      return {
+        message: 'Dashboard Data',
+        data: {
+          message: 'No Data Found for the selected filters',
+          data: {},
+        },
+      };
+    }
 
     // ------------------------------
-    // 5️⃣ Calculate Metrics
+    // 5️⃣ Filter: Remove next-day 6:15–6:45 (for 15-min interval)
+    // ------------------------------
+    if (dto.interval === '15min') {
+      const startMoment = moment(startDate).tz('Asia/Karachi');
+      const nextDaySixAM = startMoment
+        .clone()
+        .add(1, 'day')
+        .hour(6)
+        .minute(0)
+        .second(0);
+
+      // Keep before 6:00 or exactly 6:00
+      data = data.filter((doc) => {
+        const m = moment(doc.timestamp).tz('Asia/Karachi');
+        return m.isBefore(nextDaySixAM) || m.isSame(nextDaySixAM, 'minute');
+      });
+
+      // Remove next-day 6:15, 6:30, 6:45
+      data = data.filter((doc) => {
+        const m = moment(doc.timestamp).tz('Asia/Karachi');
+        const isNextDay = m.isSame(nextDaySixAM, 'day');
+        const hour = m.hour();
+        const minute = m.minute();
+        if (isNextDay && hour === 6 && minute > 0) return false;
+        return true;
+      });
+    }
+
+    // ------------------------------
+    // 6️⃣ Calculate Metrics
     // ------------------------------
     const driftLossRate = RangeService.calculateDriftLossRate(
       data,
@@ -2430,7 +3576,7 @@ export class DashboardService {
     );
 
     // ------------------------------
-    // 6️⃣ Final Response (Chart7 Style)
+    // 7️⃣ Unified Nested Response (Chart 1 style)
     // ------------------------------
     return {
       message: 'Dashboard Data',
@@ -2446,6 +3592,178 @@ export class DashboardService {
       },
     };
   }
+
+  // async getDashboardDataChart13(dto: {
+  //   fromDate?: string;
+  //   toDate?: string;
+  //   date?: string;
+  //   range?:
+  //     | 'today'
+  //     | 'yesterday'
+  //     | 'week'
+  //     | 'lastWeek'
+  //     | 'month'
+  //     | 'lastMonth'
+  //     | 'year'
+  //     | 'lastYear';
+  //   interval?: '15min' | 'hour' | 'day' | 'month';
+  //   towerType?: 'CHCT' | 'CT' | 'all' | 'CHCT1' | 'CHCT2' | 'CT1' | 'CT2';
+  //   startTime?: string;
+  //   endTime?: string;
+  // }) {
+  //   const towerType = dto.towerType || 'all';
+  //   const query: any = {};
+  //   let startDate: Date = new Date();
+  //   let endDate: Date = new Date();
+
+  //   // ------------------------------
+  //   // 1️⃣ Build 6AM–6AM Date Filter (Asia/Karachi)
+  //   // ------------------------------
+  //   if (dto.date) {
+  //     startDate = moment
+  //       .tz(dto.date, 'Asia/Karachi')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+  //     endDate = moment
+  //       .tz(dto.date, 'Asia/Karachi')
+  //       .add(1, 'day')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+
+  //     query.timestamp = this.mongoDateFilter.getCustomDateRange(
+  //       startDate,
+  //       endDate,
+  //     );
+  //   } else if (dto.range) {
+  //     const rangeFilter = this.mongoDateFilter.getDateRangeFilter(dto.range);
+  //     startDate = moment
+  //       .tz(rangeFilter.$gte, 'Asia/Karachi')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+  //     endDate = moment
+  //       .tz(rangeFilter.$lte, 'Asia/Karachi')
+  //       .add(1, 'day')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+
+  //     query.timestamp = this.mongoDateFilter.getCustomDateRange(
+  //       startDate,
+  //       endDate,
+  //     );
+  //   } else if (dto.fromDate && dto.toDate) {
+  //     startDate = moment
+  //       .tz(dto.fromDate, 'Asia/Karachi')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+  //     endDate = moment
+  //       .tz(dto.toDate, 'Asia/Karachi')
+  //       .add(1, 'day')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+
+  //     query.timestamp = this.mongoDateFilter.getCustomDateRange(
+  //       startDate,
+  //       endDate,
+  //     );
+  //   } else {
+  //     const rangeFilter = this.mongoDateFilter.getDateRangeFilter('today');
+  //     startDate = moment
+  //       .tz(rangeFilter.$gte, 'Asia/Karachi')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+  //     endDate = moment
+  //       .tz(rangeFilter.$lte, 'Asia/Karachi')
+  //       .add(1, 'day')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+
+  //     query.timestamp = this.mongoDateFilter.getCustomDateRange(
+  //       startDate,
+  //       endDate,
+  //     );
+  //   }
+
+  //   // ------------------------------
+  //   // 2️⃣ Optional Time Filter
+  //   // ------------------------------
+  //   if (dto.startTime && dto.endTime) {
+  //     Object.assign(
+  //       query,
+  //       this.mongoDateFilter.getCustomTimeRange(dto.startTime, dto.endTime),
+  //     );
+  //   }
+
+  //   // ------------------------------
+  //   // 3️⃣ Smart Interval Logic
+  //   // ------------------------------
+  //   let breakdownType: '15min' | 'hour' | 'day' | 'month' = 'hour';
+
+  //   if (dto.range) {
+  //     switch (dto.range) {
+  //       case 'today':
+  //       case 'yesterday':
+  //         breakdownType = dto.interval || 'hour';
+  //         break;
+  //       case 'week':
+  //       case 'lastWeek':
+  //       case 'month':
+  //       case 'lastMonth':
+  //         breakdownType = 'day';
+  //         break;
+  //       case 'year':
+  //       case 'lastYear':
+  //         breakdownType = 'month';
+  //         break;
+  //     }
+  //   } else if (dto.fromDate && dto.toDate) {
+  //     breakdownType = 'day'; // ✅ Custom range → daily grouping
+  //   } else if (dto.interval) {
+  //     breakdownType = dto.interval;
+  //   }
+
+  //   // ------------------------------
+  //   // 4️⃣ Fetch Data
+  //   // ------------------------------
+  //   const data = await this.DashboardModel.find(query).lean();
+
+  //   // ------------------------------
+  //   // 5️⃣ Calculate Drift-to-Evaporation Ratio
+  //   // ------------------------------
+  //   const driftToEvap = RangeService.calculateDriftToEvapRatio(
+  //     data,
+  //     towerType,
+  //     breakdownType,
+  //   );
+
+  //   // ------------------------------
+  //   // 6️⃣ Final Response (Chart7 Style)
+  //   // ------------------------------
+  //   return {
+  //     message: 'Dashboard Data',
+  //     data: {
+  //       message: 'Dashboard Data',
+  //       data: {
+  //         DriftToEvaporationRatio: driftToEvap,
+  //       },
+  //     },
+  //   };
+  // }
 
   async getDashboardDataChart13(dto: {
     fromDate?: string;
@@ -2471,7 +3789,7 @@ export class DashboardService {
     let endDate: Date = new Date();
 
     // ------------------------------
-    // 1️⃣ Build 6AM–6AM Date Filter (Asia/Karachi)
+    // 1️⃣ Build 6AM–6AM Date Filter (25-hour inclusive)
     // ------------------------------
     if (dto.date) {
       startDate = moment
@@ -2486,6 +3804,7 @@ export class DashboardService {
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour')
         .toDate();
 
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -2506,6 +3825,7 @@ export class DashboardService {
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour')
         .toDate();
 
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -2525,6 +3845,7 @@ export class DashboardService {
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour')
         .toDate();
 
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -2545,6 +3866,7 @@ export class DashboardService {
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour')
         .toDate();
 
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -2586,7 +3908,7 @@ export class DashboardService {
           break;
       }
     } else if (dto.fromDate && dto.toDate) {
-      breakdownType = 'day'; // ✅ Custom range → daily grouping
+      breakdownType = 'day';
     } else if (dto.interval) {
       breakdownType = dto.interval;
     }
@@ -2594,10 +3916,47 @@ export class DashboardService {
     // ------------------------------
     // 4️⃣ Fetch Data
     // ------------------------------
-    const data = await this.DashboardModel.find(query).lean();
+    let data = await this.DashboardModel.find(query).lean();
+
+    if (!data.length) {
+      return {
+        message: 'Dashboard Data',
+        data: {
+          message: 'No Data Found for the selected filters',
+          data: {},
+        },
+      };
+    }
 
     // ------------------------------
-    // 5️⃣ Calculate Drift-to-Evaporation Ratio
+    // 5️⃣ Filter: Remove next-day 6:15–6:45 (for 15-min interval)
+    // ------------------------------
+    if (dto.interval === '15min') {
+      const startMoment = moment(startDate).tz('Asia/Karachi');
+      const nextDaySixAM = startMoment
+        .clone()
+        .add(1, 'day')
+        .hour(6)
+        .minute(0)
+        .second(0);
+
+      data = data.filter((doc) => {
+        const m = moment(doc.timestamp).tz('Asia/Karachi');
+        return m.isBefore(nextDaySixAM) || m.isSame(nextDaySixAM, 'minute');
+      });
+
+      data = data.filter((doc) => {
+        const m = moment(doc.timestamp).tz('Asia/Karachi');
+        const isNextDay = m.isSame(nextDaySixAM, 'day');
+        const hour = m.hour();
+        const minute = m.minute();
+        if (isNextDay && hour === 6 && minute > 0) return false;
+        return true;
+      });
+    }
+
+    // ------------------------------
+    // 6️⃣ Calculate Drift-to-Evaporation Ratio
     // ------------------------------
     const driftToEvap = RangeService.calculateDriftToEvapRatio(
       data,
@@ -2606,7 +3965,7 @@ export class DashboardService {
     );
 
     // ------------------------------
-    // 6️⃣ Final Response (Chart7 Style)
+    // 7️⃣ Final Response (Chart 1 style)
     // ------------------------------
     return {
       message: 'Dashboard Data',
@@ -2690,27 +4049,73 @@ export class DashboardService {
   //   startTime?: string;
   //   endTime?: string;
   //   towerType?: 'CHCT' | 'CT' | 'all';
+  //   interval?: 'hour' | '15min' | 'day' | 'month';
   // }) {
   //   const query: any = {};
   //   let startDate: Date = new Date();
   //   let endDate: Date = new Date();
 
   //   if (dto.date) {
-  //     query.timestamp = this.mongoDateFilter.getSingleDateFilter(dto.date);
-  //     startDate = new Date(dto.date);
-  //     endDate = new Date(dto.date);
+  //     // ✅ Karachi timezone 6:00AM → next day 6:00AM
+  //     startDate = moment
+  //       .tz(dto.date, 'Asia/Karachi')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+  //     endDate = moment
+  //       .tz(dto.date, 'Asia/Karachi')
+  //       .add(1, 'day')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+
+  //     query.timestamp = this.mongoDateFilter.getCustomDateRange(
+  //       startDate,
+  //       endDate,
+  //     );
   //   } else if (dto.range) {
   //     try {
   //       const rangeFilter = this.mongoDateFilter.getDateRangeFilter(dto.range);
-  //       query.timestamp = rangeFilter;
-  //       startDate = new Date(rangeFilter.$gte);
-  //       endDate = new Date(rangeFilter.$lte);
+
+  //       startDate = moment
+  //         .tz(rangeFilter.$gte, 'Asia/Karachi')
+  //         .hour(6)
+  //         .minute(0)
+  //         .second(0)
+  //         .toDate();
+  //       endDate = moment
+  //         .tz(rangeFilter.$lte, 'Asia/Karachi')
+  //         .add(1, 'day')
+  //         .hour(6)
+  //         .minute(0)
+  //         .second(0)
+  //         .toDate();
+
+  //       query.timestamp = this.mongoDateFilter.getCustomDateRange(
+  //         startDate,
+  //         endDate,
+  //       );
   //     } catch (err) {
   //       console.error('\n[ERROR] Date range filter error:', err.message);
   //     }
   //   } else if (dto.fromDate && dto.toDate) {
-  //     startDate = new Date(dto.fromDate);
-  //     endDate = new Date(dto.toDate);
+  //     // ✅ Custom date bhi Karachi time 6AM → next day 6AM
+  //     startDate = moment
+  //       .tz(dto.fromDate, 'Asia/Karachi')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+  //     endDate = moment
+  //       .tz(dto.toDate, 'Asia/Karachi')
+  //       .add(1, 'day')
+  //       .hour(6)
+  //       .minute(0)
+  //       .second(0)
+  //       .toDate();
+
   //     query.timestamp = this.mongoDateFilter.getCustomDateRange(
   //       startDate,
   //       endDate,
@@ -2727,10 +4132,12 @@ export class DashboardService {
 
   //   const data = await this.DashboardModel.find(query).lean();
 
-  //   // Determine breakdown type based on range
-  //   let breakdownType: 'hour' | 'day' | 'month' | 'none' = 'none';
+  //   // ✅ Interval logic same as Chart17
+  //   let breakdownType: 'hour' | 'day' | 'month' | '15min' | 'none' = 'none';
 
-  //   if (dto.range) {
+  //   if (dto.interval) {
+  //     breakdownType = dto.interval;
+  //   } else if (dto.range) {
   //     if (dto.range === 'today' || dto.range === 'yesterday')
   //       breakdownType = 'hour';
   //     else if (dto.range === 'week' || dto.range === 'month')
@@ -2751,138 +4158,14 @@ export class DashboardService {
 
   //   return {
   //     message: 'Dashboard Data',
+  //     breakdownType,
   //     data: {
   //       overall,
   //       breakdown,
   //     },
+  //     range: { startDate, endDate }, // ✅ debugging ke liye
   //   };
   // }
-
-  async getDashboardDataChart15(dto: {
-    date?: string;
-    range?: string;
-    fromDate?: string;
-    toDate?: string;
-    startTime?: string;
-    endTime?: string;
-    towerType?: 'CHCT' | 'CT' | 'all';
-    interval?: 'hour' | '15min' | 'day' | 'month';
-  }) {
-    const query: any = {};
-    let startDate: Date = new Date();
-    let endDate: Date = new Date();
-
-    if (dto.date) {
-      // ✅ Karachi timezone 6:00AM → next day 6:00AM
-      startDate = moment
-        .tz(dto.date, 'Asia/Karachi')
-        .hour(6)
-        .minute(0)
-        .second(0)
-        .toDate();
-      endDate = moment
-        .tz(dto.date, 'Asia/Karachi')
-        .add(1, 'day')
-        .hour(6)
-        .minute(0)
-        .second(0)
-        .toDate();
-
-      query.timestamp = this.mongoDateFilter.getCustomDateRange(
-        startDate,
-        endDate,
-      );
-    } else if (dto.range) {
-      try {
-        const rangeFilter = this.mongoDateFilter.getDateRangeFilter(dto.range);
-
-        startDate = moment
-          .tz(rangeFilter.$gte, 'Asia/Karachi')
-          .hour(6)
-          .minute(0)
-          .second(0)
-          .toDate();
-        endDate = moment
-          .tz(rangeFilter.$lte, 'Asia/Karachi')
-          .add(1, 'day')
-          .hour(6)
-          .minute(0)
-          .second(0)
-          .toDate();
-
-        query.timestamp = this.mongoDateFilter.getCustomDateRange(
-          startDate,
-          endDate,
-        );
-      } catch (err) {
-        console.error('\n[ERROR] Date range filter error:', err.message);
-      }
-    } else if (dto.fromDate && dto.toDate) {
-      // ✅ Custom date bhi Karachi time 6AM → next day 6AM
-      startDate = moment
-        .tz(dto.fromDate, 'Asia/Karachi')
-        .hour(6)
-        .minute(0)
-        .second(0)
-        .toDate();
-      endDate = moment
-        .tz(dto.toDate, 'Asia/Karachi')
-        .add(1, 'day')
-        .hour(6)
-        .minute(0)
-        .second(0)
-        .toDate();
-
-      query.timestamp = this.mongoDateFilter.getCustomDateRange(
-        startDate,
-        endDate,
-      );
-    }
-
-    if (dto.startTime && dto.endTime) {
-      const timeFilter = this.mongoDateFilter.getCustomTimeRange(
-        dto.startTime,
-        dto.endTime,
-      );
-      Object.assign(query, timeFilter);
-    }
-
-    const data = await this.DashboardModel.find(query).lean();
-
-    // ✅ Interval logic same as Chart17
-    let breakdownType: 'hour' | 'day' | 'month' | '15min' | 'none' = 'none';
-
-    if (dto.interval) {
-      breakdownType = dto.interval;
-    } else if (dto.range) {
-      if (dto.range === 'today' || dto.range === 'yesterday')
-        breakdownType = 'hour';
-      else if (dto.range === 'week' || dto.range === 'month')
-        breakdownType = 'day';
-      else if (dto.range === 'year') breakdownType = 'month';
-    } else if (dto.fromDate && dto.toDate) {
-      const diffDays =
-        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
-      if (diffDays <= 1) breakdownType = 'hour';
-      else if (diffDays <= 60) breakdownType = 'day';
-      else breakdownType = 'month';
-    }
-
-    const { overall, breakdown } = TowerDataProcessor.calculateRangeByTower(
-      data,
-      breakdownType,
-    );
-
-    return {
-      message: 'Dashboard Data',
-      breakdownType,
-      data: {
-        overall,
-        breakdown,
-      },
-      range: { startDate, endDate }, // ✅ debugging ke liye
-    };
-  }
 
   // async getDashboardDataChart16(dto: {
   //   date?: string;
@@ -3019,6 +4302,167 @@ export class DashboardService {
   //     range: { startDate, endDate }, // For debugging
   //   };
   // }
+
+  async getDashboardDataChart15(dto: {
+    date?: string;
+    range?: string;
+    fromDate?: string;
+    toDate?: string;
+    startTime?: string;
+    endTime?: string;
+    towerType?: 'CHCT' | 'CT' | 'all';
+    interval?: 'hour' | '15min' | 'day' | 'month';
+  }) {
+    const query: any = {};
+    let startDate: Date = new Date();
+    let endDate: Date = new Date();
+
+    // ------------------------------
+    // 1️⃣ Date Range (6AM → next day 6AM + 1 hour)
+    // ------------------------------
+    if (dto.date) {
+      startDate = moment
+        .tz(dto.date, 'Asia/Karachi')
+        .hour(6)
+        .minute(0)
+        .second(0)
+        .toDate();
+      endDate = moment
+        .tz(dto.date, 'Asia/Karachi')
+        .add(1, 'day')
+        .hour(6)
+        .minute(0)
+        .second(0)
+        .add(1, 'hour')
+        .toDate();
+
+      query.timestamp = this.mongoDateFilter.getCustomDateRange(
+        startDate,
+        endDate,
+      );
+    } else if (dto.range) {
+      const rangeFilter = this.mongoDateFilter.getDateRangeFilter(dto.range);
+
+      startDate = moment
+        .tz(rangeFilter.$gte, 'Asia/Karachi')
+        .hour(6)
+        .minute(0)
+        .second(0)
+        .toDate();
+      endDate = moment
+        .tz(rangeFilter.$lte, 'Asia/Karachi')
+        .add(1, 'day')
+        .hour(6)
+        .minute(0)
+        .second(0)
+        .add(1, 'hour')
+        .toDate();
+
+      query.timestamp = this.mongoDateFilter.getCustomDateRange(
+        startDate,
+        endDate,
+      );
+    } else if (dto.fromDate && dto.toDate) {
+      startDate = moment
+        .tz(dto.fromDate, 'Asia/Karachi')
+        .hour(6)
+        .minute(0)
+        .second(0)
+        .toDate();
+      endDate = moment
+        .tz(dto.toDate, 'Asia/Karachi')
+        .add(1, 'day')
+        .hour(6)
+        .minute(0)
+        .second(0)
+        .add(1, 'hour')
+        .toDate();
+
+      query.timestamp = this.mongoDateFilter.getCustomDateRange(
+        startDate,
+        endDate,
+      );
+    }
+
+    // ------------------------------
+    // 2️⃣ Optional Time Filter
+    // ------------------------------
+    if (dto.startTime && dto.endTime) {
+      Object.assign(
+        query,
+        this.mongoDateFilter.getCustomTimeRange(dto.startTime, dto.endTime),
+      );
+    }
+
+    // ------------------------------
+    // 3️⃣ Fetch Data
+    // ------------------------------
+    let data = await this.DashboardModel.find(query).lean();
+
+    // ------------------------------
+    // 4️⃣ Remove extra 6:15, 6:30, 6:45 for last hour in 15-min interval
+    // ------------------------------
+    if (dto.interval === '15min') {
+      const startMoment = moment(startDate).tz('Asia/Karachi');
+      const nextDaySixAM = startMoment
+        .clone()
+        .add(1, 'day')
+        .hour(6)
+        .minute(0)
+        .second(0);
+
+      data = data.filter((doc) => {
+        const m = moment(doc.timestamp).tz('Asia/Karachi');
+        const isLastDay = m.isSame(nextDaySixAM, 'day');
+        const hour = m.hour();
+        const minute = m.minute();
+        if (isLastDay && hour === 6 && minute > 0) return false;
+        return true;
+      });
+    }
+
+    // ------------------------------
+    // 5️⃣ Interval Logic
+    // ------------------------------
+    let breakdownType: 'hour' | 'day' | 'month' | '15min' | 'none' = 'none';
+
+    if (dto.interval) {
+      breakdownType = dto.interval;
+    } else if (dto.range) {
+      if (dto.range === 'today' || dto.range === 'yesterday')
+        breakdownType = 'hour';
+      else if (dto.range === 'week' || dto.range === 'month')
+        breakdownType = 'day';
+      else if (dto.range === 'year') breakdownType = 'month';
+    } else if (dto.fromDate && dto.toDate) {
+      const diffDays =
+        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+      if (diffDays <= 1) breakdownType = 'hour';
+      else if (diffDays <= 60) breakdownType = 'day';
+      else breakdownType = 'month';
+    }
+
+    // ------------------------------
+    // 6️⃣ Processing
+    // ------------------------------
+    const { overall, breakdown } = TowerDataProcessor.calculateRangeByTower(
+      data,
+      breakdownType,
+    );
+
+    // ------------------------------
+    // 7️⃣ Return (Original Style ✅)
+    // ------------------------------
+    return {
+      message: 'Dashboard Data',
+      breakdownType,
+      data: {
+        overall,
+        breakdown,
+      },
+      range: { startDate, endDate },
+    };
+  }
 
   async getDashboardDataChart16(dto: {
     date?: string;
@@ -3174,8 +4618,10 @@ export class DashboardService {
     let startDate: Date = new Date();
     let endDate: Date = new Date();
 
+    // ------------------------------
+    // 1️⃣ Date Range (6AM → next day 6AM + 1 hour)
+    // ------------------------------
     if (dto.date) {
-      // ✅ Karachi timezone 6:00AM → next day 6:00AM
       startDate = moment
         .tz(dto.date, 'Asia/Karachi')
         .hour(6)
@@ -3188,6 +4634,7 @@ export class DashboardService {
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour')
         .toDate();
 
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -3210,6 +4657,7 @@ export class DashboardService {
           .hour(6)
           .minute(0)
           .second(0)
+          .add(1, 'hour')
           .toDate();
 
         query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -3220,7 +4668,6 @@ export class DashboardService {
         console.error('\n[ERROR] Date range filter error:', err.message);
       }
     } else if (dto.fromDate && dto.toDate) {
-      // ✅ Custom date bhi Karachi time 6AM → next day 6AM
       startDate = moment
         .tz(dto.fromDate, 'Asia/Karachi')
         .hour(6)
@@ -3233,6 +4680,7 @@ export class DashboardService {
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour')
         .toDate();
 
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -3241,6 +4689,9 @@ export class DashboardService {
       );
     }
 
+    // ------------------------------
+    // 2️⃣ Optional Time Filter
+    // ------------------------------
     if (dto.startTime && dto.endTime) {
       const timeFilter = this.mongoDateFilter.getCustomTimeRange(
         dto.startTime,
@@ -3249,9 +4700,36 @@ export class DashboardService {
       Object.assign(query, timeFilter);
     }
 
-    const data = await this.DashboardModel.find(query).lean();
+    // ------------------------------
+    // 3️⃣ Fetch Data
+    // ------------------------------
+    let data = await this.DashboardModel.find(query).lean();
 
-    // ✅ Interval logic
+    // ------------------------------
+    // 4️⃣ Remove extra 6:15, 6:30, 6:45 for last hour in 15-min interval
+    // ------------------------------
+    if (dto.interval === '15min') {
+      const startMoment = moment(startDate).tz('Asia/Karachi');
+      const nextDaySixAM = startMoment
+        .clone()
+        .add(1, 'day')
+        .hour(6)
+        .minute(0)
+        .second(0);
+
+      data = data.filter((doc) => {
+        const m = moment(doc.timestamp).tz('Asia/Karachi');
+        const isLastDay = m.isSame(nextDaySixAM, 'day');
+        const hour = m.hour();
+        const minute = m.minute();
+        if (isLastDay && hour === 6 && minute > 0) return false;
+        return true;
+      });
+    }
+
+    // ------------------------------
+    // 5️⃣ Interval Logic
+    // ------------------------------
     let breakdownType: 'hour' | 'day' | 'month' | '15min' | 'none' = 'none';
 
     if (dto.interval) {
@@ -3270,16 +4748,22 @@ export class DashboardService {
       else breakdownType = 'month';
     }
 
+    // ------------------------------
+    // 6️⃣ Calculate Water Metrics (same as before)
+    // ------------------------------
     const waterMetrics = TowerDataProcessor.calculateWaterMetricsByTower(
       data,
       breakdownType,
     );
 
+    // ------------------------------
+    // 7️⃣ Return (Original Response Style ✅)
+    // ------------------------------
     return {
       message: 'Dashboard Data',
       breakdownType,
       data: waterMetrics,
-      range: { startDate, endDate }, // ✅ Debugging ke liye
+      range: { startDate, endDate },
     };
   }
 
@@ -3297,7 +4781,9 @@ export class DashboardService {
     let startDate: Date = new Date();
     let endDate: Date = new Date();
 
-    // ---------- Date Handling (Karachi Time 6AM → next day 6AM) ----------
+    // ------------------------------
+    // 1️⃣ Karachi Time (6AM → next day 6AM + 1hr)
+    // ------------------------------
     if (dto.date) {
       startDate = moment
         .tz(dto.date, 'Asia/Karachi')
@@ -3311,6 +4797,7 @@ export class DashboardService {
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour')
         .toDate();
 
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -3333,6 +4820,7 @@ export class DashboardService {
           .hour(6)
           .minute(0)
           .second(0)
+          .add(1, 'hour')
           .toDate();
 
         query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -3355,6 +4843,7 @@ export class DashboardService {
         .hour(6)
         .minute(0)
         .second(0)
+        .add(1, 'hour')
         .toDate();
 
       query.timestamp = this.mongoDateFilter.getCustomDateRange(
@@ -3363,7 +4852,9 @@ export class DashboardService {
       );
     }
 
-    // ---------- Time Filter ----------
+    // ------------------------------
+    // 2️⃣ Optional Time Filter
+    // ------------------------------
     if (dto.startTime && dto.endTime) {
       const timeFilter = this.mongoDateFilter.getCustomTimeRange(
         dto.startTime,
@@ -3372,10 +4863,36 @@ export class DashboardService {
       Object.assign(query, timeFilter);
     }
 
-    // ---------- Fetch Data ----------
-    const data = await this.DashboardModel.find(query).lean();
+    // ------------------------------
+    // 3️⃣ Fetch Data
+    // ------------------------------
+    let data = await this.DashboardModel.find(query).lean();
 
-    // ---------- Determine Breakdown Type ----------
+    // ------------------------------
+    // 4️⃣ Remove extra 6:15, 6:30, 6:45 in last day for 15min interval
+    // ------------------------------
+    if (dto.interval === '15min') {
+      const startMoment = moment(startDate).tz('Asia/Karachi');
+      const nextDaySixAM = startMoment
+        .clone()
+        .add(1, 'day')
+        .hour(6)
+        .minute(0)
+        .second(0);
+
+      data = data.filter((doc) => {
+        const m = moment(doc.timestamp).tz('Asia/Karachi');
+        const isLastDay = m.isSame(nextDaySixAM, 'day');
+        const hour = m.hour();
+        const minute = m.minute();
+        if (isLastDay && hour === 6 && minute > 0) return false;
+        return true;
+      });
+    }
+
+    // ------------------------------
+    // 5️⃣ Breakdown Logic
+    // ------------------------------
     type ValidBreakdown = '15min' | 'hour' | 'day' | 'month' | 'none';
     let breakdownType: ValidBreakdown = 'none';
 
@@ -3395,7 +4912,9 @@ export class DashboardService {
       else breakdownType = 'month';
     }
 
-    // ---------- Tower Selection ----------
+    // ------------------------------
+    // 6️⃣ Tower Selection + Processors
+    // ------------------------------
     const wetBulb = 25;
     const towers =
       dto.towerType === 'CHCT'
@@ -3404,7 +4923,6 @@ export class DashboardService {
           ? ['CT1', 'CT2']
           : ['CHCT1', 'CHCT2', 'CT1', 'CT2'];
 
-    // ---------- Call Processors ----------
     const coolingCapacityByTower =
       TowerDataProcessor.calculateCoolingCapacityByTower(
         data,
@@ -3420,9 +4938,11 @@ export class DashboardService {
         towers,
       );
 
-    // ---------- Response (With Nested Data Layer) ----------
+    // ------------------------------
+    // 7️⃣ Response (same structure as before ✅)
+    // ------------------------------
     return {
-      message: 'Dashoard Data',
+      message: 'Dashboard Data',
       data: {
         message: 'Dashboard Data',
         data: {
@@ -3431,7 +4951,7 @@ export class DashboardService {
         },
       },
       breakdownType,
-      range: { startDate, endDate }, // optional
+      range: { startDate, endDate },
     };
   }
 

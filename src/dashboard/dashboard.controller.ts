@@ -302,7 +302,7 @@ export class DashboardController {
     return { message: 'Dashoard Data', data };
   }
   @Post('dashboard-data17')
-  async getDashoardDataChart17(@Body() dto: DashboardDto) {
+  async getDashoardDataChart17(@Body() dto: any) {
     console.log('Received DashboardDto:', dto);
     const data = await this.dashboardService.getDashboardDataChart17(dto);
     return { message: 'Dashoard Data', data };

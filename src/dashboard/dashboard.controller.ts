@@ -129,6 +129,7 @@ export class DashboardController {
         | 'year'
         | 'lastYear'
         | undefined,
+      towerType: dto.towerType === 'all' ? undefined : dto.towerType,
     };
 
     return this.dashboardService.getDashboardDataChart8(serviceDto);

@@ -2801,19 +2801,28 @@ export class TowerDataProcessor {
   // static calculateCoolingEffectivenessByInterval(
   //   data: any[],
   //   wetBulb: number,
-  //   breakdownType: 'hour' | 'day' | 'month' | 'none' = 'none',
-  //   towerType: 'CHCT' | 'CT' | 'all' = 'all',
+  //   breakdownType: '15min' | 'hour' | 'day' | 'month' | 'none' = 'none',
+  //   towerType:
+  //     | 'CHCT'
+  //     | 'CT'
+  //     | 'all'
+  //     | 'CT1'
+  //     | 'CT2'
+  //     | 'CHCT1'
+  //     | 'CHCT2' = 'all',
   // ): Array<{ interval: string; averageEffectiveness: number }> {
   //   const breakdownAccumulator: Record<string, { sum: number; count: number }> =
   //     {};
-
   //   const towerFieldsMap = {
   //     CHCT: ['CHCT1', 'CHCT2'],
   //     CT: ['CT1', 'CT2'],
   //     all: ['CHCT1', 'CHCT2', 'CT1', 'CT2'],
+  //     CT1: ['CT1'],
+  //     CT2: ['CT2'],
+  //     CHCT1: ['CHCT1'],
+  //     CHCT2: ['CHCT2'],
   //   };
-
-  //   const selectedTowers = towerFieldsMap[towerType];
+  //   const selectedTowers = towerFieldsMap[towerType] || towerFieldsMap['all'];
 
   //   const calcEffectiveness = (hot: number, cold: number): number | null => {
   //     const denom = hot - wetBulb;
@@ -2821,58 +2830,49 @@ export class TowerDataProcessor {
   //   };
 
   //   for (const doc of data) {
-  //     const effectivenessValues: number[] = [];
+  //     if (!doc.timestamp) continue;
+  //     const date = new Date(doc.timestamp);
+  //     const effValues: number[] = [];
 
   //     for (const prefix of selectedTowers) {
   //       const hot = doc[`${prefix}_TEMP_RTD_02_AI`];
   //       const cold = doc[`${prefix}_TEMP_RTD_01_AI`];
   //       if (typeof hot === 'number' && typeof cold === 'number') {
   //         const eff = calcEffectiveness(hot, cold);
-  //         if (eff !== null) {
-  //           effectivenessValues.push(eff);
-  //         }
+  //         if (eff !== null) effValues.push(eff);
   //       }
   //     }
 
-  //     if (effectivenessValues.length === 0 || !doc.timestamp) continue;
+  //     if (effValues.length === 0) continue;
 
-  //     const date = new Date(doc.timestamp);
+  //     // ---- Handle intervals ----
   //     let intervalKey: string;
   //     switch (breakdownType) {
+  //       case '15min': {
+  //         const minutes = Math.floor(date.getMinutes() / 15) * 15;
+  //         intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  //         break;
+  //       }
   //       case 'hour':
-  //         intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
-  //           .toString()
-  //           .padStart(
-  //             2,
-  //             '0',
-  //           )}-${date.getDate().toString().padStart(2, '0')} ${date
-  //           .getHours()
-  //           .toString()
-  //           .padStart(2, '0')}`;
+  //         intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}`;
   //         break;
   //       case 'day':
-  //         intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
-  //           .toString()
-  //           .padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+  //         intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
   //         break;
   //       case 'month':
-  //         intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
-  //           .toString()
-  //           .padStart(2, '0')}`;
+  //         intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
   //         break;
   //       default:
-  //         intervalKey = 'none';
+  //         continue;
   //     }
 
   //     if (!breakdownAccumulator[intervalKey]) {
   //       breakdownAccumulator[intervalKey] = { sum: 0, count: 0 };
   //     }
 
-  //     const avgEffForDoc =
-  //       effectivenessValues.reduce((a, b) => a + b, 0) /
-  //       effectivenessValues.length;
+  //     const avgEff = effValues.reduce((a, b) => a + b, 0) / effValues.length;
 
-  //     breakdownAccumulator[intervalKey].sum += avgEffForDoc;
+  //     breakdownAccumulator[intervalKey].sum += avgEff;
   //     breakdownAccumulator[intervalKey].count++;
   //   }
 
@@ -2888,16 +2888,30 @@ export class TowerDataProcessor {
     data: any[],
     wetBulb: number,
     breakdownType: '15min' | 'hour' | 'day' | 'month' | 'none' = 'none',
-    towerType: 'CHCT' | 'CT' | 'all' = 'all',
+    towerType:
+      | 'CHCT'
+      | 'CT'
+      | 'all'
+      | 'CT1'
+      | 'CT2'
+      | 'CHCT1'
+      | 'CHCT2' = 'all',
   ): Array<{ interval: string; averageEffectiveness: number }> {
     const breakdownAccumulator: Record<string, { sum: number; count: number }> =
       {};
-    const towerFieldsMap = {
+
+    const towerFieldsMap: Record<string, string[]> = {
       CHCT: ['CHCT1', 'CHCT2'],
       CT: ['CT1', 'CT2'],
       all: ['CHCT1', 'CHCT2', 'CT1', 'CT2'],
+      CT1: ['CT1'],
+      CT2: ['CT2'],
+      CHCT1: ['CHCT1'],
+      CHCT2: ['CHCT2'],
     };
+
     const selectedTowers = towerFieldsMap[towerType];
+    if (!selectedTowers || selectedTowers.length === 0) return [];
 
     const calcEffectiveness = (hot: number, cold: number): number | null => {
       const denom = hot - wetBulb;
@@ -2907,6 +2921,7 @@ export class TowerDataProcessor {
     for (const doc of data) {
       if (!doc.timestamp) continue;
       const date = new Date(doc.timestamp);
+
       const effValues: number[] = [];
 
       for (const prefix of selectedTowers) {
@@ -2920,47 +2935,27 @@ export class TowerDataProcessor {
 
       if (effValues.length === 0) continue;
 
-      // ---- Handle intervals ----
       let intervalKey: string;
       switch (breakdownType) {
-        case '15min': {
+        case '15min':
           const minutes = Math.floor(date.getMinutes() / 15) * 15;
-          intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
-            .toString()
-            .padStart(2, '0')}-${date
-            .getDate()
-            .toString()
-            .padStart(2, '0')} ${date
-            .getHours()
-            .toString()
-            .padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+          intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
           break;
-        }
         case 'hour':
-          intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
-            .toString()
-            .padStart(2, '0')}-${date
-            .getDate()
-            .toString()
-            .padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}`;
+          intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}`;
           break;
         case 'day':
-          intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
-            .toString()
-            .padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+          intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
           break;
         case 'month':
-          intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
-            .toString()
-            .padStart(2, '0')}`;
+          intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
           break;
         default:
           continue;
       }
 
-      if (!breakdownAccumulator[intervalKey]) {
+      if (!breakdownAccumulator[intervalKey])
         breakdownAccumulator[intervalKey] = { sum: 0, count: 0 };
-      }
 
       const avgEff = effValues.reduce((a, b) => a + b, 0) / effValues.length;
 
@@ -2975,6 +2970,98 @@ export class TowerDataProcessor {
       }))
       .sort((a, b) => a.interval.localeCompare(b.interval));
   }
+
+  // static calculateCoolingEffectivenessByInterval(
+  //   data: any[],
+  //   wetBulb: number,
+  //   breakdownType: '15min' | 'hour' | 'day' | 'month' | 'none' = 'none',
+  //   towerType: 'CHCT' | 'CT' | 'all' = 'all',
+  // ): Array<{ interval: string; averageEffectiveness: number }> {
+  //   const breakdownAccumulator: Record<string, { sum: number; count: number }> =
+  //     {};
+  //   const towerFieldsMap = {
+  //     CHCT: ['CHCT1', 'CHCT2'],
+  //     CT: ['CT1', 'CT2'],
+  //     all: ['CHCT1', 'CHCT2', 'CT1', 'CT2'],
+  //   };
+  //   const selectedTowers = towerFieldsMap[towerType];
+
+  //   const calcEffectiveness = (hot: number, cold: number): number | null => {
+  //     const denom = hot - wetBulb;
+  //     return denom !== 0 ? ((hot - cold) / denom) * 100 : null;
+  //   };
+
+  //   for (const doc of data) {
+  //     if (!doc.timestamp) continue;
+  //     const date = new Date(doc.timestamp);
+  //     const effValues: number[] = [];
+
+  //     for (const prefix of selectedTowers) {
+  //       const hot = doc[`${prefix}_TEMP_RTD_02_AI`];
+  //       const cold = doc[`${prefix}_TEMP_RTD_01_AI`];
+  //       if (typeof hot === 'number' && typeof cold === 'number') {
+  //         const eff = calcEffectiveness(hot, cold);
+  //         if (eff !== null) effValues.push(eff);
+  //       }
+  //     }
+
+  //     if (effValues.length === 0) continue;
+
+  //     // ---- Handle intervals ----
+  //     let intervalKey: string;
+  //     switch (breakdownType) {
+  //       case '15min': {
+  //         const minutes = Math.floor(date.getMinutes() / 15) * 15;
+  //         intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
+  //           .toString()
+  //           .padStart(2, '0')}-${date
+  //           .getDate()
+  //           .toString()
+  //           .padStart(2, '0')} ${date
+  //           .getHours()
+  //           .toString()
+  //           .padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  //         break;
+  //       }
+  //       case 'hour':
+  //         intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
+  //           .toString()
+  //           .padStart(2, '0')}-${date
+  //           .getDate()
+  //           .toString()
+  //           .padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}`;
+  //         break;
+  //       case 'day':
+  //         intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
+  //           .toString()
+  //           .padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+  //         break;
+  //       case 'month':
+  //         intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
+  //           .toString()
+  //           .padStart(2, '0')}`;
+  //         break;
+  //       default:
+  //         continue;
+  //     }
+
+  //     if (!breakdownAccumulator[intervalKey]) {
+  //       breakdownAccumulator[intervalKey] = { sum: 0, count: 0 };
+  //     }
+
+  //     const avgEff = effValues.reduce((a, b) => a + b, 0) / effValues.length;
+
+  //     breakdownAccumulator[intervalKey].sum += avgEff;
+  //     breakdownAccumulator[intervalKey].count++;
+  //   }
+
+  //   return Object.entries(breakdownAccumulator)
+  //     .map(([interval, acc]) => ({
+  //       interval,
+  //       averageEffectiveness: acc.count > 0 ? acc.sum / acc.count : 0,
+  //     }))
+  //     .sort((a, b) => a.interval.localeCompare(b.interval));
+  // }
 
   // static calculateRangeByTower(
   //   data: any[],
@@ -3562,13 +3649,16 @@ export class TowerDataProcessor {
   // static calculateAverageApproachByInterval(
   //   data: any[],
   //   wetBulb: number,
-  //   breakdownType: 'hour' | 'day' | 'month' | 'none' = 'none',
-  //   towerType: 'CHCT' | 'CT' | 'all' = 'all',
+  //   breakdownType: '15min' | 'hour' | 'day' | 'month' | 'none' = 'none',
+  //   towerType:
+  //     | 'CHCT'
+  //     | 'CT'
+  //     | 'all'
+  //     | 'CT1'
+  //     | 'CT2'
+  //     | 'CHCT1'
+  //     | 'CHCT2' = 'all',
   // ): Array<{ interval: string; averageApproach: number }> {
-  //   // if (breakdownType === 'none') {
-  //   //   throw new Error('Breakdown type cannot be "none" for interval grouping');
-  //   // }
-
   //   const towerFieldsMap = {
   //     CHCT: ['CHCT1_TEMP_RTD_01_AI', 'CHCT2_TEMP_RTD_01_AI'],
   //     CT: ['CT1_TEMP_RTD_01_AI', 'CT2_TEMP_RTD_01_AI'],
@@ -3578,10 +3668,13 @@ export class TowerDataProcessor {
   //       'CT1_TEMP_RTD_01_AI',
   //       'CT2_TEMP_RTD_01_AI',
   //     ],
+  //     CT1: ['CT1_TEMP_RTD_01_AI'],
+  //     CT2: ['CT2_TEMP_RTD_01_AI'],
+  //     CHCT1: ['CHCT1_TEMP_RTD_01_AI'],
+  //     CHCT2: ['CHCT2_TEMP_RTD_01_AI'],
   //   };
 
-  //   const selectedFields = towerFieldsMap[towerType];
-
+  //   const selectedFields = towerFieldsMap[towerType] || towerFieldsMap['all'];
   //   const intervalAccumulator: Record<
   //     string,
   //     { sumApproach: number; count: number }
@@ -3591,31 +3684,25 @@ export class TowerDataProcessor {
   //     if (!doc.timestamp) continue;
   //     const date = new Date(doc.timestamp);
 
+  //     // ---- Handle intervals ----
   //     let intervalKey: string;
   //     switch (breakdownType) {
+  //       case '15min': {
+  //         const minutes = Math.floor(date.getMinutes() / 15) * 15;
+  //         intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  //         break;
+  //       }
   //       case 'hour':
-  //         intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
-  //           .toString()
-  //           .padStart(
-  //             2,
-  //             '0',
-  //           )}-${date.getDate().toString().padStart(2, '0')} ${date
-  //           .getHours()
-  //           .toString()
-  //           .padStart(2, '0')}`;
+  //         intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}`;
   //         break;
   //       case 'day':
-  //         intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
-  //           .toString()
-  //           .padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+  //         intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
   //         break;
   //       case 'month':
-  //         intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
-  //           .toString()
-  //           .padStart(2, '0')}`;
+  //         intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
   //         break;
   //       default:
-  //         throw new Error(`Unsupported breakdownType: ${breakdownType}`);
+  //         continue;
   //     }
 
   //     const towersApproach: number[] = [];
@@ -3628,15 +3715,14 @@ export class TowerDataProcessor {
 
   //     if (towersApproach.length === 0) continue;
 
-  //     const averageApproachForDoc =
-  //       towersApproach.reduce((sum, val) => sum + val, 0) /
-  //       towersApproach.length;
+  //     const avgApproachForDoc =
+  //       towersApproach.reduce((a, b) => a + b, 0) / towersApproach.length;
 
   //     if (!intervalAccumulator[intervalKey]) {
   //       intervalAccumulator[intervalKey] = { sumApproach: 0, count: 0 };
   //     }
 
-  //     intervalAccumulator[intervalKey].sumApproach += averageApproachForDoc;
+  //     intervalAccumulator[intervalKey].sumApproach += avgApproachForDoc;
   //     intervalAccumulator[intervalKey].count++;
   //   }
 
@@ -3652,9 +3738,16 @@ export class TowerDataProcessor {
     data: any[],
     wetBulb: number,
     breakdownType: '15min' | 'hour' | 'day' | 'month' | 'none' = 'none',
-    towerType: 'CHCT' | 'CT' | 'all' = 'all',
+    towerType:
+      | 'CHCT'
+      | 'CT'
+      | 'all'
+      | 'CT1'
+      | 'CT2'
+      | 'CHCT1'
+      | 'CHCT2' = 'all',
   ): Array<{ interval: string; averageApproach: number }> {
-    const towerFieldsMap = {
+    const towerFieldsMap: Record<string, string[]> = {
       CHCT: ['CHCT1_TEMP_RTD_01_AI', 'CHCT2_TEMP_RTD_01_AI'],
       CT: ['CT1_TEMP_RTD_01_AI', 'CT2_TEMP_RTD_01_AI'],
       all: [
@@ -3663,9 +3756,15 @@ export class TowerDataProcessor {
         'CT1_TEMP_RTD_01_AI',
         'CT2_TEMP_RTD_01_AI',
       ],
+      CT1: ['CT1_TEMP_RTD_01_AI'],
+      CT2: ['CT2_TEMP_RTD_01_AI'],
+      CHCT1: ['CHCT1_TEMP_RTD_01_AI'],
+      CHCT2: ['CHCT2_TEMP_RTD_01_AI'],
     };
 
     const selectedFields = towerFieldsMap[towerType];
+    if (!selectedFields || selectedFields.length === 0) return [];
+
     const intervalAccumulator: Record<
       string,
       { sumApproach: number; count: number }
@@ -3675,39 +3774,21 @@ export class TowerDataProcessor {
       if (!doc.timestamp) continue;
       const date = new Date(doc.timestamp);
 
-      // ---- Handle intervals ----
+      // ---- interval key ----
       let intervalKey: string;
       switch (breakdownType) {
-        case '15min': {
+        case '15min':
           const minutes = Math.floor(date.getMinutes() / 15) * 15;
-          intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
-            .toString()
-            .padStart(2, '0')}-${date
-            .getDate()
-            .toString()
-            .padStart(2, '0')} ${date
-            .getHours()
-            .toString()
-            .padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+          intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
           break;
-        }
         case 'hour':
-          intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
-            .toString()
-            .padStart(2, '0')}-${date
-            .getDate()
-            .toString()
-            .padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}`;
+          intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}`;
           break;
         case 'day':
-          intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
-            .toString()
-            .padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+          intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
           break;
         case 'month':
-          intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
-            .toString()
-            .padStart(2, '0')}`;
+          intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
           break;
         default:
           continue;
@@ -3716,9 +3797,8 @@ export class TowerDataProcessor {
       const towersApproach: number[] = [];
 
       for (const field of selectedFields) {
-        if (typeof doc[field] === 'number') {
+        if (typeof doc[field] === 'number')
           towersApproach.push(doc[field] - wetBulb);
-        }
       }
 
       if (towersApproach.length === 0) continue;
@@ -3726,10 +3806,8 @@ export class TowerDataProcessor {
       const avgApproachForDoc =
         towersApproach.reduce((a, b) => a + b, 0) / towersApproach.length;
 
-      if (!intervalAccumulator[intervalKey]) {
+      if (!intervalAccumulator[intervalKey])
         intervalAccumulator[intervalKey] = { sumApproach: 0, count: 0 };
-      }
-
       intervalAccumulator[intervalKey].sumApproach += avgApproachForDoc;
       intervalAccumulator[intervalKey].count++;
     }
@@ -3741,6 +3819,100 @@ export class TowerDataProcessor {
       }))
       .sort((a, b) => a.interval.localeCompare(b.interval));
   }
+
+  // static calculateAverageApproachByInterval(
+  //   data: any[],
+  //   wetBulb: number,
+  //   breakdownType: '15min' | 'hour' | 'day' | 'month' | 'none' = 'none',
+  //   towerType: 'CHCT' | 'CT' | 'all' = 'all',
+  // ): Array<{ interval: string; averageApproach: number }> {
+  //   const towerFieldsMap = {
+  //     CHCT: ['CHCT1_TEMP_RTD_01_AI', 'CHCT2_TEMP_RTD_01_AI'],
+  //     CT: ['CT1_TEMP_RTD_01_AI', 'CT2_TEMP_RTD_01_AI'],
+  //     all: [
+  //       'CHCT1_TEMP_RTD_01_AI',
+  //       'CHCT2_TEMP_RTD_01_AI',
+  //       'CT1_TEMP_RTD_01_AI',
+  //       'CT2_TEMP_RTD_01_AI',
+  //     ],
+  //   };
+
+  //   const selectedFields = towerFieldsMap[towerType];
+  //   const intervalAccumulator: Record<
+  //     string,
+  //     { sumApproach: number; count: number }
+  //   > = {};
+
+  //   for (const doc of data) {
+  //     if (!doc.timestamp) continue;
+  //     const date = new Date(doc.timestamp);
+
+  //     // ---- Handle intervals ----
+  //     let intervalKey: string;
+  //     switch (breakdownType) {
+  //       case '15min': {
+  //         const minutes = Math.floor(date.getMinutes() / 15) * 15;
+  //         intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
+  //           .toString()
+  //           .padStart(2, '0')}-${date
+  //           .getDate()
+  //           .toString()
+  //           .padStart(2, '0')} ${date
+  //           .getHours()
+  //           .toString()
+  //           .padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  //         break;
+  //       }
+  //       case 'hour':
+  //         intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
+  //           .toString()
+  //           .padStart(2, '0')}-${date
+  //           .getDate()
+  //           .toString()
+  //           .padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}`;
+  //         break;
+  //       case 'day':
+  //         intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
+  //           .toString()
+  //           .padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+  //         break;
+  //       case 'month':
+  //         intervalKey = `${date.getFullYear()}-${(date.getMonth() + 1)
+  //           .toString()
+  //           .padStart(2, '0')}`;
+  //         break;
+  //       default:
+  //         continue;
+  //     }
+
+  //     const towersApproach: number[] = [];
+
+  //     for (const field of selectedFields) {
+  //       if (typeof doc[field] === 'number') {
+  //         towersApproach.push(doc[field] - wetBulb);
+  //       }
+  //     }
+
+  //     if (towersApproach.length === 0) continue;
+
+  //     const avgApproachForDoc =
+  //       towersApproach.reduce((a, b) => a + b, 0) / towersApproach.length;
+
+  //     if (!intervalAccumulator[intervalKey]) {
+  //       intervalAccumulator[intervalKey] = { sumApproach: 0, count: 0 };
+  //     }
+
+  //     intervalAccumulator[intervalKey].sumApproach += avgApproachForDoc;
+  //     intervalAccumulator[intervalKey].count++;
+  //   }
+
+  //   return Object.entries(intervalAccumulator)
+  //     .map(([interval, acc]) => ({
+  //       interval,
+  //       averageApproach: acc.count > 0 ? acc.sumApproach / acc.count : 0,
+  //     }))
+  //     .sort((a, b) => a.interval.localeCompare(b.interval));
+  // }
 
   // static calculateWaterMetricsByTower(
   //   data: any[],

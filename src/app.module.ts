@@ -4,14 +4,13 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
-import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
-import { RolesModule } from './roles/roles.module';
-import { PrivellegesModule } from './privelleges/privelleges.module';
-import { NodeRedLinkModule } from './nodered/node_red_link.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { DatabaseModule } from './dashboard/database.module';
-import { DatabaseProvider } from './dashboard/database.provider';
+import { NodeRedLinkModule } from './nodered/node_red_link.module';
+import { PrivellegesModule } from './privelleges/privelleges.module';
+import { RolesModule } from './roles/roles.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [

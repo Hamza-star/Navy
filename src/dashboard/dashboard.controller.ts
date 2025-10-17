@@ -7,10 +7,10 @@ export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
   /** ---------------------------------------------------
-   * 🧭 DASHBOARD 1 — BASIC LEVEL
+   *  DASHBOARD 1 — BASIC LEVEL
    * --------------------------------------------------- */
 
-  // 🎯 Metrics
+  //  Metrics
   @Get('operator-level')
   async getDashboard1Metrics(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
@@ -25,7 +25,7 @@ export class DashboardController {
     return metrics;
   }
 
-  // 📊 Electrical Stability Chart
+  // Electrical Stability Chart
   @Get('operator-level/electrical-stability')
   async getElectricalStabilityChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
@@ -40,7 +40,7 @@ export class DashboardController {
     return charts.electricalStability;
   }
 
-  // 📊 Load Sharing Chart
+  // Load Sharing Chart
   @Get('operator-level/load-sharing')
   async getLoadSharingChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
@@ -55,7 +55,22 @@ export class DashboardController {
     return charts.loadSharing;
   }
 
-  // 📊 Engine Thermal Chart
+  // Current Imbalance + Neutral Current Chart
+  @Get('operator-level/current-balance')
+  async getCurrentImbalanceNeutralChart(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboard1Data(
+      mode,
+      start,
+      end,
+    );
+    return charts.currentImbalanceNeutral;
+  }
+
+  // Engine Thermal Chart
   @Get('operator-level/engine-thermal')
   async getEngineThermalChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
@@ -70,7 +85,7 @@ export class DashboardController {
     return charts.engineThermal;
   }
 
-  // 📊 Lubrication Chart
+  // Lubrication Chart
   @Get('operator-level/lube-pressure')
   async getLubricationChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
@@ -85,7 +100,7 @@ export class DashboardController {
     return charts.lubrication;
   }
 
-  // 📊 Fuel Demand Chart
+  // Fuel Demand Chart
   @Get('operator-level/fuel-demand')
   async getFuelDemandChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
@@ -101,11 +116,11 @@ export class DashboardController {
   }
 
   /** ---------------------------------------------------
-   * ⚙️ DASHBOARD 2 — ENGINEER LEVEL
+   *  DASHBOARD 2 — ENGINEER LEVEL
    * --------------------------------------------------- */
 
-  // 🎯 Metrics
-  @Get('dashboard2/metrics')
+  // Metrics
+  @Get('engineer-level')
   async getDashboard2Metrics(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -119,8 +134,8 @@ export class DashboardController {
     return metrics;
   }
 
-  // 📊 Phase Balance Effectiveness Chart
-  @Get('dashboard2/charts/phase-balance-effectiveness')
+  // Phase Balance Effectiveness Chart
+  @Get('engineer-level/phase-balance-effectiveness')
   async getPhaseBalanceEffectivenessChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -134,8 +149,8 @@ export class DashboardController {
     return charts.phaseBalanceEffectiveness;
   }
 
-  // 📊 Voltage Quality & Symmetry Chart
-  @Get('dashboard2/charts/voltage-quality-symmetry')
+  // Voltage Quality & Symmetry Chart
+  @Get('engineer-level/voltage-quality-symmetry')
   async getVoltageQualitySymmetryChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -149,8 +164,8 @@ export class DashboardController {
     return charts.voltageQualitySymmetry;
   }
 
-  // 📊 Load vs Power Factor Chart
-  @Get('dashboard2/charts/load-vs-powerfactor')
+  // Load vs Power Factor Chart
+  @Get('engineer-level/load-vs-powerfactor')
   async getLoadVsPowerFactorChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -164,8 +179,8 @@ export class DashboardController {
     return charts.loadVsPowerFactor;
   }
 
-  // 📊 Electro–Mechanical Stress Chart
-  @Get('dashboard2/charts/electromechanical-stress')
+  // Electro–Mechanical Stress Chart
+  @Get('engineer-level/electromechanical-stress')
   async getElectroMechanicalStressChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -179,8 +194,8 @@ export class DashboardController {
     return charts.electroMechanicalStress;
   }
 
-  // 📊 Losses & Thermal Stress Chart
-  @Get('dashboard2/charts/losses-thermal-stress')
+  // Losses & Thermal Stress Chart
+  @Get('engineer-level/losses-thermal-stress')
   async getLossesThermalStressChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -194,8 +209,8 @@ export class DashboardController {
     return charts.lossesThermalStress;
   }
 
-  // 📊 Frequency Regulation Effectiveness Chart
-  @Get('dashboard2/charts/frequency-regulation-effectiveness')
+  // Frequency Regulation Effectiveness Chart
+  @Get('engineer-level/frequency-regulation-effectiveness')
   async getFrequencyRegulationEffectivenessChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -209,8 +224,8 @@ export class DashboardController {
     return charts.frequencyRegulationEffectiveness;
   }
 
-  // 📊 Current & Voltage Imbalance Chart
-  @Get('dashboard2/charts/current-voltage-imbalance')
+  // Current & Voltage Imbalance Chart
+  @Get('engineer-level/current-voltage-imbalance')
   async getCurrentVoltageImbalanceChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,

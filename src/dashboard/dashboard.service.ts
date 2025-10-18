@@ -1,3 +1,4 @@
+/* eslint-disable no-case-declarations */
 // /* eslint-disable @typescript-eslint/no-unsafe-return */
 // /* eslint-disable @typescript-eslint/no-unsafe-call */
 // /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -395,7 +396,7 @@ export class DashboardService {
   private collection;
 
   constructor(@Inject('MONGO_CLIENT') private readonly db: Db) {
-    this.collection = this.db.collection('navy');
+    this.collection = this.db.collection('navy_historical');
 
     // ⚡ Indexes for fast queries
     this.collection.createIndex({ timestamp: 1 });

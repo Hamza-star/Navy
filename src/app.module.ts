@@ -11,6 +11,7 @@ import { NodeRedLinkModule } from './nodered/node_red_link.module';
 import { PrivellegesModule } from './privelleges/privelleges.module';
 import { RolesModule } from './roles/roles.module';
 import { UsersModule } from './users/users.module';
+import { TimestampUpdateModule } from './timestamp-update/timestamp-update.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { UsersModule } from './users/users.module';
     NodeRedLinkModule,
     DatabaseModule,
     DashboardModule,
+    TimestampUpdateModule,
   ],
   controllers: [AppController],
   providers: [AppService],

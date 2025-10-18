@@ -239,8 +239,8 @@ export class DashboardController {
     return charts.currentBalanceNeutral;
   }
 
-  // Chart 1: Intake & Boost Pressure
-  @Get('thermal-health/intake-boost')
+  // Chart 1: combustion Air Temperature vs Boost Pressure
+  @Get('thermal-health/combustion-air')
   async getIntakeBoostChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,

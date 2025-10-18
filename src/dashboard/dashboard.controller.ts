@@ -120,7 +120,7 @@ export class DashboardController {
    * --------------------------------------------------- */
 
   // Metrics
-  @Get('engineer-level')
+  @Get('electrical-health')
   async getDashboard2Metrics(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -135,7 +135,7 @@ export class DashboardController {
   }
 
   // Phase Balance Effectiveness Chart
-  @Get('engineer-level/phase-balance-effectiveness')
+  @Get('electrical-health/phase-balance')
   async getPhaseBalanceEffectivenessChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -150,7 +150,7 @@ export class DashboardController {
   }
 
   // Voltage Quality & Symmetry Chart
-  @Get('engineer-level/voltage-quality-symmetry')
+  @Get('electrical-health/voltage-quality')
   async getVoltageQualitySymmetryChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -165,7 +165,7 @@ export class DashboardController {
   }
 
   // Load vs Power Factor Chart
-  @Get('engineer-level/load-vs-powerfactor')
+  @Get('electrical-health/load-power-factor')
   async getLoadVsPowerFactorChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -180,7 +180,7 @@ export class DashboardController {
   }
 
   // Electro–Mechanical Stress Chart
-  @Get('engineer-level/electromechanical-stress')
+  @Get('electrical-health/electro-mechanical-stress')
   async getElectroMechanicalStressChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -195,7 +195,7 @@ export class DashboardController {
   }
 
   // Losses & Thermal Stress Chart
-  @Get('engineer-level/losses-thermal-stress')
+  @Get('electrical-health/losses-thermal')
   async getLossesThermalStressChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -210,7 +210,7 @@ export class DashboardController {
   }
 
   // Frequency Regulation Effectiveness Chart
-  @Get('engineer-level/frequency-regulation-effectiveness')
+  @Get('electrical-health/frequency-regulation')
   async getFrequencyRegulationEffectivenessChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -225,7 +225,7 @@ export class DashboardController {
   }
 
   // Current & Voltage Imbalance Chart
-  @Get('engineer-level/current-voltage-imbalance')
+  @Get('electrical-health/current-voltage-imbalance')
   async getCurrentVoltageImbalanceChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,

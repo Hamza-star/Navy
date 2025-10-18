@@ -1,4 +1,3 @@
-/* eslint-disable no-case-declarations */
 // /* eslint-disable @typescript-eslint/no-unsafe-return */
 // /* eslint-disable @typescript-eslint/no-unsafe-call */
 // /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -11,14 +10,14 @@
 //   private collection;
 
 //   constructor(@Inject('MONGO_CLIENT') private readonly db: Db) {
-//     this.collection = this.db.collection('navy');
+//     this.collection = this.db.collection('navy_historical');
 
 //     // ⚡ Indexes for fast queries
 //     this.collection.createIndex({ timestamp: 1 });
 //     this.collection.createIndex({ Genset_Run_SS: 1, timestamp: 1 });
 //   }
 
-//   /** -------------------
+//   /** -------------------a
 //    * Dashboard 1 - Basic
 //    * ------------------- */
 //   private DASH1_METRICS = {
@@ -51,39 +50,44 @@
 //     fuelDemand: ['Fuel_Rate'],
 //   };
 
+//   private DASH3_CHARTS = {
+//     intakeBoost: ['Intake_Manifold3_Temperature', 'Boost_Pressure'],
+//   };
+
+//   /** -------------------
+//    *  ✅ LIVE = today's full data
+//    *  ✅ RANGE = genset 1–6
+//    * ------------------- */
 //   async getDashboard1Data(
 //     mode: 'live' | 'historic' | 'range',
 //     start?: string,
 //     end?: string,
 //   ) {
-//     const query = this.buildQuery(mode, start, end);
 //     const projection = this.getProjectionFieldsDashboard1();
+//     let query = this.buildQuery(mode, start, end);
 //     let data: any[] = [];
 
-//     // if (mode === 'live') {
-//     //   data = await this.collection
-//     //     .find({}, { projection })
-//     //     .sort({ timestamp: -1 })
-//     //     .limit(1)
-//     //     .toArray();
-//     //   if (!data.length) return { metrics: {}, charts: {} };
-//     //   return {
-//     //     metrics: this.mapMetrics(data[0], this.DASH1_METRICS),
-//     //     charts: this.mapCharts(data, this.DASH1_CHARTS),
-//     //   };
-//     // }
-
+//     // ✅ LIVE MODE — today’s complete data
 //     if (mode === 'live') {
-//   const startOfDay = new Date();
-//   startOfDay.setHours(0, 0, 0, 0);
+//       const startOfDay = new Date();
+//       startOfDay.setHours(0, 0, 0, 0);
+//       query = { timestamp: { $gte: startOfDay.toISOString() } };
+//       data = await this.collection
+//         .find(query, { projection })
+//         .sort({ timestamp: 1 })
+//         .toArray();
 
-//   const query = { timestamp: { $gte: startOfDay.toISOString() } };
-//   data = await this.collection
-//     .find(query, { projection })
-//     .sort({ timestamp: 1 })
-//     .toArray();
+//       if (!data.length) return { metrics: {}, charts: {} };
+//       const latest = data[data.length - 1];
+//       return {
+//         metrics: this.mapMetrics(latest, this.DASH1_METRICS),
+//         charts: this.mapCharts(data, this.DASH1_CHARTS),
+//       };
+//     }
 
+//     // HISTORIC & RANGE
 //     if (!query) return { metrics: {}, charts: {} };
+
 //     data = await this.collection
 //       .find(query, { projection })
 //       .sort({ timestamp: 1 })
@@ -108,17 +112,6 @@
 //   /** -------------------
 //    * Dashboard 2 - Engineer Level
 //    * ------------------- */
-//   private DASH2_METRICS = {
-//     // Basic + 3 phase voltages + active power
-//     ...this.DASH1_METRICS,
-//     voltageL1: (doc: any) => doc.Genset_L1L2_Voltage || 0,
-//     voltageL2: (doc: any) => doc.Genset_L2L3_Voltage || 0,
-//     voltageL3: (doc: any) => doc.Genset_L3L1_Voltage || 0,
-//     activePowerL1: (doc: any) => doc.Genset_L1_Active_Power || 0,
-//     activePowerL2: (doc: any) => doc.Genset_L2_Active_Power || 0,
-//     activePowerL3: (doc: any) => doc.Genset_L3_Active_Power || 0,
-//   };
-
 //   private DASH2_CHARTS = {
 //     phaseBalanceEffectiveness: [
 //       'Genset_L1_Current',
@@ -144,24 +137,31 @@
 //     start?: string,
 //     end?: string,
 //   ) {
-//     const query = this.buildQuery(mode, start, end);
 //     const projection = this.getProjectionFieldsDashboard2();
+//     let query = this.buildQuery(mode, start, end);
 //     let data: any[] = [];
 
+//     // ✅ LIVE MODE — today's complete data
 //     if (mode === 'live') {
+//       const startOfDay = new Date();
+//       startOfDay.setHours(0, 0, 0, 0);
+//       query = { timestamp: { $gte: startOfDay.toISOString() } };
 //       data = await this.collection
-//         .find({}, { projection })
-//         .sort({ timestamp: -1 })
-//         .limit(1)
+//         .find(query, { projection })
+//         .sort({ timestamp: 1 })
 //         .toArray();
+
 //       if (!data.length) return { metrics: {}, charts: {} };
+//       const latest = data[data.length - 1];
 //       return {
-//         metrics: this.mapMetricsDashboard2(data[0]),
+//         metrics: this.mapMetricsDashboard2(latest),
 //         charts: this.mapChartsDashboard2(data),
 //       };
 //     }
 
+//     // HISTORIC & RANGE
 //     if (!query) return { metrics: {}, charts: {} };
+
 //     data = await this.collection
 //       .find(query, { projection })
 //       .sort({ timestamp: 1 })
@@ -196,7 +196,7 @@
 //   private mapCharts(data: any[], definitions: any) {
 //     const charts: Record<string, any[]> = {};
 
-//     // existing charts (electricalStability, loadSharing, etc.)
+//     // Standard charts
 //     for (const chartName in definitions) {
 //       charts[chartName] = data.map((d) => {
 //         const entry: any = { time: d.timestamp };
@@ -214,7 +214,6 @@
 //       const avgCurrent = (IA + IB + IC) / 3 || 1;
 //       const currentImbalance =
 //         ((Math.max(IA, IB, IC) - Math.min(IA, IB, IC)) / avgCurrent) * 100;
-
 //       const neutralCurrent = Math.sqrt(
 //         IA ** 2 + IB ** 2 + IC ** 2 - IA * IB - IB * IC - IC * IA,
 //       );
@@ -229,9 +228,16 @@
 //     return charts;
 //   }
 
-//   // Dashboard2 specialized metrics mapping
+//   /** ✅ Dashboard 2 — Only voltage & power metrics */
 //   private mapMetricsDashboard2(doc: any) {
-//     const metrics = this.mapMetrics(doc, this.DASH2_METRICS);
+//     const metrics: Record<string, number> = {
+//       voltageL1: doc.Genset_L1L2_Voltage || 0,
+//       voltageL2: doc.Genset_L2L3_Voltage || 0,
+//       voltageL3: doc.Genset_L3L1_Voltage || 0,
+//       activePowerL1: doc.Genset_L1_Active_Power || 0,
+//       activePowerL2: doc.Genset_L2_Active_Power || 0,
+//       activePowerL3: doc.Genset_L3_Active_Power || 0,
+//     };
 
 //     // Current imbalance
 //     const IA = doc.Genset_L1_Current || 0;
@@ -265,14 +271,52 @@
 //     return metrics;
 //   }
 
+//   /** ✅ Dashboard 2 — Charts with imbalance added */
 //   private mapChartsDashboard2(data: any[]) {
 //     const charts: Record<string, any[]> = {};
 
-//     // Standard charts
-//     for (const chartName in this.DASH2_CHARTS) {
-//       charts[chartName] = data.map((d) => {
+//     // ⚡ Phase Balance Effectiveness (Currents + Imbalance)
+//     charts.phaseBalanceEffectiveness = data.map((d) => {
+//       const IA = d.Genset_L1_Current || 0;
+//       const IB = d.Genset_L2_Current || 0;
+//       const IC = d.Genset_L3_Current || 0;
+//       const avgCurrent = (IA + IB + IC) / 3 || 1;
+//       const currentImbalance =
+//         ((Math.max(IA, IB, IC) - Math.min(IA, IB, IC)) / avgCurrent) * 100;
+
+//       return {
+//         time: d.timestamp,
+//         Genset_L1_Current: IA,
+//         Genset_L2_Current: IB,
+//         Genset_L3_Current: IC,
+//         currentImbalance: +currentImbalance.toFixed(2),
+//       };
+//     });
+
+//     // ⚡ Voltage Quality & Symmetry (Voltages + Imbalance)
+//     charts.voltageQualitySymmetry = data.map((d) => {
+//       const VL1 = d.Genset_L1L2_Voltage || 0;
+//       const VL2 = d.Genset_L2L3_Voltage || 0;
+//       const VL3 = d.Genset_L3L1_Voltage || 0;
+//       const vAvg = (VL1 + VL2 + VL3) / 3 || 1;
+//       const voltageImbalance =
+//         ((Math.max(VL1, VL2, VL3) - Math.min(VL1, VL2, VL3)) / vAvg) * 100;
+
+//       return {
+//         time: d.timestamp,
+//         Genset_L1L2_Voltage: VL1,
+//         Genset_L2L3_Voltage: VL2,
+//         Genset_L3L1_Voltage: VL3,
+//         voltageImbalance: +voltageImbalance.toFixed(2),
+//       };
+//     });
+
+//     // Other existing charts unchanged
+//     for (const name of Object.keys(this.DASH2_CHARTS)) {
+//       if (charts[name]) continue; // skip ones we already handled
+//       charts[name] = data.map((d) => {
 //         const entry: any = { time: d.timestamp };
-//         this.DASH2_CHARTS[chartName].forEach((field) => {
+//         this.DASH2_CHARTS[name].forEach((field) => {
 //           switch (field) {
 //             case 'LoadPercent':
 //               entry[field] = d.Genset_Application_kW_Rating_PC2X
@@ -298,29 +342,6 @@
 //       });
 //     }
 
-//     // Current & voltage imbalance
-//     charts.currentBalanceNeutral = data.map((d) => {
-//       const IA = d.Genset_L1_Current || 0;
-//       const IB = d.Genset_L2_Current || 0;
-//       const IC = d.Genset_L3_Current || 0;
-//       const avgCurrent = (IA + IB + IC) / 3 || 1;
-//       const currentImbalance =
-//         ((Math.max(IA, IB, IC) - Math.min(IA, IB, IC)) / avgCurrent) * 100;
-
-//       const VL1 = d.Genset_L1L2_Voltage || 0;
-//       const VL2 = d.Genset_L2L3_Voltage || 0;
-//       const VL3 = d.Genset_L3L1_Voltage || 0;
-//       const vAvg = (VL1 + VL2 + VL3) / 3 || 1;
-//       const voltageImbalance =
-//         ((Math.max(VL1, VL2, VL3) - Math.min(VL1, VL2, VL3)) / vAvg) * 100;
-
-//       return {
-//         time: d.timestamp,
-//         currentImbalance: +currentImbalance.toFixed(2),
-//         voltageImbalance: +voltageImbalance.toFixed(2),
-//       };
-//     });
-
 //     return charts;
 //   }
 
@@ -339,11 +360,12 @@
 //     return +duration.toFixed(2);
 //   }
 
+//   /** ✅ Range now covers Genset_Run_SS 1–6 */
 //   private buildQuery(mode: string, start?: string, end?: string) {
 //     const query: any = {};
 //     if (mode === 'historic' && start && end)
 //       query.timestamp = { $gte: start, $lte: end };
-//     if (mode === 'range') query.Genset_Run_SS = 1;
+//     if (mode === 'range') query.Genset_Run_SS = { $gte: 1, $lte: 6 };
 //     if (start && end) query.timestamp = { $gte: start, $lte: end };
 //     return query;
 //   }
@@ -382,14 +404,117 @@
 //       I2Rated: 1,
 //     };
 //   }
+
+//   /** 🧠 Main Data Fetcher */
+//   async getDashboard3Data(
+//     mode: 'live' | 'historic' | 'range',
+//     start?: string,
+//     end?: string,
+//   ) {
+//     const projection = this.getProjectionFieldsDashboard3();
+//     let query = this.buildQuery(mode, start, end);
+//     let data: any[] = [];
+
+//     // ✅ LIVE MODE — today’s data
+//     if (mode === 'live') {
+//       const startOfDay = new Date();
+//       startOfDay.setHours(0, 0, 0, 0);
+//       query = { timestamp: { $gte: startOfDay.toISOString() } };
+
+//       data = await this.collection
+//         .find(query, { projection })
+//         .sort({ timestamp: 1 })
+//         .toArray();
+
+//       if (!data.length) return { metrics: {}, charts: {} };
+
+//       return {
+//         metrics: this.mapMetricsDashboard3(data[data.length - 1]),
+//         charts: this.mapChartsDashboard3(data),
+//       };
+//     }
+
+//     // ✅ HISTORIC / RANGE MODES
+//     if (!query) return { metrics: {}, charts: {} };
+
+//     data = await this.collection
+//       .find(query, { projection })
+//       .sort({ timestamp: 1 })
+//       .toArray();
+
+//     if (!data.length)
+//       return {
+//         metrics: mode === 'range' ? { onDurationMinutes: 0 } : {},
+//         charts: {},
+//       };
+
+//     const latest = data[data.length - 1];
+//     let metrics = this.mapMetricsDashboard3(latest);
+
+//     // ⏱️ Include duration if range mode
+//     if (mode === 'range')
+//       metrics = {
+//         ...metrics,
+//         onDurationMinutes: this.calculateOnDuration(data),
+//       };
+
+//     return { metrics, charts: this.mapChartsDashboard3(data) };
+//   }
+
+//   /** 🧮 Metrics Mapper */
+//   private mapMetricsDashboard3(doc: any): CoolingMetrics {
+//     return {
+//       intakeTemperature: doc.Intake_Manifold3_Temperature ?? 0,
+//       boostPressure: doc.Boost_Pressure ?? 0,
+//       coolingMargin: this.calculateCoolingMargin(doc),
+//     };
+//   }
+
+//   /** 🌡️ Cooling Margin = Coolant - AfterCooler */
+//   private calculateCoolingMargin(doc: any): number {
+//     const coolant = doc.Coolant_Temperature ?? 0;
+//     const afterCooler = doc.AfterCooler_Temperature ?? 0;
+//     return +(coolant - afterCooler).toFixed(2);
+//   }
+
+//   /** 📈 Chart Mapper */
+//   private mapChartsDashboard3(data: any[]): Record<string, any[]> {
+//     const charts: Record<string, any[]> = {};
+
+//     // Chart 1: Intake & Boost Pressure
+//     charts.intakeBoost = data.map((d) => ({
+//       time: d.timestamp,
+//       Intake_Manifold3_Temperature: d.Intake_Manifold3_Temperature,
+//       Boost_Pressure: d.Boost_Pressure,
+//     }));
+
+//     // Chart 2: Cooling Margin
+//     charts.coolingMargin = data.map((d) => ({
+//       time: d.timestamp,
+//       Cooling_Margin: this.calculateCoolingMargin(d),
+//       Coolant_Temperature: d.Coolant_Temperature ?? 0,
+//       AfterCooler_Temperature: d.AfterCooler_Temperature ?? 0,
+//     }));
+
+//     return charts;
+//   }
+
 // }
 
+/* eslint-disable no-case-declarations */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Inject, Injectable } from '@nestjs/common';
 import { Db } from 'mongodb';
+
+interface CoolingMetrics {
+  intakeTemperature: number;
+  boostPressure: number;
+  coolingMargin: number;
+  onDurationMinutes?: number;
+}
 
 @Injectable()
 export class DashboardService {
@@ -404,7 +529,7 @@ export class DashboardService {
   }
 
   /** -------------------
-   * Dashboard 1 - Basic
+   * Dashboard 1 – Basic
    * ------------------- */
   private DASH1_METRICS = {
     load: (doc: any) =>
@@ -437,63 +562,18 @@ export class DashboardService {
   };
 
   /** -------------------
-   *  ✅ LIVE = today's full data
-   *  ✅ RANGE = genset 1–6
+   * Dashboard 2 – Engineer Level
    * ------------------- */
-  async getDashboard1Data(
-    mode: 'live' | 'historic' | 'range',
-    start?: string,
-    end?: string,
-  ) {
-    const projection = this.getProjectionFieldsDashboard1();
-    let query = this.buildQuery(mode, start, end);
-    let data: any[] = [];
+  private DASH2_METRICS = {
+    ...this.DASH1_METRICS,
+    voltageL1: (doc: any) => doc.Genset_L1L2_Voltage || 0,
+    voltageL2: (doc: any) => doc.Genset_L2L3_Voltage || 0,
+    voltageL3: (doc: any) => doc.Genset_L3L1_Voltage || 0,
+    activePowerL1: (doc: any) => doc.Genset_L1_Active_Power || 0,
+    activePowerL2: (doc: any) => doc.Genset_L2_Active_Power || 0,
+    activePowerL3: (doc: any) => doc.Genset_L3_Active_Power || 0,
+  };
 
-    // ✅ LIVE MODE — today’s complete data
-    if (mode === 'live') {
-      const startOfDay = new Date();
-      startOfDay.setHours(0, 0, 0, 0);
-      query = { timestamp: { $gte: startOfDay.toISOString() } };
-      data = await this.collection
-        .find(query, { projection })
-        .sort({ timestamp: 1 })
-        .toArray();
-
-      if (!data.length) return { metrics: {}, charts: {} };
-      const latest = data[data.length - 1];
-      return {
-        metrics: this.mapMetrics(latest, this.DASH1_METRICS),
-        charts: this.mapCharts(data, this.DASH1_CHARTS),
-      };
-    }
-
-    // HISTORIC & RANGE
-    if (!query) return { metrics: {}, charts: {} };
-
-    data = await this.collection
-      .find(query, { projection })
-      .sort({ timestamp: 1 })
-      .toArray();
-    if (!data.length)
-      return {
-        metrics: mode === 'range' ? { onDurationMinutes: 0 } : {},
-        charts: {},
-      };
-
-    const latest = data[data.length - 1];
-    let metrics = this.mapMetrics(latest, this.DASH1_METRICS);
-    if (mode === 'range')
-      metrics = {
-        ...metrics,
-        onDurationMinutes: this.calculateOnDuration(data),
-      };
-
-    return { metrics, charts: this.mapCharts(data, this.DASH1_CHARTS) };
-  }
-
-  /** -------------------
-   * Dashboard 2 - Engineer Level
-   * ------------------- */
   private DASH2_CHARTS = {
     phaseBalanceEffectiveness: [
       'Genset_L1_Current',
@@ -514,6 +594,61 @@ export class DashboardService {
     ],
   };
 
+  /** -------------------
+   * Dashboard 3 – Maintenance Level
+   * ------------------- */
+  private DASH3_CHARTS = {
+    intakeBoost: ['Intake_Manifold3_Temperature', 'Boost_Pressure'],
+  };
+
+  async getDashboard1Data(
+    mode: 'live' | 'historic' | 'range',
+    start?: string,
+    end?: string,
+  ) {
+    const projection = this.getProjectionFieldsDashboard1();
+    let query = this.buildQuery(mode, start, end);
+    let data: any[] = [];
+
+    if (mode === 'live') {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      query = { timestamp: { $gte: startOfDay.toISOString() } };
+      data = await this.collection
+        .find(query, { projection })
+        .sort({ timestamp: 1 })
+        .toArray();
+      if (!data.length) return { metrics: {}, charts: {} };
+      const latest = data[data.length - 1];
+      return {
+        metrics: this.mapMetrics(latest, this.DASH1_METRICS),
+        charts: this.mapCharts(data, this.DASH1_CHARTS),
+      };
+    }
+
+    if (!query) return { metrics: {}, charts: {} };
+    data = await this.collection
+      .find(query, { projection })
+      .sort({ timestamp: 1 })
+      .toArray();
+    if (!data.length)
+      return {
+        metrics: mode === 'range' ? { onDurationMinutes: 0 } : {},
+        charts: {},
+      };
+
+    const latest = data[data.length - 1];
+    let metrics = this.mapMetrics(latest, this.DASH1_METRICS);
+    if (mode === 'range') {
+      metrics = {
+        ...metrics,
+        onDurationMinutes: this.calculateOnDuration(data),
+      };
+    }
+
+    return { metrics, charts: this.mapCharts(data, this.DASH1_CHARTS) };
+  }
+
   async getDashboard2Data(
     mode: 'live' | 'historic' | 'range',
     start?: string,
@@ -523,7 +658,6 @@ export class DashboardService {
     let query = this.buildQuery(mode, start, end);
     let data: any[] = [];
 
-    // ✅ LIVE MODE — today's complete data
     if (mode === 'live') {
       const startOfDay = new Date();
       startOfDay.setHours(0, 0, 0, 0);
@@ -532,7 +666,6 @@ export class DashboardService {
         .find(query, { projection })
         .sort({ timestamp: 1 })
         .toArray();
-
       if (!data.length) return { metrics: {}, charts: {} };
       const latest = data[data.length - 1];
       return {
@@ -541,9 +674,7 @@ export class DashboardService {
       };
     }
 
-    // HISTORIC & RANGE
     if (!query) return { metrics: {}, charts: {} };
-
     data = await this.collection
       .find(query, { projection })
       .sort({ timestamp: 1 })
@@ -556,38 +687,122 @@ export class DashboardService {
 
     const latest = data[data.length - 1];
     let metrics = this.mapMetricsDashboard2(latest);
-    if (mode === 'range')
+    if (mode === 'range') {
       metrics = {
         ...metrics,
         onDurationMinutes: this.calculateOnDuration(data),
       };
+    }
 
     return { metrics, charts: this.mapChartsDashboard2(data) };
   }
 
-  /** -------------------
-   * Shared Helper Functions
-   * ------------------- */
+  async getDashboard3Data(
+    mode: 'live' | 'historic' | 'range',
+    start?: string,
+    end?: string,
+  ) {
+    const projection = this.getProjectionFieldsDashboard3();
+    let query = this.buildQuery(mode, start, end);
+    let data: any[] = [];
+
+    if (mode === 'live') {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      query = { timestamp: { $gte: startOfDay.toISOString() } };
+      data = await this.collection
+        .find(query, { projection })
+        .sort({ timestamp: 1 })
+        .toArray();
+      if (!data.length) return { metrics: {}, charts: {} };
+
+      return {
+        metrics: this.mapMetricsDashboard3(data[data.length - 1]),
+        charts: this.mapChartsDashboard3(data),
+      };
+    }
+
+    if (!query) return { metrics: {}, charts: {} };
+    data = await this.collection
+      .find(query, { projection })
+      .sort({ timestamp: 1 })
+      .toArray();
+    if (!data.length)
+      return {
+        metrics: mode === 'range' ? { onDurationMinutes: 0 } : {},
+        charts: {},
+      };
+
+    const latest = data[data.length - 1];
+    let metrics = this.mapMetricsDashboard3(latest);
+    if (mode === 'range') {
+      metrics = {
+        ...metrics,
+        onDurationMinutes: this.calculateOnDuration(data),
+      };
+    }
+    return { metrics, charts: this.mapChartsDashboard3(data) };
+  }
+
   private mapMetrics(doc: any, definitions: any) {
     const metrics: Record<string, number> = {};
-    for (const key in definitions)
+    for (const key in definitions) {
       metrics[key] = +definitions[key](doc).toFixed(2);
+    }
+    return metrics;
+  }
+
+  private mapMetricsDashboard2(doc: any): Record<string, number> {
+    const metrics: Record<string, number> = {
+      voltageL1: doc.Genset_L1L2_Voltage || 0,
+      voltageL2: doc.Genset_L2L3_Voltage || 0,
+      voltageL3: doc.Genset_L3L1_Voltage || 0,
+      activePowerL1: doc.Genset_L1_Active_Power || 0,
+      activePowerL2: doc.Genset_L2_Active_Power || 0,
+      activePowerL3: doc.Genset_L3_Active_Power || 0,
+    };
+
+    const IA = doc.Genset_L1_Current || 0;
+    const IB = doc.Genset_L2_Current || 0;
+    const IC = doc.Genset_L3_Current || 0;
+    const avgCurrent = (IA + IB + IC) / 3 || 1;
+    metrics.currentImbalance = +(
+      ((Math.max(IA, IB, IC) - Math.min(IA, IB, IC)) / avgCurrent) *
+      100
+    ).toFixed(2);
+
+    const VL1 = doc.Genset_L1L2_Voltage || 0;
+    const VL2 = doc.Genset_L2L3_Voltage || 0;
+    const VL3 = doc.Genset_L3L1_Voltage || 0;
+    const vAvg = (VL1 + VL2 + VL3) / 3 || 1;
+    metrics.voltageImbalance = +(
+      ((Math.max(VL1, VL2, VL3) - Math.min(VL1, VL2, VL3)) / vAvg) *
+      100
+    ).toFixed(2);
+
+    const pf = doc.Genset_Total_Power_Factor_calculated || 1;
+    metrics.powerLossFactor = +(1 / (pf * pf)).toFixed(2);
+
+    const I2 = IA ** 2 + IB ** 2 + IC ** 2;
+    const I2Rated = doc.I2Rated || 1;
+    metrics.thermalStress = +(I2 / I2Rated).toFixed(2);
+
     return metrics;
   }
 
   private mapCharts(data: any[], definitions: any) {
     const charts: Record<string, any[]> = {};
 
-    // Standard charts
     for (const chartName in definitions) {
       charts[chartName] = data.map((d) => {
         const entry: any = { time: d.timestamp };
-        definitions[chartName].forEach((field) => (entry[field] = d[field]));
+        definitions[chartName].forEach((field: string) => {
+          entry[field] = d[field];
+        });
         return entry;
       });
     }
 
-    // ⚡ Add Current Imbalance + Neutral Current chart for Dashboard 1
     charts.currentImbalanceNeutral = data.map((d) => {
       const IA = d.Genset_L1_Current || 0;
       const IB = d.Genset_L2_Current || 0;
@@ -610,58 +825,13 @@ export class DashboardService {
     return charts;
   }
 
-  /** ✅ Dashboard 2 — Only voltage & power metrics */
-  private mapMetricsDashboard2(doc: any) {
-    const metrics: Record<string, number> = {
-      voltageL1: doc.Genset_L1L2_Voltage || 0,
-      voltageL2: doc.Genset_L2L3_Voltage || 0,
-      voltageL3: doc.Genset_L3L1_Voltage || 0,
-      activePowerL1: doc.Genset_L1_Active_Power || 0,
-      activePowerL2: doc.Genset_L2_Active_Power || 0,
-      activePowerL3: doc.Genset_L3_Active_Power || 0,
-    };
-
-    // Current imbalance
-    const IA = doc.Genset_L1_Current || 0;
-    const IB = doc.Genset_L2_Current || 0;
-    const IC = doc.Genset_L3_Current || 0;
-    const avgCurrent = (IA + IB + IC) / 3 || 1;
-    metrics.currentImbalance = +(
-      ((Math.max(IA, IB, IC) - Math.min(IA, IB, IC)) / avgCurrent) *
-      100
-    ).toFixed(2);
-
-    // Voltage imbalance
-    const VL1 = doc.Genset_L1L2_Voltage || 0;
-    const VL2 = doc.Genset_L2L3_Voltage || 0;
-    const VL3 = doc.Genset_L3L1_Voltage || 0;
-    const vAvg = (VL1 + VL2 + VL3) / 3 || 1;
-    metrics.voltageImbalance = +(
-      ((Math.max(VL1, VL2, VL3) - Math.min(VL1, VL2, VL3)) / vAvg) *
-      100
-    ).toFixed(2);
-
-    // Power loss factor
-    const pf = doc.Genset_Total_Power_Factor_calculated || 1;
-    metrics.powerLossFactor = +(1 / (pf * pf)).toFixed(2);
-
-    // Thermal stress
-    const I2 = IA ** 2 + IB ** 2 + IC ** 2;
-    const I2Rated = doc.I2Rated || 1;
-    metrics.thermalStress = +(I2 / I2Rated).toFixed(2);
-
-    return metrics;
-  }
-
-  /** ✅ Dashboard 2 — Charts with imbalance added */
-  private mapChartsDashboard2(data: any[]) {
+  private mapChartsDashboard2(data: any[]): Record<string, any[]> {
     const charts: Record<string, any[]> = {};
 
-    // ⚡ Phase Balance Effectiveness (Currents + Imbalance)
     charts.phaseBalanceEffectiveness = data.map((d) => {
       const IA = d.Genset_L1_Current || 0;
       const IB = d.Genset_L2_Current || 0;
-      const IC = d.Genset_L3_Current || 0;
+      const IC = d.Genset_L3_CURRENT || 0;
       const avgCurrent = (IA + IB + IC) / 3 || 1;
       const currentImbalance =
         ((Math.max(IA, IB, IC) - Math.min(IA, IB, IC)) / avgCurrent) * 100;
@@ -675,7 +845,6 @@ export class DashboardService {
       };
     });
 
-    // ⚡ Voltage Quality & Symmetry (Voltages + Imbalance)
     charts.voltageQualitySymmetry = data.map((d) => {
       const VL1 = d.Genset_L1L2_Voltage || 0;
       const VL2 = d.Genset_L2L3_Voltage || 0;
@@ -693,12 +862,11 @@ export class DashboardService {
       };
     });
 
-    // Other existing charts unchanged
     for (const name of Object.keys(this.DASH2_CHARTS)) {
-      if (charts[name]) continue; // skip ones we already handled
+      if (charts[name]) continue;
       charts[name] = data.map((d) => {
         const entry: any = { time: d.timestamp };
-        this.DASH2_CHARTS[name].forEach((field) => {
+        this.DASH2_CHARTS[name].forEach((field: string) => {
           switch (field) {
             case 'LoadPercent':
               entry[field] = d.Genset_Application_kW_Rating_PC2X
@@ -711,10 +879,10 @@ export class DashboardService {
               entry[field] = 1 / (pf * pf);
               break;
             case 'I2':
-              const IA = d.Genset_L1_Current || 0;
-              const IB = d.Genset_L2_Current || 0;
-              const IC = d.Genset_L3_Current || 0;
-              entry[field] = IA ** 2 + IB ** 2 + IC ** 2;
+              const IA2 = d.Genset_L1_Current || 0;
+              const IB2 = d.Genset_L2_CURRENT || 0;
+              const IC2 = d.Genset_L3_CURRENT || 0;
+              entry[field] = IA2 ** 2 + IB2 ** 2 + IC2 ** 2;
               break;
             default:
               entry[field] = d[field];
@@ -727,29 +895,39 @@ export class DashboardService {
     return charts;
   }
 
-  /** -------------------
-   * Shared helpers
-   * ------------------- */
-  private calculateOnDuration(data: any[]): number {
-    if (data.length < 2) return 0;
-    let duration = 0;
-    for (let i = 1; i < data.length; i++) {
-      duration +=
-        (new Date(data[i].timestamp).getTime() -
-          new Date(data[i - 1].timestamp).getTime()) /
-        60000;
-    }
-    return +duration.toFixed(2);
+  private mapMetricsDashboard3(doc: any): CoolingMetrics {
+    return {
+      intakeTemperature: doc.Intake_Manifold3_Temperature ?? 0,
+      boostPressure: doc.Boost_Pressure ?? 0,
+      coolingMargin: this.calculateCoolingMargin(doc),
+    };
   }
 
-  /** ✅ Range now covers Genset_Run_SS 1–6 */
-  private buildQuery(mode: string, start?: string, end?: string) {
-    const query: any = {};
-    if (mode === 'historic' && start && end)
-      query.timestamp = { $gte: start, $lte: end };
-    if (mode === 'range') query.Genset_Run_SS = { $gte: 1, $lte: 6 };
-    if (start && end) query.timestamp = { $gte: start, $lte: end };
-    return query;
+  private calculateCoolingMargin(doc: any): number {
+    const coolant = doc.Coolant_Temperature ?? 0;
+    const afterCooler = doc.AfterCooler_Temperature ?? 0;
+    return +(coolant - afterCooler).toFixed(2);
+  }
+
+  private mapChartsDashboard3(data: any[]): Record<string, any[]> {
+    const charts: Record<string, any[]> = {};
+
+    // Chart 1: Intake & Boost
+    charts.intakeBoost = data.map((d) => ({
+      time: d.timestamp,
+      Intake_Manifold3_Temperature: d.Intake_Manifold3_Temperature,
+      Boost_Pressure: d.Boost_Pressure,
+    }));
+
+    // Chart 2: Cooling Margin
+    charts.coolingMargin = data.map((d) => ({
+      time: d.timestamp,
+      Cooling_Margin: this.calculateCoolingMargin(d),
+      Coolant_Temperature: d.Coolant_Temperature ?? 0,
+      AfterCooler_Temperature: d.AfterCooler_Temperature ?? 0,
+    }));
+
+    return charts;
   }
 
   private getProjectionFieldsDashboard1() {
@@ -763,14 +941,14 @@ export class DashboardService {
       Genset_L3L1_Voltage: 1,
       Genset_Frequency_OP_calculated: 1,
       Genset_L1_Current: 1,
-      Genset_L2_Current: 1,
-      Genset_L3_Current: 1,
+      Genset_L2_CURRENT: 1,
+      Genset_L3_CURRENT: 1,
       Coolant_Temperature: 1,
       Oil_Temperature: 1,
       Oil_Pressure: 1,
       Fuel_Rate: 1,
       Total_Fuel_Consumption_calculated: 1,
-      Engine_Running_Time_calculated: 1,
+      Engine_Running_TIME_calculated: 1,
       Battery_Voltage_calculated: 1,
       Genset_Total_Power_Factor_calculated: 1,
       Genset_Run_SS: 1,
@@ -784,6 +962,187 @@ export class DashboardService {
       Genset_L2_Active_Power: 1,
       Genset_L3_Active_Power: 1,
       I2Rated: 1,
+    };
+  }
+
+  private getProjectionFieldsDashboard3() {
+    return {
+      timestamp: 1,
+      Intake_Manifold3_Temperature: 1,
+      Boost_Pressure: 1,
+      Coolant_Temperature: 1,
+      AfterCooler_Temperature: 1,
+    };
+  }
+
+  private calculateOnDuration(data: any[]): number {
+    if (data.length < 2) return 0;
+    let duration = 0;
+    for (let i = 1; i < data.length; i++) {
+      duration +=
+        (new Date(data[i].timestamp).getTime() -
+          new Date(data[i - 1].timestamp).getTime()) /
+        60000;
+    }
+    return +duration.toFixed(2);
+  }
+
+  private buildQuery(mode: string, start?: string, end?: string): any {
+    const query: any = {};
+    if (mode === 'historic' && start && end) {
+      query.timestamp = { $gte: start, $lte: end };
+    }
+    if (mode === 'range') {
+      query.Genset_Run_SS = { $gte: 1, $lte: 6 };
+    }
+    if (start && end) {
+      query.timestamp = { $gte: start, $lte: end };
+    }
+    return query;
+  }
+
+  // dashboard4
+
+  private DASH4_CHARTS = {
+    lubricationRiskIndex: ['Oil_Pressure', 'Oil_Temperature'],
+    oilPressureEngineSpeed: ['Oil_Pressure', 'Averagr_Engine_Speed'],
+    boostFuelOutlet: ['Boost_Pressure', 'Fuel_Outlet_Pressure_calculated'],
+    boostLoad: ['Boost_Pressure', 'LoadPercent'],
+    fuelOutletBiometric: [
+      'Fuel_Outlet_Pressure_calculated',
+      'Barometric_Absolute_Pressure',
+    ],
+  };
+
+  async getDashboard4Data(
+    mode: 'live' | 'historic' | 'range',
+    start?: string,
+    end?: string,
+  ) {
+    const projection = this.getProjectionFieldsDashboard4();
+    let query = this.buildQuery(mode, start, end);
+    let data: any[] = [];
+
+    if (mode === 'live') {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      query = { timestamp: { $gte: startOfDay.toISOString() } };
+      data = await this.collection
+        .find(query, { projection })
+        .sort({ timestamp: 1 })
+        .toArray();
+      if (!data.length) return { metrics: {}, charts: {} };
+
+      return {
+        metrics: this.mapMetricsDashboard4(data[data.length - 1]),
+        charts: this.mapChartsDashboard4(data),
+      };
+    }
+
+    if (!query) return { metrics: {}, charts: {} };
+    data = await this.collection
+      .find(query, { projection })
+      .sort({ timestamp: 1 })
+      .toArray();
+    if (!data.length)
+      return {
+        metrics: mode === 'range' ? { onDurationMinutes: 0 } : {},
+        charts: {},
+      };
+    const latest = data[data.length - 1];
+    let metrics = this.mapMetricsDashboard4(latest);
+    if (mode === 'range') {
+      metrics = {
+        ...(metrics as any), // tell TS it’s okay to add new props
+        onDurationMinutes: this.calculateOnDuration(data),
+      };
+    }
+
+    return { metrics, charts: this.mapChartsDashboard4(data) };
+  }
+
+  private mapMetricsDashboard4(doc: any) {
+    const oilPressure = doc.Oil_Pressure ?? 0;
+    const oilTemp = doc.Oil_Temperature ?? 0;
+    const lubricationRiskIndex =
+      oilTemp !== 0 ? +(oilPressure / oilTemp).toFixed(2) : 0;
+
+    // compute Load% if you don’t have a direct LoadPercent field
+    let loadPercent = 0;
+    if (doc.Genset_Application_kW_Rating_PC2X && doc.Genset_Total_kW) {
+      loadPercent = +(
+        (doc.Genset_Total_kW / doc.Genset_Application_kW_Rating_PC2X) *
+        100
+      ).toFixed(2);
+    }
+
+    return {
+      lubricationRiskIndex,
+      oilPressure,
+      engineSpeed: doc.Averagr_Engine_Speed ?? 0,
+      boostPressure: doc.Boost_Pressure ?? 0,
+      fuelOutletPressure: doc.Fuel_Outlet_Pressure_calculated ?? 0,
+      biometricPressure: doc.Barometric_Absolute_Pressure ?? 0,
+      loadPercent,
+    };
+  }
+
+  private mapChartsDashboard4(data: any[]): Record<string, any[]> {
+    const charts: Record<string, any[]> = {};
+
+    charts.lubricationRiskIndex = data.map((d) => ({
+      time: d.timestamp,
+      Oil_Pressure: d.Oil_Pressure,
+      Oil_Temperature: d.Oil_Temperature,
+      Lubrication_Risk_Index: d.Oil_Temperature
+        ? +(d.Oil_Pressure / d.Oil_Temperature).toFixed(2)
+        : null,
+    }));
+
+    charts.oilPressureEngineSpeed = data.map((d) => ({
+      time: d.timestamp,
+      Oil_Pressure: d.Oil_Pressure,
+      Averagr_Engine_Speed: d.Averagr_Engine_Speed,
+    }));
+
+    charts.boostFuelOutlet = data.map((d) => ({
+      time: d.timestamp,
+      Boost_Pressure: d.Boost_Pressure,
+      Fuel_Outlet_Pressure_calculated: d.Fuel_Outlet_Pressure_calculated,
+    }));
+
+    charts.boostLoad = data.map((d) => ({
+      time: d.timestamp,
+      Boost_Pressure: d.Boost_Pressure,
+      LoadPercent:
+        d.Genset_Application_kW_Rating_PC2X && d.Genset_Total_kW
+          ? +(
+              (d.Genset_Total_kW / d.Genset_Application_kW_Rating_PC2X) *
+              100
+            ).toFixed(2)
+          : null,
+    }));
+
+    charts.fuelOutletBiometric = data.map((d) => ({
+      time: d.timestamp,
+      Fuel_Outlet_Pressure_calculated: d.Fuel_Outlet_Pressure_calculated,
+      Barometric_Absolute_Pressure: d.Barometric_Absolute_Pressure,
+    }));
+
+    return charts;
+  }
+
+  private getProjectionFieldsDashboard4() {
+    return {
+      timestamp: 1,
+      Oil_Pressure: 1,
+      Oil_Temperature: 1,
+      Averagr_Engine_Speed: 1,
+      Boost_Pressure: 1,
+      Fuel_Outlet_Pressure_calculated: 1,
+      Barometric_Absolute_Pressure: 1,
+      Genset_Total_kW: 1,
+      Genset_Application_kW_Rating_PC2X: 1,
     };
   }
 }

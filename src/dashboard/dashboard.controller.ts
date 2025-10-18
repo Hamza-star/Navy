@@ -238,4 +238,128 @@ export class DashboardController {
     );
     return charts.currentBalanceNeutral;
   }
+
+  // Chart 1: Intake & Boost Pressure
+  @Get('thermal-health/intake-boost')
+  async getIntakeBoostChart(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboard3Data(
+      mode,
+      start,
+      end,
+    );
+    return (charts as Record<string, any[]>).intakeBoost ?? [];
+  }
+
+  // Chart 2: Cooling Margin
+  @Get('thermal-health/cooling-margin')
+  async getCoolingMarginChart(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboard3Data(
+      mode,
+      start,
+      end,
+    );
+    return (charts as Record<string, any[]>).coolingMargin ?? [];
+  }
+
+  /** ---------------------------------------------------
+   *  DASHBOARD 4 — lubrication LEVEL
+   * --------------------------------------------------- */
+
+  // Metrics endpoint
+  // @Get('lubrication')
+  // async getDashboard4Metrics(
+  //   @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+  //   @Query('start') start?: string,
+  //   @Query('end') end?: string,
+  // ) {
+  //   const { metrics } = await this.dashboardService.getDashboard4Data(
+  //     mode,
+  //     start,
+  //     end,
+  //   );
+  //   return metrics;
+  // }
+
+  // Chart 1: Lubrication Risk Index
+  @Get('lubrication/lubrication-risk')
+  async getLubricationRiskChart(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboard4Data(
+      mode,
+      start,
+      end,
+    );
+    return (charts as Record<string, any[]>).lubricationRiskIndex ?? [];
+  }
+
+  // Chart 2: Oil Pressure & Engine Speed
+  @Get('lubrication/oil-pressure-engine-speed')
+  async getOilPressureEngineSpeed(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboard4Data(
+      mode,
+      start,
+      end,
+    );
+    return (charts as Record<string, any[]>).oilPressureEngineSpeed ?? [];
+  }
+
+  // Chart 3: Boost & Fuel Outlet Pressure
+  @Get('lubrication/boost-fuel-outlet')
+  async getBoostFuelOutlet(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboard4Data(
+      mode,
+      start,
+      end,
+    );
+    return (charts as Record<string, any[]>).boostFuelOutlet ?? [];
+  }
+
+  // Chart 4: Boost Pressure & Load%
+  @Get('lubrication/boost-load')
+  async getBoostLoadChart(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboard4Data(
+      mode,
+      start,
+      end,
+    );
+    return (charts as Record<string, any[]>).boostLoad ?? [];
+  }
+
+  // Chart 5: Fuel Outlet Pressure & Biometric Pressure
+  @Get('lubrication/fuel-outlet-biometric')
+  async getFuelOutletBiometricChart(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboard4Data(
+      mode,
+      start,
+      end,
+    );
+    return (charts as Record<string, any[]>).fuelOutletBiometric ?? [];
+  }
 }

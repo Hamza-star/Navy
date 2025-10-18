@@ -289,7 +289,7 @@ export class DashboardController {
   // }
 
   // Chart 1: Lubrication Risk Index
-  @Get('lubrication/lubrication-risk')
+  @Get('lubrication/lubrication-health')
   async getLubricationRiskChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -304,7 +304,7 @@ export class DashboardController {
   }
 
   // Chart 2: Oil Pressure & Engine Speed
-  @Get('lubrication/oil-pressure-engine-speed')
+  @Get('lubrication/lub-pressure-response')
   async getOilPressureEngineSpeed(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -319,7 +319,7 @@ export class DashboardController {
   }
 
   // Chart 3: Boost & Fuel Outlet Pressure
-  @Get('lubrication/boost-fuel-outlet')
+  @Get('lubrication/air-fuel-profile')
   async getBoostFuelOutlet(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -334,7 +334,7 @@ export class DashboardController {
   }
 
   // Chart 4: Boost Pressure & Load%
-  @Get('lubrication/boost-load')
+  @Get('lubrication/turbo-effectiveness')
   async getBoostLoadChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -349,7 +349,7 @@ export class DashboardController {
   }
 
   // Chart 5: Fuel Outlet Pressure & Biometric Pressure
-  @Get('lubrication/fuel-outlet-biometric')
+  @Get('lubrication/fuel-ambient-pressure')
   async getFuelOutletBiometricChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,

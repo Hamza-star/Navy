@@ -516,6 +516,15 @@ interface CoolingMetrics {
   onDurationMinutes?: number;
 }
 
+interface Dashboard5Metrics {
+  fuelRate: number; // L/h
+  loadPercent: number; // %
+  airFuelEffectiveness: number; // Boost Pressure / Fuel Rate
+  specificFuelConsumption: number; // L/kWh
+  heatRate: number; // kJ/kWh
+  fuelOutletPressure: number;
+}
+
 @Injectable()
 export class DashboardService {
   private collection;
@@ -1143,6 +1152,164 @@ export class DashboardService {
       Barometric_Absolute_Pressure: 1,
       Genset_Total_kW: 1,
       Genset_Application_kW_Rating_PC2X: 1,
+    };
+  }
+
+  /** -------------------
+   * Dashboard 5 - Fuel & Efficiency
+   * ------------------- */
+
+  async getDashboard5Data(
+    mode: 'live' | 'historic' | 'range',
+    start?: string,
+    end?: string,
+  ) {
+    const projection = this.getProjectionFieldsDashboard5();
+    let query = this.buildQuery(mode, start, end);
+    let data: any[] = [];
+
+    // ✅ LIVE MODE — today's complete data
+    if (mode === 'live') {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      query = { timestamp: { $gte: startOfDay.toISOString() } };
+
+      data = await this.collection
+        .find(query, { projection })
+        .sort({ timestamp: 1 })
+        .toArray();
+
+      if (!data.length) return { metrics: {}, charts: {} };
+
+      return {
+        metrics: this.mapMetricsDashboard5(data[data.length - 1]),
+        charts: this.mapChartsDashboard5(data),
+      };
+    }
+
+    // HISTORIC / RANGE
+    if (!query) return { metrics: {}, charts: {} };
+
+    data = await this.collection
+      .find(query, { projection })
+      .sort({ timestamp: 1 })
+      .toArray();
+
+    if (!data.length)
+      return {
+        metrics: mode === 'range' ? { onDurationMinutes: 0 } : {},
+        charts: {},
+      };
+
+    let metrics = this.mapMetricsDashboard5(data[data.length - 1]);
+
+    if (mode === 'range')
+      metrics = {
+        ...(metrics as any),
+        onDurationMinutes: this.calculateOnDuration(data),
+      };
+
+    return { metrics, charts: this.mapChartsDashboard5(data) };
+  }
+
+  /** 🧮 Metrics Mapper */
+  private mapMetricsDashboard5(doc: any): Dashboard5Metrics {
+    const fuelRate = doc.Fuel_Rate ?? 0; // L/h
+
+    let loadPercent = 0;
+    if (doc.Genset_Application_kW_Rating_PC2X && doc.Genset_Total_kW) {
+      loadPercent = +(
+        (doc.Genset_Total_kW / doc.Genset_Application_kW_Rating_PC2X) *
+        100
+      ).toFixed(2);
+    }
+
+    const boostPressure = doc.Boost_Pressure ?? 0;
+
+    const airFuelEffectiveness =
+      fuelRate !== 0 ? +(boostPressure / fuelRate).toFixed(2) : 0;
+
+    const powerOutput = doc.Genset_Total_kW ?? 1; // avoid division by zero
+    const specificFuelConsumption =
+      powerOutput !== 0 ? +(fuelRate / powerOutput).toFixed(3) : 0; // L/kWh
+
+    const CV = 36000; // kJ/L
+    const heatRate = +(specificFuelConsumption * CV).toFixed(2); // kJ/kWh
+
+    return {
+      fuelRate,
+      loadPercent,
+      airFuelEffectiveness,
+      specificFuelConsumption,
+      heatRate,
+      fuelOutletPressure: doc.Fuel_Outlet_Pressure_calculated ?? 0,
+    };
+  }
+
+  /** 📈 Chart Mapper */
+  private mapChartsDashboard5(data: any[]): Record<string, any[]> {
+    const charts: Record<string, any[]> = {};
+
+    // Chart1: Fuel Rate & Load %
+    charts.fuelRateLoad = data.map((d) => {
+      let loadPercent = 0;
+      if (d.Genset_Application_kW_Rating_PC2X && d.Genset_Total_kW) {
+        loadPercent = +(
+          (d.Genset_Total_kW / d.Genset_Application_kW_Rating_PC2X) *
+          100
+        ).toFixed(2);
+      }
+      return {
+        time: d.timestamp,
+        Fuel_Rate: d.Fuel_Rate,
+        LoadPercent: loadPercent,
+      };
+    });
+
+    // Chart2: Air to Fuel Effectiveness = Boost Pressure / Fuel Rate
+    charts.airFuelEffectiveness = data.map((d) => {
+      const fuelRate = d.Fuel_Rate ?? 0;
+      const boostPressure = d.Boost_Pressure ?? 0;
+      const value = fuelRate !== 0 ? +(boostPressure / fuelRate).toFixed(2) : 0;
+      return { time: d.timestamp, AirFuelEffectiveness: value };
+    });
+
+    // Chart3: Specific Fuel Consumption
+    charts.specificFuelConsumption = data.map((d) => {
+      const fuelRate = d.Fuel_Rate ?? 0;
+      const power = d.Genset_Total_kW ?? 1;
+      const sfc = power !== 0 ? +(fuelRate / power).toFixed(3) : 0;
+      return { time: d.timestamp, SpecificFuelConsumption: sfc };
+    });
+
+    // Chart4: Heat Rate = SFC * CV
+    charts.heatRate = data.map((d) => {
+      const fuelRate = d.Fuel_Rate ?? 0;
+      const power = d.Genset_Total_kW ?? 1;
+      const sfc = power !== 0 ? fuelRate / power : 0;
+      const heatRate = +(sfc * 36000).toFixed(2);
+      return { time: d.timestamp, HeatRate: heatRate, CV: 36000 };
+    });
+
+    // Chart5: Fuel Rate & Fuel Outlet Pressure
+    charts.fuelRateOutlet = data.map((d) => ({
+      time: d.timestamp,
+      Fuel_Rate: d.Fuel_Rate,
+      Fuel_Outlet_Pressure: d.Fuel_Outlet_Pressure_calculated ?? 0,
+    }));
+
+    return charts;
+  }
+
+  /** ✅ Projection Fields */
+  private getProjectionFieldsDashboard5() {
+    return {
+      timestamp: 1,
+      Fuel_Rate: 1,
+      Boost_Pressure: 1,
+      Genset_Total_kW: 1,
+      Genset_Application_kW_Rating_PC2X: 1,
+      Fuel_Outlet_Pressure_calculated: 1,
     };
   }
 }

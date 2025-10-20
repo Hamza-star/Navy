@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Controller, Get, Query } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
@@ -361,5 +362,79 @@ export class DashboardController {
       end,
     );
     return (charts as Record<string, any[]>).fuelOutletBiometric ?? [];
+  }
+
+  /** ---------------------------------------------------
+   *  DASHBOARD 5 — FUEL & EFFICIENCY
+   * --------------------------------------------------- */
+
+  @Get('fuel-combustion/fuel-consumption-load')
+  async getFuelRateLoad(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboard5Data(
+      mode,
+      start,
+      end,
+    );
+    return (charts as any).fuelRateLoad ?? [];
+  }
+
+  @Get('fuel-combustion/air-fuel-effectiveness')
+  async getAirFuelEffectiveness(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboard5Data(
+      mode,
+      start,
+      end,
+    );
+    return (charts as any).airFuelEffectiveness ?? [];
+  }
+
+  @Get('fuel-combustion/specific-fuel-consumption')
+  async getSpecificFuelConsumption(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboard5Data(
+      mode,
+      start,
+      end,
+    );
+    return (charts as any).specificFuelConsumption ?? [];
+  }
+
+  @Get('fuel-combustion/combustion-mixture')
+  async getHeatRate(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboard5Data(
+      mode,
+      start,
+      end,
+    );
+    return (charts as any).heatRate ?? [];
+  }
+
+  @Get('fuel-combustion/injection-system-health')
+  async getInjectionSystemHealth(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboard5Data(
+      mode,
+      start,
+      end,
+    );
+    return (charts as any).fuelRateOutlet ?? [];
   }
 }

@@ -547,12 +547,19 @@ export class DashboardService {
     this.collection.createIndex({ Genset_Run_SS: 1, timestamp: 1 });
   }
 
+  private formatTimeForResponse(time: Date): string {
+    // Convert to ISO and trim to "YYYY-MM-DDTHH:MM"
+    return new Date(time).toISOString().slice(0, 16);
+    // If you prefer space instead of 'T', use:
+    // return new Date(time).toISOString().slice(0, 16).replace('T', ' ');
+  }
+
   /** -------------------
    * Dashboard 1 – Basic
    * ------------------- */
   private DASH1_METRICS = {
     load: (doc: any) =>
-      doc.Genset_Application_kW_Rating_PC2X
+      doc.Genset_Total_kW
         ? (doc.Genset_Total_kW / doc.Genset_Application_kW_Rating_PC2X) * 100
         : 0,
     rpm: (doc: any) => doc.Averagr_Engine_Speed || 0,
@@ -875,7 +882,7 @@ export class DashboardService {
         ((Math.max(VL1, VL2, VL3) - Math.min(VL1, VL2, VL3)) / vAvg) * 100;
 
       return {
-        time: d.timestamp,
+        time: this.formatTimeForResponse(d.timestamp),
         Genset_L1L2_Voltage: VL1,
         Genset_L2L3_Voltage: VL2,
         Genset_L3L1_Voltage: VL3,

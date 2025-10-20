@@ -49,12 +49,12 @@ export class DashboardController {
     @Query('start') start?: string,
     @Query('end') end?: string,
   ) {
-    const { charts } = await this.dashboardService.getDashboard1Data(
+    const { charts } = await this.dashboardService.getDashboard2Data(
       mode,
       start,
       end,
     );
-    return charts.loadSharing;
+    return charts.phaseBalanceEffectiveness;
   }
 
   // Current Imbalance + Neutral Current Chart

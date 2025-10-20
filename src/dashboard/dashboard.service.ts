@@ -540,7 +540,7 @@ export class DashboardService {
   constructor(@Inject('MONGO_CLIENT') private readonly db: Db) {
     this.collection = this.db.collection('navy_historical');
 
-    // ⚡ Indexes for fast queries
+    // Indexes for fast queries
     this.collection.createIndex({ timestamp: 1 });
     this.collection.createIndex({ Genset_Run_SS: 1, timestamp: 1 });
   }
@@ -555,7 +555,7 @@ export class DashboardService {
         : 0,
     rpm: (doc: any) => doc.Averagr_Engine_Speed || 0,
     runningHours: (doc: any) =>
-      +(doc.Engine_Running_Time_calculated / 60 || 0).toFixed(2),
+      +(doc.Engine_Running_Time_calculated || 0).toFixed(2),
     fuelConsumed: (doc: any) => doc.Total_Fuel_Consumption_calculated || 0,
     batteryVoltage: (doc: any) => doc.Battery_Voltage_calculated || 0,
     powerFactor: (doc: any) => doc.Genset_Total_Power_Factor_calculated || 0,
@@ -1379,7 +1379,7 @@ export class DashboardService {
     return {
       totalFuelConsumption: doc.Total_Fuel_Consumption_calculated ?? 0,
       energyKWh: doc.Engine_Running_Time_calculated ?? 0,
-      fuelConsumptionCurrentRun: doc.Fuel_Consumption_Current_Run ?? 0,
+      fuelConsumptionCurrentRun: doc.Total_Fuel_Consumption_calculated ?? 0,
     };
   }
 

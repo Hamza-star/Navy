@@ -286,9 +286,9 @@ export class DashboardController {
     return charts.engineThermal;
   }
 
-  // Voltage Quality & Symmetry Chart
+  /** Chart 3: Voltage Imbalance vs LL Average Voltage */
   @Get('thermal-health/cooling-efficiency')
-  async getCoolingEfficiencySystemChart(
+  async getVoltageImbalanceChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
     @Query('end') end?: string,

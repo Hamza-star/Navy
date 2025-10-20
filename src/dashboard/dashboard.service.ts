@@ -513,6 +513,8 @@ interface CoolingMetrics {
   intakeTemperature: number;
   boostPressure: number;
   coolingMargin: number;
+  avg_LL_Voltage: number;
+  voltageImbalance: number;
   onDurationMinutes?: number;
 }
 
@@ -540,7 +542,7 @@ export class DashboardService {
   constructor(@Inject('MONGO_CLIENT') private readonly db: Db) {
     this.collection = this.db.collection('navy_historical');
 
-    // Indexes for fast queries
+    // ⚡ Indexes for fast queries
     this.collection.createIndex({ timestamp: 1 });
     this.collection.createIndex({ Genset_Run_SS: 1, timestamp: 1 });
   }
@@ -601,6 +603,7 @@ export class DashboardService {
       'Genset_L1L2_Voltage',
       'Genset_L2L3_Voltage',
       'Genset_L3L1_Voltage',
+      'Genset_LL_Avg_Voltage',
     ],
     loadVsPowerFactor: ['LoadPercent', 'Genset_Total_Power_Factor_calculated'],
     electroMechanicalStress: ['ElectricalStress', 'LoadStress'],
@@ -867,6 +870,7 @@ export class DashboardService {
       const VL2 = d.Genset_L2L3_Voltage || 0;
       const VL3 = d.Genset_L3L1_Voltage || 0;
       const vAvg = (VL1 + VL2 + VL3) / 3 || 1;
+      // const totalAvg = d.Genset_LL_Avg_Voltage || 0;
       const voltageImbalance =
         ((Math.max(VL1, VL2, VL3) - Math.min(VL1, VL2, VL3)) / vAvg) * 100;
 
@@ -876,6 +880,7 @@ export class DashboardService {
         Genset_L2L3_Voltage: VL2,
         Genset_L3L1_Voltage: VL3,
         voltageImbalance: +voltageImbalance.toFixed(2),
+        Genset_LL_Avg_Voltage: vAvg.toFixed(2),
       };
     });
 
@@ -913,9 +918,21 @@ export class DashboardService {
   }
 
   private mapMetricsDashboard3(doc: any): CoolingMetrics {
+    const avg_LL_Voltage = doc.Genset_LL_Avg_Voltage ?? 0;
+
+    // Calculate voltage imbalance
+    const VL1 = doc.Genset_L1L2_Voltage || 0;
+    const VL2 = doc.Genset_L2L3_Voltage || 0;
+    const VL3 = doc.Genset_L3L1_Voltage || 0;
+    const voltageImbalance =
+      ((Math.max(VL1, VL2, VL3) - Math.min(VL1, VL2, VL3)) /
+        (avg_LL_Voltage || 1)) *
+      100;
     return {
       intakeTemperature: doc.Intake_Manifold3_Temperature ?? 0,
       boostPressure: doc.Boost_Pressure ?? 0,
+      avg_LL_Voltage: +avg_LL_Voltage.toFixed(2),
+      voltageImbalance: +voltageImbalance.toFixed(2),
       coolingMargin: this.calculateCoolingMargin(doc),
     };
   }
@@ -943,6 +960,24 @@ export class DashboardService {
       Coolant_Temperature: d.Coolant_Temperature ?? 0,
       AfterCooler_Temperature: d.AfterCooler_Temperature ?? 0,
     }));
+
+    // ✅ Chart 3: Voltage Imbalance & LL Average Voltage (direct tag)
+    charts.voltageImbalanceChart = data.map((d) => {
+      const VL1 = d.Genset_L1L2_Voltage || 0;
+      const VL2 = d.Genset_L2L3_Voltage || 0;
+      const VL3 = d.Genset_L3L1_Voltage || 0;
+      const avg_LL_Voltage = d.Genset_LL_Avg_Voltage || 0;
+      const voltageImbalance =
+        ((Math.max(VL1, VL2, VL3) - Math.min(VL1, VL2, VL3)) /
+          (avg_LL_Voltage || 1)) *
+        100;
+
+      return {
+        time: d.timestamp,
+        avg_LL_Voltage: +avg_LL_Voltage.toFixed(2),
+        voltageImbalance: +voltageImbalance.toFixed(2),
+      };
+    });
 
     return charts;
   }
@@ -989,6 +1024,7 @@ export class DashboardService {
       Boost_Pressure: 1,
       Coolant_Temperature: 1,
       AfterCooler_Temperature: 1,
+      Genset_LL_Avg_Voltage: 1, // ✅ added direct tag
     };
   }
 

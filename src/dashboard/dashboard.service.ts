@@ -549,7 +549,7 @@ export class DashboardService {
 
   private formatTimeForResponse(time: Date): string {
     // Convert to ISO and trim to "YYYY-MM-DDTHH:MM"
-    return new Date(time).toISOString().slice(0, 16);
+    return new Date(time).toISOString().slice(0, 19).replace('T', ' ');
     // If you prefer space instead of 'T', use:
     // return new Date(time).toISOString().slice(0, 16).replace('T', ' ');
   }

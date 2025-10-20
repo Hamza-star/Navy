@@ -271,6 +271,51 @@ export class DashboardController {
     return (charts as Record<string, any[]>).coolingMargin ?? [];
   }
 
+  // Engine Thermal Chart
+  @Get('thermal-health/thermal-performance')
+  async getThermalPerformanceChart(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboard1Data(
+      mode,
+      start,
+      end,
+    );
+    return charts.engineThermal;
+  }
+
+  // Voltage Quality & Symmetry Chart
+  @Get('thermal-health/cooling-efficiency')
+  async getCoolingEfficiencySystemChart(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboard2Data(
+      mode,
+      start,
+      end,
+    );
+    return charts.voltageQualitySymmetry;
+  }
+
+  // Load vs Power Factor Chart
+  @Get('thermal-health/thermal-stress')
+  async getThermalStressAlertChart(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboard2Data(
+      mode,
+      start,
+      end,
+    );
+    return charts.loadVsPowerFactor;
+  }
+
   /** ---------------------------------------------------
    *  DASHBOARD 4 — lubrication LEVEL
    * --------------------------------------------------- */

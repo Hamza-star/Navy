@@ -1378,7 +1378,7 @@ export class DashboardService {
   private mapMetricsDashboard6(doc: any): Dashboard6Metrics {
     return {
       totalFuelConsumption: doc.Total_Fuel_Consumption_calculated ?? 0,
-      energyKWh: doc['Energy [kWh]'] ?? 0,
+      energyKWh: doc.Engine_Running_Time_calculated ?? 0,
       fuelConsumptionCurrentRun: doc.Fuel_Consumption_Current_Run ?? 0,
     };
   }
@@ -1412,8 +1412,7 @@ export class DashboardService {
     // Chart 4: Genset Total Power Factor
     charts.gensetPowerFactor = data.map((d) => ({
       time: d.timestamp,
-      Genset_Total_Power_Factor_calculated:
-        d.Genset_Total_Power_Factor_calculated ?? 0,
+      Genset_Total_kW: d.Genset_Total_kW ?? 0,
     }));
 
     return charts;

@@ -525,6 +525,14 @@ interface Dashboard5Metrics {
   fuelOutletPressure: number;
 }
 
+// inside dashboard.service.ts
+export interface Dashboard6Metrics {
+  totalFuelConsumption: number;
+  energyKWh: number;
+  fuelConsumptionCurrentRun: number;
+  onDurationMinutes?: number;
+}
+
 @Injectable()
 export class DashboardService {
   private collection;
@@ -1310,6 +1318,119 @@ export class DashboardService {
       Genset_Total_kW: 1,
       Genset_Application_kW_Rating_PC2X: 1,
       Fuel_Outlet_Pressure_calculated: 1,
+    };
+  }
+
+  /** ---------------------------------------------------
+   *  DASHBOARD 6 — ENGINE PERFORMANCE & TORQUE
+   * --------------------------------------------------- */
+
+  async getDashboard6Data(
+    mode: 'live' | 'historic' | 'range',
+    start?: string,
+    end?: string,
+  ) {
+    const projection = this.getProjectionFieldsDashboard6();
+    let query = this.buildQuery(mode, start, end);
+    let data: any[] = [];
+
+    if (mode === 'live') {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      query = { timestamp: { $gte: startOfDay.toISOString() } };
+
+      data = await this.collection
+        .find(query, { projection })
+        .sort({ timestamp: 1 })
+        .toArray();
+      if (!data.length) return { metrics: {}, charts: {} };
+
+      return {
+        metrics: this.mapMetricsDashboard6(data[data.length - 1]),
+        charts: this.mapChartsDashboard6(data),
+      };
+    }
+
+    if (!query) return { metrics: {}, charts: {} };
+    data = await this.collection
+      .find(query, { projection })
+      .sort({ timestamp: 1 })
+      .toArray();
+
+    if (!data.length)
+      return {
+        metrics: mode === 'range' ? { onDurationMinutes: 0 } : {},
+        charts: {},
+      };
+
+    let metrics = this.mapMetricsDashboard6(data[data.length - 1]);
+    if (mode === 'range') {
+      metrics = {
+        ...metrics,
+        onDurationMinutes: this.calculateOnDuration(data),
+      };
+    }
+
+    return { metrics, charts: this.mapChartsDashboard6(data) };
+  }
+
+  /** 🧮 Metrics Mapper */
+  private mapMetricsDashboard6(doc: any): Dashboard6Metrics {
+    return {
+      totalFuelConsumption: doc.Total_Fuel_Consumption_calculated ?? 0,
+      energyKWh: doc['Energy [kWh]'] ?? 0,
+      fuelConsumptionCurrentRun: doc.Fuel_Consumption_Current_Run ?? 0,
+    };
+  }
+
+  /** 📈 Charts Mapper */
+  private mapChartsDashboard6(data: any[]): Record<string, any[]> {
+    const charts: Record<string, any[]> = {};
+
+    // Chart 1: Percent Engine Torque or Duty Cycle vs Engine Running Time
+    charts.engineTorqueVsRunningTime = data.map((d) => ({
+      time: d.timestamp,
+      Percent_Engine_Torque_or_Duty_Cycle:
+        d.Percent_Engine_Torque_or_Duty_Cycle ?? 0,
+      Engine_Running_Time_calculated: d.Engine_Running_Time_calculated ?? 0,
+    }));
+
+    // Chart 2: Fuel Rate vs Percent Engine Torque
+    charts.fuelRateVsTorque = data.map((d) => ({
+      time: d.timestamp,
+      Fuel_Rate: d.Fuel_Rate ?? 0,
+      Percent_Engine_Torque_or_Duty_Cycle:
+        d.Percent_Engine_Torque_or_Duty_Cycle ?? 0,
+    }));
+
+    // Chart 3: Average Engine Speed
+    charts.averageEngineSpeed = data.map((d) => ({
+      time: d.timestamp,
+      Averagr_Engine_Speed: d.Averagr_Engine_Speed ?? 0,
+    }));
+
+    // Chart 4: Genset Total Power Factor
+    charts.gensetPowerFactor = data.map((d) => ({
+      time: d.timestamp,
+      Genset_Total_Power_Factor_calculated:
+        d.Genset_Total_Power_Factor_calculated ?? 0,
+    }));
+
+    return charts;
+  }
+
+  /** ✅ Projection Fields */
+  private getProjectionFieldsDashboard6() {
+    return {
+      timestamp: 1,
+      Total_Fuel_Consumption_calculated: 1,
+      'Energy [kWh]': 1,
+      Fuel_Consumption_Current_Run: 1,
+      Percent_Engine_Torque_or_Duty_Cycle: 1,
+      Engine_Running_Time_calculated: 1,
+      Fuel_Rate: 1,
+      Averagr_Engine_Speed: 1,
+      Genset_Total_Power_Factor_calculated: 1,
     };
   }
 }

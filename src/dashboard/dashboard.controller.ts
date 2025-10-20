@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Controller, Get, Query } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
+import { Dashboard6Metrics } from './dashboard.service';
 
 @Controller('dashboard')
 export class DashboardController {
@@ -436,5 +437,79 @@ export class DashboardController {
       end,
     );
     return (charts as any).fuelRateOutlet ?? [];
+  }
+
+  /** ---------------------------------------------------
+   *  DASHBOARD 6 — ENGINE PERFORMANCE & TORQUE
+   * --------------------------------------------------- */
+
+  @Get('performance-general')
+  async getDashboard6Metrics(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { metrics } = await this.dashboardService.getDashboard6Data(
+      mode,
+      start,
+      end,
+    );
+    return metrics;
+  }
+
+  @Get('performance-general/torque-speed-characteristics')
+  async getTorqueVsRunningTimeChart(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboard6Data(
+      mode,
+      start,
+      end,
+    );
+    return (charts as any).engineTorqueVsRunningTime ?? [];
+  }
+
+  @Get('performance-general/torque-fuel-relationship')
+  async getFuelRateVsTorqueChart(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboard6Data(
+      mode,
+      start,
+      end,
+    );
+    return (charts as any).fuelRateVsTorque ?? [];
+  }
+
+  @Get('performance-general/rpm-stability')
+  async getAverageEngineSpeedChart(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboard6Data(
+      mode,
+      start,
+      end,
+    );
+    return (charts as any).averageEngineSpeed ?? [];
+  }
+
+  @Get('performance-general/output-efficiency')
+  async getGensetPowerFactorChart(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboard6Data(
+      mode,
+      start,
+      end,
+    );
+    return (charts as any).gensetPowerFactor ?? [];
   }
 }

@@ -396,8 +396,8 @@ export class DashboardController {
     return (charts as any).airFuelEffectiveness ?? [];
   }
 
-  @Get('fuel-combustion/specific-fuel-consumption')
-  async getSpecificFuelConsumption(
+  @Get('fuel-combustion/fuel-generator-efficiency')
+  async getFuelGeneratorEfficiency(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
     @Query('end') end?: string,

@@ -1580,6 +1580,12 @@ export class DashboardService {
       Averagr_Engine_Speed: d.Averagr_Engine_Speed ?? 0,
     }));
 
+    charts.mechanicalStress = data.map((d) => {
+      const avg = d.Averagr_Engine_Speed ?? 0;
+      const stress = +((avg - 1500) / 1500).toFixed(3); // deviation ratio
+      return { time: d.timestamp, Mechanical_Stress: stress };
+    });
+
     // Chart 4: Genset Total Power Factor
     charts.gensetPowerFactor = data.map((d) => ({
       time: d.timestamp,

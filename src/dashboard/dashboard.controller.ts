@@ -426,7 +426,7 @@ export class DashboardController {
     );
     return (charts as any).fuelRateLoad ?? [];
   }
-  @Get('fuel-combustion/fuel-rate-change')
+  @Get('fuel-combustion/fuel-flow-variability')
   async getFuelRateChange(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -568,5 +568,18 @@ export class DashboardController {
       end,
     );
     return (charts as any).gensetPowerFactor ?? [];
+  }
+  @Get('performance-general/mechanical-stress')
+  async getMechanicalStress(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboard6Data(
+      mode,
+      start,
+      end,
+    );
+    return (charts as any).mechanicalStress ?? [];
   }
 }

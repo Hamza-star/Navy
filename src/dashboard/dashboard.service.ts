@@ -512,7 +512,8 @@ import { Db } from 'mongodb';
 interface CoolingMetrics {
   intakeTemperature: number;
   boostPressure: number;
-  coolingMargin: number;
+  coolingMarginF: number;
+  coolingMarginC: number;
   avg_LL_Voltage: number;
   voltageImbalance: number;
   onDurationMinutes?: number;
@@ -986,15 +987,22 @@ export class DashboardService {
       boostPressure: doc.Boost_Pressure ?? 0,
       avg_LL_Voltage: +avg_LL_Voltage.toFixed(2),
       voltageImbalance: +voltageImbalance.toFixed(2),
-      coolingMargin: this.calculateCoolingMargin(doc),
+      coolingMarginF: this.calculateCoolingMarginF(doc),
+      coolingMarginC: this.calculateCoolingMarginC(doc),
     };
   }
 
-  private calculateCoolingMargin(doc: any): number {
+  private calculateCoolingMarginF(doc: any): number {
     const coolant = doc.Coolant_Temperature ?? 0;
     // const afterCooler = doc.AfterCooler_Temperature ?? 0;
-    const afterCooler = 212;
-    return +(coolant - afterCooler).toFixed(2);
+    const value = 212;
+    return +(value - coolant).toFixed(2);
+  }
+  private calculateCoolingMarginC(doc: any): number {
+    const coolant = doc.Coolant_Temperature ?? 0;
+    // const afterCooler = doc.AfterCooler_Temperature ?? 0;
+
+    return +(100 - (coolant - 32) * 0.5).toFixed(2);
   }
 
   private mapChartsDashboard3(data: any[]): Record<string, any[]> {
@@ -1010,9 +1018,10 @@ export class DashboardService {
     // Chart 2: Cooling Margin
     charts.coolingMargin = data.map((d) => ({
       time: d.timestamp,
-      Cooling_Margin: this.calculateCoolingMargin(d),
-      Coolant_Temperature: d.Coolant_Temperature ?? 0,
-      AfterCooler_Temperature: d.AfterCooler_Temperature ?? 0,
+      Cooling_MarginF: this.calculateCoolingMarginF(d),
+      Cooling_MarginC: this.calculateCoolingMarginC(d),
+      // Coolant_Temperature: d.Coolant_Temperature ?? 0,
+      // AfterCooler_Temperature: d.AfterCooler_Temperature ?? 0,
     }));
 
     // ✅ Chart 3: Voltage Imbalance & LL Average Voltage (direct tag)

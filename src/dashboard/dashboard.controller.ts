@@ -2,7 +2,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Controller, Get, Query } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
-import { Dashboard6Metrics } from './dashboard.service';
 
 @Controller('dashboard')
 export class DashboardController {
@@ -49,12 +48,12 @@ export class DashboardController {
     @Query('start') start?: string,
     @Query('end') end?: string,
   ) {
-    const { charts } = await this.dashboardService.getDashboard2Data(
+    const { charts } = await this.dashboardService.getDashboard1Data(
       mode,
       start,
       end,
     );
-    return charts.phaseBalanceEffectiveness;
+    return charts.loadSharing;
   }
 
   // Current Imbalance + Neutral Current Chart

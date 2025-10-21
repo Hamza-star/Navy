@@ -547,11 +547,21 @@ export class DashboardService {
     this.collection.createIndex({ Genset_Run_SS: 1, timestamp: 1 });
   }
 
+  // private formatTimeForResponse(time: Date): string {
+  //   // Convert to ISO and trim to "YYYY-MM-DDTHH:MM"
+  //   return new Date(time).toISOString().slice(0, 19).replace('T', ' ');
+  //   // If you prefer space instead of 'T', use:
+  //   // return new Date(time).toISOString().slice(0, 16).replace('T', ' ');
+  // }
+
   private formatTimeForResponse(time: Date): string {
-    // Convert to ISO and trim to "YYYY-MM-DDTHH:MM"
-    return new Date(time).toISOString().slice(0, 19).replace('T', ' ');
-    // If you prefer space instead of 'T', use:
-    // return new Date(time).toISOString().slice(0, 16).replace('T', ' ');
+    const date = new Date(time);
+
+    // Round down to start of the hour
+    date.setMinutes(0, 0, 0);
+
+    // Format "YYYY-MM-DD HH:00:00"
+    return date.toISOString().slice(0, 19).replace('T', ' ');
   }
 
   /** -------------------
@@ -849,6 +859,23 @@ export class DashboardService {
       };
     });
 
+    charts.loadSharing = data.map((d) => {
+      const IA = d.Genset_L1_Current || 0;
+      const IB = d.Genset_L2_Current || 0;
+      const IC = d.Genset_L3_Current || 0;
+
+      const IAShare = (IA / (IA + IB + IC)) * 100 || 0;
+      const IBShare = (IB / (IA + IB + IC)) * 100 || 0;
+      const ICShare = (IC / (IA + IB + IC)) * 100 || 0;
+
+      return {
+        time: d.timestamp,
+        Genset_L1_Current: IAShare,
+        Genset_L2_Current: IBShare,
+        Genset_L3_Current: ICShare,
+      };
+    });
+
     return charts;
   }
 
@@ -887,7 +914,7 @@ export class DashboardService {
         Genset_L2L3_Voltage: VL2,
         Genset_L3L1_Voltage: VL3,
         voltageImbalance: +voltageImbalance.toFixed(2),
-        Genset_LL_Avg_Voltage: vAvg.toFixed(2),
+        Genset_LL_Avg_Voltage: Number(vAvg.toFixed(2)),
       };
     });
 

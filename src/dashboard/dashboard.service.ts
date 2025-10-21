@@ -206,13 +206,13 @@
 //     }
 
 //     // ⚡ Add Current Imbalance + Neutral Current chart for Dashboard 1
-//     charts.currentImbalanceNeutral = data.map((d) => {
+//     charts.CurrentImbalanceNeutral = data.map((d) => {
 //       const IA = d.Genset_L1_Current || 0;
 //       const IB = d.Genset_L2_Current || 0;
 //       const IC = d.Genset_L3_Current || 0;
 
 //       const avgCurrent = (IA + IB + IC) / 3 || 1;
-//       const currentImbalance =
+//       const CurrentImbalance =
 //         ((Math.max(IA, IB, IC) - Math.min(IA, IB, IC)) / avgCurrent) * 100;
 //       const neutralCurrent = Math.sqrt(
 //         IA ** 2 + IB ** 2 + IC ** 2 - IA * IB - IB * IC - IC * IA,
@@ -220,7 +220,7 @@
 
 //       return {
 //         time: d.timestamp,
-//         currentImbalance: +currentImbalance.toFixed(2),
+//         CurrentImbalance: +CurrentImbalance.toFixed(2),
 //         neutralCurrent: +neutralCurrent.toFixed(2),
 //       };
 //     });
@@ -244,7 +244,7 @@
 //     const IB = doc.Genset_L2_Current || 0;
 //     const IC = doc.Genset_L3_Current || 0;
 //     const avgCurrent = (IA + IB + IC) / 3 || 1;
-//     metrics.currentImbalance = +(
+//     metrics.CurrentImbalance = +(
 //       ((Math.max(IA, IB, IC) - Math.min(IA, IB, IC)) / avgCurrent) *
 //       100
 //     ).toFixed(2);
@@ -281,7 +281,7 @@
 //       const IB = d.Genset_L2_Current || 0;
 //       const IC = d.Genset_L3_Current || 0;
 //       const avgCurrent = (IA + IB + IC) / 3 || 1;
-//       const currentImbalance =
+//       const CurrentImbalance =
 //         ((Math.max(IA, IB, IC) - Math.min(IA, IB, IC)) / avgCurrent) * 100;
 
 //       return {
@@ -289,7 +289,7 @@
 //         Genset_L1_Current: IA,
 //         Genset_L2_Current: IB,
 //         Genset_L3_Current: IC,
-//         currentImbalance: +currentImbalance.toFixed(2),
+//         CurrentImbalance: +CurrentImbalance.toFixed(2),
 //       };
 //     });
 
@@ -623,7 +623,10 @@ export class DashboardService {
       'Genset_LL_Avg_Voltage',
     ],
     loadVsPowerFactor: ['LoadPercent', 'Genset_Total_Power_Factor_calculated'],
-    electroMechanicalStress: ['ElectricalStress', 'LoadStress'],
+    electroMechanicalStress: [
+      'LoadPercent',
+      'Genset_Total_Power_Factor_calculated',
+    ],
     lossesThermalStress: ['PowerLossFactor', 'I2'],
     frequencyRegulationEffectiveness: [
       'Genset_Frequency_OP_calculated',
@@ -802,8 +805,8 @@ export class DashboardService {
     const IA = doc.Genset_L1_Current || 0;
     const IB = doc.Genset_L2_Current || 0;
     const IC = doc.Genset_L3_Current || 0;
-    const avgCurrent = (IA + IB + IC) / 3 || 1;
-    metrics.currentImbalance = +(
+    const avgCurrent = (IA + IB + IC) / 3;
+    metrics.CurrentImbalance = +(
       ((Math.max(IA, IB, IC) - Math.min(IA, IB, IC)) / avgCurrent) *
       100
     ).toFixed(2);
@@ -820,9 +823,8 @@ export class DashboardService {
     const pf = doc.Genset_Total_Power_Factor_calculated || 1;
     metrics.powerLossFactor = +(1 / (pf * pf)).toFixed(2);
 
-    const I2 = IA ** 2 + IB ** 2 + IC ** 2;
-    const I2Rated = doc.I2Rated || 1;
-    metrics.thermalStress = +(I2 / I2Rated).toFixed(2);
+    const I2 = Math.sqrt((IA ** 2 + IB ** 2 + IC ** 2) / 3);
+    metrics.thermalStress = +I2.toFixed(2);
 
     return metrics;
   }
@@ -840,13 +842,13 @@ export class DashboardService {
       });
     }
 
-    charts.currentImbalanceNeutral = data.map((d) => {
+    charts.CurrentImbalanceNeutral = data.map((d) => {
       const IA = d.Genset_L1_Current || 0;
       const IB = d.Genset_L2_Current || 0;
       const IC = d.Genset_L3_Current || 0;
 
       const avgCurrent = (IA + IB + IC) / 3 || 1;
-      const currentImbalance =
+      const CurrentImbalance =
         ((Math.max(IA, IB, IC) - Math.min(IA, IB, IC)) / avgCurrent) * 100;
       const neutralCurrent = Math.sqrt(
         IA ** 2 + IB ** 2 + IC ** 2 - IA * IB - IB * IC - IC * IA,
@@ -854,7 +856,7 @@ export class DashboardService {
 
       return {
         time: d.timestamp,
-        currentImbalance: +currentImbalance.toFixed(2),
+        CurrentImbalance: +CurrentImbalance.toFixed(2),
         neutralCurrent: +neutralCurrent.toFixed(2),
       };
     });
@@ -885,9 +887,9 @@ export class DashboardService {
     charts.phaseBalanceEffectiveness = data.map((d) => {
       const IA = d.Genset_L1_Current || 0;
       const IB = d.Genset_L2_Current || 0;
-      const IC = d.Genset_L3_CURRENT || 0;
+      const IC = d.Genset_L3_Current || 0;
       const avgCurrent = (IA + IB + IC) / 3 || 1;
-      const currentImbalance =
+      const CurrentImbalance =
         ((Math.max(IA, IB, IC) - Math.min(IA, IB, IC)) / avgCurrent) * 100;
 
       return {
@@ -895,7 +897,7 @@ export class DashboardService {
         Genset_L1_Current: IA,
         Genset_L2_Current: IB,
         Genset_L3_Current: IC,
-        currentImbalance: +currentImbalance.toFixed(2),
+        CurrentImbalance: +CurrentImbalance.toFixed(2),
       };
     });
 
@@ -918,6 +920,23 @@ export class DashboardService {
       };
     });
 
+    charts.electroMechanicalStress = data.map((d) => {
+      const loadPercent =
+        d.Genset_Application_kW_Rating_PC2X > 0
+          ? (d.Genset_Total_kW / d.Genset_Application_kW_Rating_PC2X) * 100
+          : 0;
+      const pf = d.Genset_Total_Power_Factor_calculated || 1;
+
+      const loadStress = (loadPercent * 1) / pf;
+
+      return {
+        time: d.timestamp,
+        LoadPercent: +loadPercent.toFixed(2),
+        PowerLossFactor: +pf.toFixed(2),
+        LoadStress: +loadStress,
+      };
+    });
+
     for (const name of Object.keys(this.DASH2_CHARTS)) {
       if (charts[name]) continue;
       charts[name] = data.map((d) => {
@@ -925,7 +944,7 @@ export class DashboardService {
         this.DASH2_CHARTS[name].forEach((field: string) => {
           switch (field) {
             case 'LoadPercent':
-              entry[field] = d.Genset_Application_kW_Rating_PC2X
+              entry[field] = d.Genset_Total_kW
                 ? (d.Genset_Total_kW / d.Genset_Application_kW_Rating_PC2X) *
                   100
                 : 0;
@@ -935,10 +954,10 @@ export class DashboardService {
               entry[field] = 1 / (pf * pf);
               break;
             case 'I2':
-              const IA2 = d.Genset_L1_Current || 0;
-              const IB2 = d.Genset_L2_CURRENT || 0;
-              const IC2 = d.Genset_L3_CURRENT || 0;
-              entry[field] = IA2 ** 2 + IB2 ** 2 + IC2 ** 2;
+              const IA = d.Genset_L1_Current || 0;
+              const IB = d.Genset_L2_Current || 0;
+              const IC = d.Genset_L3_Current || 0;
+              entry[field] = Math.sqrt((IA ** 2 + IB ** 2 + IC ** 2) / 3);
               break;
             default:
               entry[field] = d[field];
@@ -973,7 +992,8 @@ export class DashboardService {
 
   private calculateCoolingMargin(doc: any): number {
     const coolant = doc.Coolant_Temperature ?? 0;
-    const afterCooler = doc.AfterCooler_Temperature ?? 0;
+    // const afterCooler = doc.AfterCooler_Temperature ?? 0;
+    const afterCooler = 212;
     return +(coolant - afterCooler).toFixed(2);
   }
 
@@ -1027,8 +1047,8 @@ export class DashboardService {
       Genset_L3L1_Voltage: 1,
       Genset_Frequency_OP_calculated: 1,
       Genset_L1_Current: 1,
-      Genset_L2_CURRENT: 1,
-      Genset_L3_CURRENT: 1,
+      Genset_L2_Current: 1,
+      Genset_L3_Current: 1,
       Coolant_Temperature: 1,
       Oil_Temperature: 1,
       Oil_Pressure: 1,
@@ -1156,7 +1176,7 @@ export class DashboardService {
 
     // compute Load% if you don’t have a direct LoadPercent field
     let loadPercent = 0;
-    if (doc.Genset_Application_kW_Rating_PC2X && doc.Genset_Total_kW) {
+    if (doc.Genset_Total_kW && doc.Genset_Total_kW) {
       loadPercent = +(
         (doc.Genset_Total_kW / doc.Genset_Application_kW_Rating_PC2X) *
         100
@@ -1202,7 +1222,7 @@ export class DashboardService {
       time: d.timestamp,
       Boost_Pressure: d.Boost_Pressure,
       LoadPercent:
-        d.Genset_Application_kW_Rating_PC2X && d.Genset_Total_kW
+        d.Genset_Total_kW && d.Genset_Total_kW
           ? +(
               (d.Genset_Total_kW / d.Genset_Application_kW_Rating_PC2X) *
               100
@@ -1295,7 +1315,7 @@ export class DashboardService {
     const fuelRate = doc.Fuel_Rate ?? 0; // L/h
 
     let loadPercent = 0;
-    if (doc.Genset_Application_kW_Rating_PC2X && doc.Genset_Total_kW) {
+    if (doc.Genset_Total_kW && doc.Genset_Total_kW) {
       loadPercent = +(
         (doc.Genset_Total_kW / doc.Genset_Application_kW_Rating_PC2X) *
         100
@@ -1331,7 +1351,7 @@ export class DashboardService {
     // Chart1: Fuel Rate & Load %
     charts.fuelRateLoad = data.map((d) => {
       let loadPercent = 0;
-      if (d.Genset_Application_kW_Rating_PC2X && d.Genset_Total_kW) {
+      if (d.Genset_Total_kW && d.Genset_Total_kW) {
         loadPercent = +(
           (d.Genset_Total_kW / d.Genset_Application_kW_Rating_PC2X) *
           100

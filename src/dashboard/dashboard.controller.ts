@@ -307,12 +307,12 @@ export class DashboardController {
     @Query('start') start?: string,
     @Query('end') end?: string,
   ) {
-    const { charts } = await this.dashboardService.getDashboard2Data(
+    const { charts } = await this.dashboardService.getDashboard3Data(
       mode,
       start,
       end,
     );
-    return charts.loadVsPowerFactor;
+    return charts.thermalStress;
   }
 
   /** ---------------------------------------------------
@@ -425,6 +425,19 @@ export class DashboardController {
       end,
     );
     return (charts as any).fuelRateLoad ?? [];
+  }
+  @Get('fuel-combustion/fuel-rate-change')
+  async getFuelRateChange(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboard5Data(
+      mode,
+      start,
+      end,
+    );
+    return (charts as any).fuelFlowRateChange ?? [];
   }
 
   @Get('fuel-combustion/air-fuel-effectiveness')

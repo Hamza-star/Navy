@@ -536,6 +536,19 @@ export interface Dashboard6Metrics {
   onDurationMinutes?: number;
 }
 
+interface Dashboard3Charts {
+  intakeBoost?: any[];
+  thermalStress?: any[];
+  coolingMargin?: any[];
+  voltageImbalanceChart?: any[];
+  [key: string]: any[] | undefined;
+}
+
+interface Dashboard3Data {
+  metrics: Record<string, any>;
+  charts: Dashboard3Charts;
+}
+
 @Injectable()
 export class DashboardService {
   private collection;
@@ -640,6 +653,7 @@ export class DashboardService {
    * ------------------- */
   private DASH3_CHARTS = {
     intakeBoost: ['Intake_Manifold3_Temperature', 'Boost_Pressure'],
+    // thermalStress: ['Coolant_Temperature'],
   };
 
   async getDashboard1Data(
@@ -742,7 +756,7 @@ export class DashboardService {
     mode: 'live' | 'historic' | 'range',
     start?: string,
     end?: string,
-  ) {
+  ): Promise<Dashboard3Data> {
     const projection = this.getProjectionFieldsDashboard3();
     let query = this.buildQuery(mode, start, end);
     let data: any[] = [];
@@ -1005,6 +1019,38 @@ export class DashboardService {
     return +(100 - (coolant - 32) * 0.5).toFixed(2);
   }
 
+  private calculateThermalStressF(doc: any): number {
+    const coolant = doc.Coolant_Temperature ?? 0;
+    const min = 194; // lower bound (safe limit)
+    const max = 212; // upper bound (critical limit)
+    const stress = (coolant - min) / (max - min);
+    return +stress.toFixed(2);
+  }
+
+  private calculateThermalStressC(doc: any): number {
+    const coolant = doc.Coolant_Temperature ?? 0;
+    const min = 90;
+    const max = 100;
+    const stress = (coolant - min) / (max - min);
+    return +stress.toFixed(2);
+  }
+
+  private OTSRF(doc: any): number {
+    const temp = doc.Oil_Temperature ?? 0;
+    const min = 200;
+    const max = 257;
+    const OTSRF = (max - temp) / (max - min);
+    return +OTSRF.toFixed(2);
+  }
+
+  private OTSRC(doc: any): number {
+    const temp = doc.Oil_Temperature ?? 0;
+    const min = 93.3;
+    const max = 125;
+    const OTSRC = (max - temp) / (max - min);
+    return +OTSRC.toFixed(2);
+  }
+
   private mapChartsDashboard3(data: any[]): Record<string, any[]> {
     const charts: Record<string, any[]> = {};
 
@@ -1013,6 +1059,20 @@ export class DashboardService {
       time: d.timestamp,
       Intake_Manifold3_Temperature: d.Intake_Manifold3_Temperature,
       Boost_Pressure: d.Boost_Pressure,
+    }));
+
+    // Chart 2: thermal stress
+    charts.thermalStress = data.map((d) => ({
+      time: d.timestamp,
+      thermalStressF: this.calculateThermalStressF(d),
+      thermalStressC: this.calculateThermalStressC(d),
+      OTSRF: this.OTSRF(d),
+      OTSRC: this.OTSRC(d),
+    }));
+
+    charts.OilTempSafetyIndex = data.map((d) => ({
+      OTSRF: this.OTSRF(d),
+      OTSRC: this.OTSRC(d),
     }));
 
     // Chart 2: Cooling Margin
@@ -1087,7 +1147,8 @@ export class DashboardService {
       Boost_Pressure: 1,
       Coolant_Temperature: 1,
       AfterCooler_Temperature: 1,
-      Genset_LL_Avg_Voltage: 1, // ✅ added direct tag
+      Genset_LL_Avg_Voltage: 1,
+      // ✅ added direct tag
     };
   }
 
@@ -1336,12 +1397,12 @@ export class DashboardService {
     const airFuelEffectiveness =
       fuelRate !== 0 ? +(boostPressure / fuelRate).toFixed(2) : 0;
 
-    const powerOutput = doc.Genset_Total_kW ?? 1; // avoid division by zero
-    const specificFuelConsumption =
-      powerOutput !== 0 ? +(fuelRate / powerOutput).toFixed(3) : 0; // L/kWh
+    const powerOutput = doc.Genset_Total_kW ?? 1;
 
-    const CV = 36000; // kJ/L
-    const heatRate = +(specificFuelConsumption * CV).toFixed(2); // kJ/kWh
+    const specificFuelConsumption =
+      powerOutput !== 0 ? +((fuelRate * 3.7854) / powerOutput).toFixed(3) : 0; // L/kWh
+
+    const heatRate = +((fuelRate * 3.7854 * 36000) / powerOutput).toFixed(2);
 
     return {
       fuelRate,
@@ -1385,7 +1446,7 @@ export class DashboardService {
     charts.specificFuelConsumption = data.map((d) => {
       const fuelRate = d.Fuel_Rate ?? 0;
       const power = d.Genset_Total_kW ?? 1;
-      const sfc = power !== 0 ? +(fuelRate / power).toFixed(3) : 0;
+      const sfc = power !== 0 ? +((fuelRate * 3.7854) / power).toFixed(3) : 0;
       return { time: d.timestamp, SpecificFuelConsumption: sfc };
     });
 
@@ -1393,9 +1454,20 @@ export class DashboardService {
     charts.heatRate = data.map((d) => {
       const fuelRate = d.Fuel_Rate ?? 0;
       const power = d.Genset_Total_kW ?? 1;
-      const sfc = power !== 0 ? fuelRate / power : 0;
-      const heatRate = +(sfc * 36000).toFixed(2);
-      return { time: d.timestamp, HeatRate: heatRate, CV: 36000 };
+      const CV = 36000; // kJ/L
+      const heatRate =
+        power > 0 ? +((fuelRate * 3.7854 * CV) / power).toFixed(3) : 0;
+
+      return { time: d.timestamp, HeatRate: heatRate };
+    });
+
+    // Fuel Flow Rate Change
+    charts.fuelFlowRateChange = data.map((d, i) => {
+      const currentRate = d.Fuel_Rate ?? 0;
+      const previousRate = i > 0 ? (data[i - 1].Fuel_Rate ?? 0) : currentRate;
+      const change = +(currentRate - previousRate).toFixed(3);
+
+      return { time: d.timestamp, FuelFlowRateChange: change };
     });
 
     // Chart5: Fuel Rate & Fuel Outlet Pressure

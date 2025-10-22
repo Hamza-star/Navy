@@ -582,4 +582,43 @@ export class DashboardController {
     );
     return (charts as any).mechanicalStress ?? [];
   }
+  @Get('performance-general/rpm-stability-index')
+  async getRPMStabilityIndex(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboard6Data(
+      mode,
+      start,
+      end,
+    );
+    return (charts as any).rpmStabilityIndex ?? [];
+  }
+  @Get('performance-general/oscillation-index')
+  async getOscillationIndex(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboard6Data(
+      mode,
+      start,
+      end,
+    );
+    return (charts as any).oscillationIndex ?? [];
+  }
+  @Get('performance-general/fuel-consumption')
+  async getFuelConsumption(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboard6Data(
+      mode,
+      start,
+      end,
+    );
+    return (charts as any).fuelConsumption ?? [];
+  }
 }

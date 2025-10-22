@@ -1511,42 +1511,14 @@ export class DashboardService {
       const stdDev = Math.sqrt(variance);
       const RSI = +(stdDev / (avg || 1)).toFixed(4);
 
-      results.push({ time: data[i].timestamp, RPM_Stability_Index: RSI });
+      results.push({
+        time: data[i].timestamp,
+        RPM_Stability_Index: RSI,
+      });
     }
 
     return results;
   }
-
-  // private calculateOscillationIndex(data: any[]): any[] {
-  //   const window = 10;
-  //   const results: any[] = [];
-
-  //   for (let i = 0; i < data.length; i++) {
-  //     if (i < window - 1) continue;
-
-  //     const slice = data.slice(i - window + 1, i + 1);
-  //     const P = slice.map((d) => d.Genset_Total_kW ?? 0);
-  //     const Q = slice.map((d) => d.Genset_Total_kVAR ?? 0);
-
-  //     const meanP = P.reduce((a, b) => a + b, 0) / P.length;
-  //     const meanQ = Q.reduce((a, b) => a + b, 0) / Q.length;
-
-  //     const stdP = Math.sqrt(
-  //       P.reduce((a, b) => a + Math.pow(b - meanP, 2), 0) / P.length,
-  //     );
-  //     const stdQ = Math.sqrt(
-  //       Q.reduce((a, b) => a + Math.pow(b - meanQ, 2), 0) / Q.length,
-  //     );
-
-  //     const OI = +Math.sqrt(
-  //       Math.pow(stdP / (meanP || 1), 2) + Math.pow(stdQ / (meanQ || 1), 2),
-  //     ).toFixed(4);
-
-  //     results.push({ time: data[i].timestamp, Oscillation_Index: OI });
-  //   }
-
-  //   return results;
-  // }
 
   private calculateOscillationIndex(data: any[]): any[] {
     const window = 10;
@@ -1604,7 +1576,18 @@ export class DashboardService {
 
     return results;
   }
-
+  /** -------------------
+   * 🧮 SEPARATE LOAD PERCENT CALCULATION FUNCTION
+   * ------------------- */
+  private calculateLoadPercent(doc: any): number {
+    if (!doc.Genset_Total_kW || !doc.Genset_Application_kW_Rating_PC2X) {
+      return 0;
+    }
+    return +(
+      (doc.Genset_Total_kW / doc.Genset_Application_kW_Rating_PC2X) *
+      100
+    ).toFixed(2);
+  }
   async getDashboard6Data(
     mode: 'live' | 'historic' | 'range',
     start?: string,
@@ -1684,10 +1667,22 @@ export class DashboardService {
         d.Percent_Engine_Torque_or_Duty_Cycle ?? 0,
     }));
 
+    charts.torqueResponseLoad = data.map((d) => ({
+      time: d.timestamp,
+      loadPercent: this.calculateLoadPercent(d),
+      Percent_Engine_Torque_or_Duty_Cycle:
+        d.Percent_Engine_Torque_or_Duty_Cycle ?? 0,
+    }));
+
     // Chart 3: Average Engine Speed
     charts.averageEngineSpeed = data.map((d) => ({
       time: d.timestamp,
       Averagr_Engine_Speed: d.Averagr_Engine_Speed ?? 0,
+    }));
+
+    charts.loadPercent = data.map((d) => ({
+      time: d.timestamp,
+      loadPercent: this.calculateLoadPercent(d),
     }));
 
     charts.mechanicalStress = data.map((d) => {
@@ -1722,6 +1717,8 @@ export class DashboardService {
       Fuel_Rate: 1,
       Averagr_Engine_Speed: 1,
       Genset_Total_Power_Factor_calculated: 1,
+      Genset_Total_kW: 1,
+      Genset_Application_kW_Rating_PC2X: 1,
     };
   }
 }

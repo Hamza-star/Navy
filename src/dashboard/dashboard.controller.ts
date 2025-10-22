@@ -582,7 +582,7 @@ export class DashboardController {
     );
     return (charts as any).mechanicalStress ?? [];
   }
-  @Get('performance-general/rpm-stability-index')
+  @Get('performance-load/load-impact-speed')
   async getRPMStabilityIndex(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -593,9 +593,9 @@ export class DashboardController {
       start,
       end,
     );
-    return (charts as any).rpmStabilityIndex ?? [];
+    return (charts as any).loadPercent ?? [];
   }
-  @Get('performance-general/oscillation-index')
+  @Get('performance-load/oscillation-behavior')
   async getOscillationIndex(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -608,7 +608,7 @@ export class DashboardController {
     );
     return (charts as any).oscillationIndex ?? [];
   }
-  @Get('performance-general/fuel-consumption')
+  @Get('performance-load/fuel-demand-load')
   async getFuelConsumption(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -620,5 +620,31 @@ export class DashboardController {
       end,
     );
     return (charts as any).fuelConsumption ?? [];
+  }
+  @Get('performance-load/efficiency-under-load')
+  async getEfficiencyUnderLoad(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboard6Data(
+      mode,
+      start,
+      end,
+    );
+    return (charts as any).loadPercent ?? [];
+  }
+  @Get('performance-load/torque-response-load')
+  async getTorqueResponseLoad(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboard6Data(
+      mode,
+      start,
+      end,
+    );
+    return (charts as any).torqueResponseLoad ?? [];
   }
 }

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
@@ -608,21 +607,16 @@ export class DashboardController {
       start,
       end,
     );
-    return (charts as any).loadPercent ?? [];
+
+    const loadPercentData = (charts as any).loadPercent ?? [];
+    const rpmStabilityData = (charts as any).rpmStabilityIndex ?? [];
+
+    // ✅ Separate objects return karein
+    return {
+      loadPercent: loadPercentData,
+      rpmStabilityIndex: rpmStabilityData,
+    };
   }
-  // @Get('performance-load/oscillation-behavior')
-  // async getOscillationIndex(
-  //   @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
-  //   @Query('start') start?: string,
-  //   @Query('end') end?: string,
-  // ) {
-  //   const { charts } = await this.dashboardService.getDashboard6Data(
-  //     mode,
-  //     start,
-  //     end,
-  //   );
-  //   return (charts as any).oscillationIndex ?? [];
-  // }
 
   @Get('performance-load/oscillation-behavior')
   async getOscillationIndex(
@@ -639,20 +633,11 @@ export class DashboardController {
     const oscillationData = (charts as any).oscillationIndex ?? [];
     const loadPercentData = (charts as any).loadPercent ?? [];
 
-    // ✅ Har oscillation data point ke liye corresponding load percent dhoondhein
-    const combinedData = oscillationData.map((oscillationItem: any) => {
-      // Same timestamp wala load percent dhoondhein
-      const correspondingLoad = loadPercentData.find(
-        (loadItem: any) => loadItem.time === oscillationItem.time,
-      );
-
-      return {
-        ...oscillationItem,
-        Load_Percent: correspondingLoad ? correspondingLoad.loadPercent : 0,
-      };
-    });
-
-    return combinedData;
+    // ✅ Separate objects return karein
+    return {
+      oscillationIndex: oscillationData,
+      loadPercent: loadPercentData,
+    };
   }
   @Get('performance-load/fuel-demand-load')
   async getFuelConsumption(
@@ -665,7 +650,15 @@ export class DashboardController {
       start,
       end,
     );
-    return (charts as any).fuelConsumption ?? [];
+
+    const fuelConsumptionData = (charts as any).fuelConsumption ?? [];
+    const loadPercentData = (charts as any).loadPercent ?? [];
+
+    // ✅ Separate objects return karein
+    return {
+      fuelConsumption: fuelConsumptionData,
+      loadPercent: loadPercentData,
+    };
   }
   @Get('performance-load/efficiency-under-load')
   async getEfficiencyUnderLoad(

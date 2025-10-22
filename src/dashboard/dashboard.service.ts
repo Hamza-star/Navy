@@ -219,7 +219,7 @@
 //       );
 
 //       return {
-//         time: d.timestamp,
+//         time: this.formatTimeForResponse(d.timestamp),
 //         CurrentImbalance: +CurrentImbalance.toFixed(2),
 //         neutralCurrent: +neutralCurrent.toFixed(2),
 //       };
@@ -285,7 +285,7 @@
 //         ((Math.max(IA, IB, IC) - Math.min(IA, IB, IC)) / avgCurrent) * 100;
 
 //       return {
-//         time: d.timestamp,
+//         time: this.formatTimeForResponse(d.timestamp),
 //         Genset_L1_Current: IA,
 //         Genset_L2_Current: IB,
 //         Genset_L3_Current: IC,
@@ -303,7 +303,7 @@
 //         ((Math.max(VL1, VL2, VL3) - Math.min(VL1, VL2, VL3)) / vAvg) * 100;
 
 //       return {
-//         time: d.timestamp,
+//         time: this.formatTimeForResponse(d.timestamp),
 //         Genset_L1L2_Voltage: VL1,
 //         Genset_L2L3_Voltage: VL2,
 //         Genset_L3L1_Voltage: VL3,
@@ -483,14 +483,14 @@
 
 //     // Chart 1: Intake & Boost Pressure
 //     charts.intakeBoost = data.map((d) => ({
-//       time: d.timestamp,
+//       time: this.formatTimeForResponse(d.timestamp),
 //       Intake_Manifold3_Temperature: d.Intake_Manifold3_Temperature,
 //       Boost_Pressure: d.Boost_Pressure,
 //     }));
 
 //     // Chart 2: Cooling Margin
 //     charts.coolingMargin = data.map((d) => ({
-//       time: d.timestamp,
+//       time: this.formatTimeForResponse(d.timestamp),
 //       Cooling_Margin: this.calculateCoolingMargin(d),
 //       Coolant_Temperature: d.Coolant_Temperature ?? 0,
 //       AfterCooler_Temperature: d.AfterCooler_Temperature ?? 0,
@@ -884,7 +884,7 @@ export class DashboardService {
       );
 
       return {
-        time: d.timestamp,
+        time: this.formatTimeForResponse(d.timestamp),
         CurrentImbalance: +CurrentImbalance.toFixed(2),
         neutralCurrent: +neutralCurrent.toFixed(2),
       };
@@ -904,7 +904,7 @@ export class DashboardService {
         ((Math.max(IA, IB, IC) - Math.min(IA, IB, IC)) / avgCurrent) * 100;
 
       return {
-        time: d.timestamp,
+        time: this.formatTimeForResponse(d.timestamp),
         Genset_L1_Current: IAShare,
         Genset_L2_Current: IBShare,
         Genset_L3_Current: ICShare,
@@ -927,7 +927,7 @@ export class DashboardService {
       //   ((Math.max(IA, IB, IC) - Math.min(IA, IB, IC)) / avgCurrent) * 100;
 
       return {
-        time: d.timestamp,
+        time: this.formatTimeForResponse(d.timestamp),
         Genset_L1_Current: IA,
         Genset_L2_Current: IB,
         Genset_L3_Current: IC,
@@ -964,7 +964,7 @@ export class DashboardService {
       const loadStress = (loadPercent * 1) / pf;
 
       return {
-        time: d.timestamp,
+        time: this.formatTimeForResponse(d.timestamp),
         LoadPercent: +loadPercent.toFixed(2),
         PowerLossFactor: +pf.toFixed(2),
         LoadStress: +loadStress,
@@ -1075,14 +1075,14 @@ export class DashboardService {
 
     // Chart 1: Intake & Boost
     charts.intakeBoost = data.map((d) => ({
-      time: d.timestamp,
+      time: this.formatTimeForResponse(d.timestamp),
       Intake_Manifold3_Temperature: d.Intake_Manifold3_Temperature,
       Boost_Pressure: d.Boost_Pressure,
     }));
 
     // Chart 2: thermal stress
     charts.thermalStress = data.map((d) => ({
-      time: d.timestamp,
+      time: this.formatTimeForResponse(d.timestamp),
       thermalStressF: this.calculateThermalStressF(d),
       thermalStressC: this.calculateThermalStressC(d),
       OTSRF: this.OTSRF(d),
@@ -1096,7 +1096,7 @@ export class DashboardService {
 
     // Chart 2: Cooling Margin
     charts.coolingMargin = data.map((d) => ({
-      time: d.timestamp,
+      time: this.formatTimeForResponse(d.timestamp),
       Cooling_MarginF: this.calculateCoolingMarginF(d),
       Cooling_MarginC: this.calculateCoolingMarginC(d),
       // Coolant_Temperature: d.Coolant_Temperature ?? 0,
@@ -1115,7 +1115,7 @@ export class DashboardService {
         100;
 
       return {
-        time: d.timestamp,
+        time: this.formatTimeForResponse(d.timestamp),
         avg_LL_Voltage: +avg_LL_Voltage.toFixed(2),
         voltageImbalance: +voltageImbalance.toFixed(2),
       };
@@ -1287,7 +1287,7 @@ export class DashboardService {
     const charts: Record<string, any[]> = {};
 
     charts.lubricationRiskIndex = data.map((d) => ({
-      time: d.timestamp,
+      time: this.formatTimeForResponse(d.timestamp),
       Oil_Pressure: d.Oil_Pressure,
       Oil_Temperature: d.Oil_Temperature,
       Lubrication_Risk_Index: d.Oil_Temperature
@@ -1296,19 +1296,19 @@ export class DashboardService {
     }));
 
     charts.oilPressureEngineSpeed = data.map((d) => ({
-      time: d.timestamp,
+      time: this.formatTimeForResponse(d.timestamp),
       Oil_Pressure: d.Oil_Pressure,
       Averagr_Engine_Speed: d.Averagr_Engine_Speed,
     }));
 
     charts.boostFuelOutlet = data.map((d) => ({
-      time: d.timestamp,
+      time: this.formatTimeForResponse(d.timestamp),
       Boost_Pressure: d.Boost_Pressure,
       Fuel_Outlet_Pressure_calculated: d.Fuel_Outlet_Pressure_calculated,
     }));
 
     charts.boostLoad = data.map((d) => ({
-      time: d.timestamp,
+      time: this.formatTimeForResponse(d.timestamp),
       Boost_Pressure: d.Boost_Pressure,
       LoadPercent:
         d.Genset_Total_kW && d.Genset_Total_kW
@@ -1320,7 +1320,7 @@ export class DashboardService {
     }));
 
     charts.fuelOutletBiometric = data.map((d) => ({
-      time: d.timestamp,
+      time: this.formatTimeForResponse(d.timestamp),
       Fuel_Outlet_Pressure_calculated: d.Fuel_Outlet_Pressure_calculated,
       Barometric_Absolute_Pressure: d.Barometric_Absolute_Pressure,
     }));
@@ -1447,7 +1447,7 @@ export class DashboardService {
         ).toFixed(2);
       }
       return {
-        time: d.timestamp,
+        time: this.formatTimeForResponse(d.timestamp),
         Fuel_Rate: d.Fuel_Rate,
         LoadPercent: loadPercent,
       };
@@ -1458,7 +1458,10 @@ export class DashboardService {
       const fuelRate = d.Fuel_Rate ?? 0;
       const boostPressure = d.Boost_Pressure ?? 0;
       const value = fuelRate !== 0 ? +(boostPressure / fuelRate).toFixed(2) : 0;
-      return { time: d.timestamp, AirFuelEffectiveness: value };
+      return {
+        time: this.formatTimeForResponse(d.timestamp),
+        AirFuelEffectiveness: value,
+      };
     });
 
     // Chart3: Specific Fuel Consumption
@@ -1466,7 +1469,10 @@ export class DashboardService {
       const fuelRate = d.Fuel_Rate ?? 0;
       const power = d.Genset_Total_kW ?? 1;
       const sfc = power !== 0 ? +((fuelRate * 3.7854) / power).toFixed(3) : 0;
-      return { time: d.timestamp, SpecificFuelConsumption: sfc };
+      return {
+        time: this.formatTimeForResponse(d.timestamp),
+        SpecificFuelConsumption: sfc,
+      };
     });
 
     // Chart4: Heat Rate = SFC * CV
@@ -1477,7 +1483,10 @@ export class DashboardService {
       const heatRate =
         power > 0 ? +((fuelRate * 3.7854 * CV) / power).toFixed(3) : 0;
 
-      return { time: d.timestamp, HeatRate: heatRate };
+      return {
+        time: this.formatTimeForResponse(d.timestamp),
+        HeatRate: heatRate,
+      };
     });
 
     // Fuel Flow Rate Change
@@ -1486,12 +1495,15 @@ export class DashboardService {
       const previousRate = i > 0 ? (data[i - 1].Fuel_Rate ?? 0) : currentRate;
       const change = +(currentRate - previousRate).toFixed(3);
 
-      return { time: d.timestamp, FuelFlowRateChange: change };
+      return {
+        time: this.formatTimeForResponse(d.timestamp),
+        FuelFlowRateChange: change,
+      };
     });
 
     // Chart5: Fuel Rate & Fuel Outlet Pressure
     charts.fuelRateOutlet = data.map((d) => ({
-      time: d.timestamp,
+      time: this.formatTimeForResponse(d.timestamp),
       Fuel_Rate: d.Fuel_Rate,
       Fuel_Outlet_Pressure: d.Fuel_Outlet_Pressure_calculated ?? 0,
     }));
@@ -1663,7 +1675,7 @@ export class DashboardService {
   //     cumulative += fuelUsed;
 
   //     results.push({
-  //       time: d.timestamp,
+  //       time: this.formatTimeForResponse(d.timestamp),
   //       Fuel_Used: fuelUsed,
   //       Fuel_Cumulative: +cumulative.toFixed(5),
   //     });
@@ -1685,7 +1697,7 @@ export class DashboardService {
       const currentLoadPercent = this.calculateLoadPercent(d);
 
       results.push({
-        time: d.timestamp,
+        time: this.formatTimeForResponse(d.timestamp),
         Fuel_Used: fuelUsed,
         Fuel_Cumulative: +cumulative.toFixed(5),
         Load_Percent: currentLoadPercent, // ✅ Load percent add kiya
@@ -1772,7 +1784,7 @@ export class DashboardService {
 
     // Chart 1: Percent Engine Torque or Duty Cycle vs Engine Running Time
     charts.engineTorqueVsRunningTime = data.map((d) => ({
-      time: d.timestamp,
+      time: this.formatTimeForResponse(d.timestamp),
       Percent_Engine_Torque_or_Duty_Cycle:
         d.Percent_Engine_Torque_or_Duty_Cycle ?? 0,
       Engine_Running_Time_calculated: d.Engine_Running_Time_calculated ?? 0,
@@ -1780,14 +1792,14 @@ export class DashboardService {
 
     // Chart 2: Fuel Rate vs Percent Engine Torque
     charts.fuelRateVsTorque = data.map((d) => ({
-      time: d.timestamp,
+      time: this.formatTimeForResponse(d.timestamp),
       Fuel_Rate: d.Fuel_Rate ?? 0,
       Percent_Engine_Torque_or_Duty_Cycle:
         d.Percent_Engine_Torque_or_Duty_Cycle ?? 0,
     }));
 
     charts.torqueResponseLoad = data.map((d) => ({
-      time: d.timestamp,
+      time: this.formatTimeForResponse(d.timestamp),
       load_Percent: this.calculateLoadPercent(d),
       Percent_Engine_Torque_or_Duty_Cycle:
         d.Percent_Engine_Torque_or_Duty_Cycle ?? 0,
@@ -1795,26 +1807,29 @@ export class DashboardService {
 
     // Chart 3: Average Engine Speed
     charts.averageEngineSpeed = data.map((d) => ({
-      time: d.timestamp,
+      time: this.formatTimeForResponse(d.timestamp),
       Averagr_Engine_Speed: d.Averagr_Engine_Speed ?? 0,
     }));
 
     charts.loadPercent = data.map((d) => ({
-      time: d.timestamp,
+      time: this.formatTimeForResponse(d.timestamp),
       load_Percent: this.calculateLoadPercent(d),
     }));
 
     charts.mechanicalStress = data.map((d) => {
       const avg = d.Averagr_Engine_Speed ?? 0;
       const stress = +((avg - 1500) / 1500).toFixed(3); // deviation ratio
-      return { time: d.timestamp, Mechanical_Stress: stress };
+      return {
+        time: this.formatTimeForResponse(d.timestamp),
+        Mechanical_Stress: stress,
+      };
     });
 
     charts.rpmStabilityIndex = this.calculateRPMStabilityWithLoad(data);
 
     // Chart 4: Genset Total Power Factor
     charts.gensetPowerFactor = data.map((d) => ({
-      time: d.timestamp,
+      time: this.formatTimeForResponse(d.timestamp),
       Genset_Total_kW: d.Genset_Total_kW ?? 0,
     }));
 

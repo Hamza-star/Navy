@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Controller, Get, Query } from '@nestjs/common';
@@ -541,6 +543,19 @@ export class DashboardController {
     );
     return (charts as any).fuelRateVsTorque ?? [];
   }
+  @Get('performance-general/generator-oscillation')
+  async getTorqueGeneratorOscillationChart(
+    @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    const { charts } = await this.dashboardService.getDashboard6Data(
+      mode,
+      start,
+      end,
+    );
+    return (charts as any).oscillationIndex ?? [];
+  }
 
   @Get('performance-general/rpm-stability')
   async getAverageEngineSpeedChart(
@@ -569,8 +584,8 @@ export class DashboardController {
     );
     return (charts as any).gensetPowerFactor ?? [];
   }
-  @Get('performance-general/mechanical-stress')
-  async getMechanicalStress(
+  @Get('performance-general/multi-dimensional-stress')
+  async getMultiDimensionalStress(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
     @Query('end') end?: string,
@@ -595,6 +610,20 @@ export class DashboardController {
     );
     return (charts as any).loadPercent ?? [];
   }
+  // @Get('performance-load/oscillation-behavior')
+  // async getOscillationIndex(
+  //   @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+  //   @Query('start') start?: string,
+  //   @Query('end') end?: string,
+  // ) {
+  //   const { charts } = await this.dashboardService.getDashboard6Data(
+  //     mode,
+  //     start,
+  //     end,
+  //   );
+  //   return (charts as any).oscillationIndex ?? [];
+  // }
+
   @Get('performance-load/oscillation-behavior')
   async getOscillationIndex(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
@@ -606,7 +635,24 @@ export class DashboardController {
       start,
       end,
     );
-    return (charts as any).oscillationIndex ?? [];
+
+    const oscillationData = (charts as any).oscillationIndex ?? [];
+    const loadPercentData = (charts as any).loadPercent ?? [];
+
+    // ✅ Har oscillation data point ke liye corresponding load percent dhoondhein
+    const combinedData = oscillationData.map((oscillationItem: any) => {
+      // Same timestamp wala load percent dhoondhein
+      const correspondingLoad = loadPercentData.find(
+        (loadItem: any) => loadItem.time === oscillationItem.time,
+      );
+
+      return {
+        ...oscillationItem,
+        Load_Percent: correspondingLoad ? correspondingLoad.loadPercent : 0,
+      };
+    });
+
+    return combinedData;
   }
   @Get('performance-load/fuel-demand-load')
   async getFuelConsumption(

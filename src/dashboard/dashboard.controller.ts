@@ -556,6 +556,20 @@ export class DashboardController {
     return (charts as any).oscillationIndex ?? [];
   }
 
+  // @Get('performance-general/rpm-stability')
+  // async getAverageEngineSpeedChart(
+  //   @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+  //   @Query('start') start?: string,
+  //   @Query('end') end?: string,
+  // ) {
+  //   const { charts } = await this.dashboardService.getDashboard6Data(
+  //     mode,
+  //     start,
+  //     end,
+  //   );
+  //   return (charts as any).averageEngineSpeed ?? [];
+  // }
+
   @Get('performance-general/rpm-stability')
   async getAverageEngineSpeedChart(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
@@ -567,7 +581,15 @@ export class DashboardController {
       start,
       end,
     );
-    return (charts as any).averageEngineSpeed ?? [];
+
+    const averageEngineSpeedData = (charts as any).averageEngineSpeed ?? [];
+    const rpmStabilityData = (charts as any).rpmStabilityIndex ?? [];
+
+    // ✅ Separate objects return karein
+    return {
+      averageEngineSpeed: averageEngineSpeedData,
+      rpmStabilityIndex: rpmStabilityData,
+    };
   }
 
   @Get('performance-general/output-efficiency')
@@ -607,15 +629,15 @@ export class DashboardController {
       start,
       end,
     );
+    return (charts as any).rpmStabilityIndex ?? [];
+    // const loadPercentData = (charts as any).loadPercent ?? [];
+    // const rpmStabilityData = (charts as any).rpmStabilityIndex ?? [];
 
-    const loadPercentData = (charts as any).loadPercent ?? [];
-    const rpmStabilityData = (charts as any).rpmStabilityIndex ?? [];
-
-    // ✅ Separate objects return karein
-    return {
-      loadPercent: loadPercentData,
-      rpmStabilityIndex: rpmStabilityData,
-    };
+    // // ✅ Separate objects return karein
+    // return {
+    //   loadPercent: loadPercentData,
+    //   rpmStabilityIndex: rpmStabilityData,
+    // };
   }
 
   @Get('performance-load/oscillation-behavior')

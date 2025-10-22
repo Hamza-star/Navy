@@ -1496,14 +1496,41 @@ export class DashboardService {
    *  DASHBOARD 6 — ENGINE PERFORMANCE & TORQUE
    * --------------------------------------------------- */
 
-  private calculateRPMStabilityIndex(data: any[]): any[] {
+  // private calculateRPMStabilityIndex(data: any[]): any[] {
+  //   const window = 10;
+  //   const results: any[] = [];
+
+  //   for (let i = 0; i < data.length; i++) {
+  //     if (i < window - 1) continue;
+  //     const slice = data.slice(i - window + 1, i + 1);
+  //     const rpmValues = slice.map((d) => d.Averagr_Engine_Speed ?? 0);
+  //     const avg = rpmValues.reduce((a, b) => a + b, 0) / rpmValues.length;
+  //     const variance =
+  //       rpmValues.reduce((a, b) => a + Math.pow(b - avg, 2), 0) /
+  //       rpmValues.length;
+  //     const stdDev = Math.sqrt(variance);
+  //     const RSI = +(stdDev / (avg || 1)).toFixed(4);
+
+  //     results.push({
+  //       time: data[i].timestamp,
+  //       RPM_Stability_Index: RSI,
+  //     });
+  //   }
+
+  //   return results;
+  // }
+
+  private calculateRPMStabilityWithLoad(data: any[]): any[] {
     const window = 10;
     const results: any[] = [];
 
     for (let i = 0; i < data.length; i++) {
       if (i < window - 1) continue;
+
       const slice = data.slice(i - window + 1, i + 1);
       const rpmValues = slice.map((d) => d.Averagr_Engine_Speed ?? 0);
+
+      // Calculate RPM Stability Index
       const avg = rpmValues.reduce((a, b) => a + b, 0) / rpmValues.length;
       const variance =
         rpmValues.reduce((a, b) => a + Math.pow(b - avg, 2), 0) /
@@ -1511,9 +1538,13 @@ export class DashboardService {
       const stdDev = Math.sqrt(variance);
       const RSI = +(stdDev / (avg || 1)).toFixed(4);
 
+      // Get current load percent
+      const currentLoadPercent = this.calculateLoadPercent(data[i]);
+
       results.push({
         time: data[i].timestamp,
         RPM_Stability_Index: RSI,
+        Load_Percent: currentLoadPercent,
       });
     }
 
@@ -1669,7 +1700,7 @@ export class DashboardService {
 
     charts.torqueResponseLoad = data.map((d) => ({
       time: d.timestamp,
-      loadPercent: this.calculateLoadPercent(d),
+      load_Percent: this.calculateLoadPercent(d),
       Percent_Engine_Torque_or_Duty_Cycle:
         d.Percent_Engine_Torque_or_Duty_Cycle ?? 0,
     }));
@@ -1682,7 +1713,7 @@ export class DashboardService {
 
     charts.loadPercent = data.map((d) => ({
       time: d.timestamp,
-      loadPercent: this.calculateLoadPercent(d),
+      load_Percent: this.calculateLoadPercent(d),
     }));
 
     charts.mechanicalStress = data.map((d) => {
@@ -1691,7 +1722,7 @@ export class DashboardService {
       return { time: d.timestamp, Mechanical_Stress: stress };
     });
 
-    charts.rpmStabilityIndex = this.calculateRPMStabilityIndex(data);
+    charts.rpmStabilityIndex = this.calculateRPMStabilityWithLoad(data);
 
     // Chart 4: Genset Total Power Factor
     charts.gensetPowerFactor = data.map((d) => ({

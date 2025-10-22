@@ -1607,8 +1607,9 @@ export class DashboardService {
 
     return results;
   }
+
   /** -------------------
-   * 🧮 SEPARATE LOAD PERCENT CALCULATION FUNCTION
+   * SEPARATE LOAD PERCENT CALCULATION FUNCTION
    * ------------------- */
   private calculateLoadPercent(doc: any): number {
     if (!doc.Genset_Total_kW || !doc.Genset_Application_kW_Rating_PC2X) {
@@ -1668,7 +1669,7 @@ export class DashboardService {
     return { metrics, charts: this.mapChartsDashboard6(data) };
   }
 
-  /** 🧮 Metrics Mapper */
+  /** Metrics Mapper */
   private mapMetricsDashboard6(doc: any): Dashboard6Metrics {
     return {
       totalFuelConsumption: doc.Total_Fuel_Consumption_calculated ?? 0,
@@ -1678,7 +1679,7 @@ export class DashboardService {
     };
   }
 
-  /** 📈 Charts Mapper */
+  /** Charts Mapper */
   private mapChartsDashboard6(data: any[]): Record<string, any[]> {
     const charts: Record<string, any[]> = {};
 
@@ -1736,7 +1737,7 @@ export class DashboardService {
     return charts;
   }
 
-  /** ✅ Projection Fields */
+  /** Projection Fields */
   private getProjectionFieldsDashboard6() {
     return {
       timestamp: 1,

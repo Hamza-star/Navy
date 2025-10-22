@@ -568,14 +568,25 @@ export class DashboardService {
   //   // return new Date(time).toISOString().slice(0, 16).replace('T', ' ');
   // }
 
+  // private formatTimeForResponse(time: Date): string {
+  //   const date = new Date(time);
+
+  //   // Round down to start of the hour
+  //   date.setMinutes(0, 0, 0);
+
+  //   // Format "YYYY-MM-DD HH:00:00"
+  //   return date.toISOString().slice(0, 19).replace('T', ' ');
+  // }
+
   private formatTimeForResponse(time: Date): string {
     const date = new Date(time);
 
-    // Round down to start of the hour
-    date.setMinutes(0, 0, 0);
+    // ✅ UTC methods use karein
+    const hours = date.getUTCHours().toString().padStart(2, '0');
+    const minutes = date.getUTCMinutes().toString().padStart(2, '0');
+    const seconds = date.getUTCSeconds().toString().padStart(2, '0');
 
-    // Format "YYYY-MM-DD HH:00:00"
-    return date.toISOString().slice(0, 19).replace('T', ' ');
+    return `${hours}:${minutes}:${seconds}`;
   }
 
   /** -------------------

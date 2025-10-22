@@ -899,11 +899,16 @@ export class DashboardService {
       const IBShare = (IB / (IA + IB + IC)) * 100 || 0;
       const ICShare = (IC / (IA + IB + IC)) * 100 || 0;
 
+      const avgCurrent = (IA + IB + IC) / 3 || 1;
+      const CurrentImbalance =
+        ((Math.max(IA, IB, IC) - Math.min(IA, IB, IC)) / avgCurrent) * 100;
+
       return {
         time: d.timestamp,
         Genset_L1_Current: IAShare,
         Genset_L2_Current: IBShare,
         Genset_L3_Current: ICShare,
+        CurrentImbalance: +CurrentImbalance.toFixed(2),
       };
     });
 
@@ -917,16 +922,16 @@ export class DashboardService {
       const IA = d.Genset_L1_Current || 0;
       const IB = d.Genset_L2_Current || 0;
       const IC = d.Genset_L3_Current || 0;
-      const avgCurrent = (IA + IB + IC) / 3 || 1;
-      const CurrentImbalance =
-        ((Math.max(IA, IB, IC) - Math.min(IA, IB, IC)) / avgCurrent) * 100;
+      // const avgCurrent = (IA + IB + IC) / 3 || 1;
+      // const CurrentImbalance =
+      //   ((Math.max(IA, IB, IC) - Math.min(IA, IB, IC)) / avgCurrent) * 100;
 
       return {
         time: d.timestamp,
         Genset_L1_Current: IA,
         Genset_L2_Current: IB,
         Genset_L3_Current: IC,
-        CurrentImbalance: +CurrentImbalance.toFixed(2),
+        // CurrentImbalance: +CurrentImbalance.toFixed(2),
       };
     });
 

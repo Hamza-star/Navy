@@ -640,6 +640,27 @@ export class DashboardController {
     // };
   }
 
+  // @Get('performance-load/oscillation-behavior')
+  // async getOscillationIndex(
+  //   @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
+  //   @Query('start') start?: string,
+  //   @Query('end') end?: string,
+  // ) {
+  //   const { charts } = await this.dashboardService.getDashboard6Data(
+  //     mode,
+  //     start,
+  //     end,
+  //   );
+
+  //   const oscillationData = (charts as any).oscillationIndex ?? [];
+  //   const loadPercentData = (charts as any).loadPercent ?? [];
+
+  //   // ✅ Separate objects return karein
+  //   return {
+  //     oscillationIndex: oscillationData,
+  //     loadPercent: loadPercentData,
+  //   };
+  // }
   @Get('performance-load/oscillation-behavior')
   async getOscillationIndex(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
@@ -652,14 +673,7 @@ export class DashboardController {
       end,
     );
 
-    const oscillationData = (charts as any).oscillationIndex ?? [];
-    const loadPercentData = (charts as any).loadPercent ?? [];
-
-    // ✅ Separate objects return karein
-    return {
-      oscillationIndex: oscillationData,
-      loadPercent: loadPercentData,
-    };
+    return (charts as any).oscillationIndex ?? [];
   }
   @Get('performance-load/fuel-demand-load')
   async getFuelConsumption(
@@ -672,15 +686,16 @@ export class DashboardController {
       start,
       end,
     );
+    return (charts as any).fuelConsumption ?? [];
 
-    const fuelConsumptionData = (charts as any).fuelConsumption ?? [];
-    const loadPercentData = (charts as any).loadPercent ?? [];
+    // const fuelConsumptionData = (charts as any).fuelConsumption ?? [];
+    // const loadPercentData = (charts as any).loadPercent ?? [];
 
-    // ✅ Separate objects return karein
-    return {
-      fuelConsumption: fuelConsumptionData,
-      loadPercent: loadPercentData,
-    };
+    // // ✅ Separate objects return karein
+    // return {
+    //   fuelConsumption: fuelConsumptionData,
+    //   loadPercent: loadPercentData,
+    // };
   }
   @Get('performance-load/efficiency-under-load')
   async getEfficiencyUnderLoad(

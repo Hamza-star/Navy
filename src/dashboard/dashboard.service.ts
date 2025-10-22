@@ -1551,6 +1551,44 @@ export class DashboardService {
     return results;
   }
 
+  // private calculateOscillationIndex(data: any[]): any[] {
+  //   const window = 10;
+  //   const results: any[] = [];
+
+  //   for (let i = 0; i < data.length; i++) {
+  //     if (i < window - 1) continue;
+
+  //     const slice = data.slice(i - window + 1, i + 1);
+
+  //     const P = slice.map((d) => d.Genset_Total_kW ?? 0);
+  //     const S = slice.map((d) => d.Genset_Total_kVA ?? 0);
+
+  //     // Calculate reactive power (Q)
+  //     const Q = S.map((s, idx) => {
+  //       const p = P[idx];
+  //       return s >= p ? Math.sqrt(s * s - p * p) : 0;
+  //     });
+
+  //     const meanP = P.reduce((a, b) => a + b, 0) / P.length;
+  //     const meanQ = Q.reduce((a, b) => a + b, 0) / Q.length;
+
+  //     const stdP = Math.sqrt(
+  //       P.reduce((a, b) => a + Math.pow(b - meanP, 2), 0) / P.length,
+  //     );
+  //     const stdQ = Math.sqrt(
+  //       Q.reduce((a, b) => a + Math.pow(b - meanQ, 2), 0) / Q.length,
+  //     );
+
+  //     const OI = +Math.sqrt(
+  //       Math.pow(stdP / (meanP || 1), 2) + Math.pow(stdQ / (meanQ || 1), 2),
+  //     ).toFixed(4);
+
+  //     results.push({ time: data[i].timestamp, Oscillation_Index: OI });
+  //   }
+
+  //   return results;
+  // }
+
   private calculateOscillationIndex(data: any[]): any[] {
     const window = 10;
     const results: any[] = [];
@@ -1583,11 +1621,37 @@ export class DashboardService {
         Math.pow(stdP / (meanP || 1), 2) + Math.pow(stdQ / (meanQ || 1), 2),
       ).toFixed(4);
 
-      results.push({ time: data[i].timestamp, Oscillation_Index: OI });
+      // ✅ Load percent add karein (current data point ka)
+      const currentLoadPercent = this.calculateLoadPercent(data[i]);
+
+      results.push({
+        time: data[i].timestamp,
+        Oscillation_Index: OI,
+        Load_Percent: currentLoadPercent, // ✅ Load percent add kiya
+      });
     }
 
     return results;
   }
+
+  // private calculateFuelConsumption(data: any[]): any[] {
+  //   let cumulative = 0;
+  //   const results: any[] = [];
+
+  //   for (const d of data) {
+  //     const fuelRate = d.Fuel_Rate ?? 0;
+  //     const fuelUsed = +((fuelRate * 3) / 3600).toFixed(5); // gallons per 3-sec sample
+  //     cumulative += fuelUsed;
+
+  //     results.push({
+  //       time: d.timestamp,
+  //       Fuel_Used: fuelUsed,
+  //       Fuel_Cumulative: +cumulative.toFixed(5),
+  //     });
+  //   }
+
+  //   return results;
+  // }
 
   private calculateFuelConsumption(data: any[]): any[] {
     let cumulative = 0;
@@ -1598,10 +1662,14 @@ export class DashboardService {
       const fuelUsed = +((fuelRate * 3) / 3600).toFixed(5); // gallons per 3-sec sample
       cumulative += fuelUsed;
 
+      // ✅ Load percent add karein
+      const currentLoadPercent = this.calculateLoadPercent(d);
+
       results.push({
         time: d.timestamp,
         Fuel_Used: fuelUsed,
         Fuel_Cumulative: +cumulative.toFixed(5),
+        Load_Percent: currentLoadPercent, // ✅ Load percent add kiya
       });
     }
 

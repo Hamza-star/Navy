@@ -69,7 +69,7 @@ export class DashboardController {
       start,
       end,
     );
-    return charts.currentImbalanceNeutral;
+    return charts.CurrentImbalanceNeutral;
   }
 
   // Engine Thermal Chart

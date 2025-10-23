@@ -231,11 +231,13 @@ export class FormulasService {
       const RSI = +(stdDev / (avg || 1)).toFixed(4);
 
       const currentLoadPercent = this.calculateLoadPercent(data[i]);
+      const Averagr_Engine_Speed = data[i].Averagr_Engine_Speed ?? 0;
 
       results.push({
         time: data[i].timestamp,
         RPM_Stability_Index: RSI,
         Load_Percent: currentLoadPercent,
+        Averagr_Engine_Speed: Averagr_Engine_Speed,
       });
     }
 

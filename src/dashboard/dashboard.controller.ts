@@ -582,14 +582,11 @@ export class DashboardController {
       end,
     );
 
-    const averageEngineSpeedData = (charts as any).averageEngineSpeed ?? [];
-    const rpmStabilityData = (charts as any).rpmStabilityIndex ?? [];
+    // const averageEngineSpeedData = (charts as any).averageEngineSpeed ?? [];
+    // const rpmStabilityData = (charts as any).rpmStabilityIndex ?? [];
 
     // ✅ Separate objects return karein
-    return {
-      averageEngineSpeed: averageEngineSpeedData,
-      rpmStabilityIndex: rpmStabilityData,
-    };
+    return (charts as any).rpmStabilityIndex ?? [];
   }
 
   @Get('performance-general/output-efficiency')

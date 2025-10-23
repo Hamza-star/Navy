@@ -70,42 +70,40 @@
 
 //     // --- Process data ---
 //     const data = docs.map((doc) => {
-//       const result: any = { timestamp: doc.timestamp };
+//       const record: any = { timestamp: doc.timestamp };
 
 //       for (const param of selectedParams) {
+//         let value: any;
 //         switch (param) {
 //           case 'Load_Percent':
-//             result[param] = this.formulasService.calculateLoadPercent(doc);
+//             value = this.formulasService.calculateLoadPercent(doc);
 //             break;
 //           case 'Running_Hours':
-//             result[param] = this.formulasService.calculateRunningHours(doc);
+//             value = this.formulasService.calculateRunningHours(doc);
 //             break;
 //           case 'Current_Imbalance':
-//             result[param] = this.formulasService.calculateCurrentImbalance(doc);
+//             value = this.formulasService.calculateCurrentImbalance(doc);
 //             break;
 //           case 'Voltage_Imbalance':
-//             result[param] = this.formulasService.calculateVoltageImbalance(doc);
+//             value = this.formulasService.calculateVoltageImbalance(doc);
 //             break;
 //           case 'Power_Loss_Factor':
-//             result[param] = this.formulasService.calculatePowerLossFactor(doc);
+//             value = this.formulasService.calculatePowerLossFactor(doc);
 //             break;
 //           case 'Thermal_Stress':
-//             result[param] = this.formulasService.calculateThermalStress(doc);
+//             value = this.formulasService.calculateThermalStress(doc);
 //             break;
 //           default:
-//             result[param] = doc[param] ?? null;
+//             value = doc[param] ?? null;
 //         }
+//         record[param] = value;
 //       }
 
-//       return result;
+//       return record;
 //     });
 
-//     return {
-//       // count: data.length,
-//       // selectedParams,
-//       // pagination: { limit, skip, sortOrder },
-//       data,
-//     };
+//     // --- Return array of objects with param names ---
+//     return data;
 //   }
 // }
 
@@ -155,10 +153,28 @@ export class TrendsService {
     // --- Query setup ---
     let query: any = {};
 
-    if (mode === 'historical') {
+    if (mode === 'historic') {
       if (!startDate || !endDate)
         throw new Error('startDate and endDate are required');
-      query.timestamp = { $gte: new Date(startDate), $lte: new Date(endDate) };
+
+      // 🔹 Peek one document to check timestamp type
+      const sampleDoc = await this.collection.findOne(
+        {},
+        { projection: { timestamp: 1 } },
+      );
+      const isTimestampString =
+        sampleDoc && typeof sampleDoc.timestamp === 'string';
+
+      if (isTimestampString) {
+        // 🔸 String-based comparison
+        query.timestamp = { $gte: startDate, $lte: endDate };
+      } else {
+        // 🔸 Date-based comparison
+        query.timestamp = {
+          $gte: new Date(startDate),
+          $lte: new Date(endDate),
+        };
+      }
     } else if (mode === 'range') {
       query.Genset_Run_SS = { $gte: 1, $lte: 6 };
     } else {
@@ -213,7 +229,6 @@ export class TrendsService {
       return record;
     });
 
-    // --- Return array of objects with param names ---
     return data;
   }
 }

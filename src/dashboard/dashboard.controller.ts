@@ -313,7 +313,7 @@ export class DashboardController {
       start,
       end,
     );
-    return charts.thermalStress;
+    return (charts as Record<string, any[]>).thermalStress ?? [];
   }
 
   /** ---------------------------------------------------

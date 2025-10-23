@@ -12,6 +12,8 @@ import { PrivellegesModule } from './privelleges/privelleges.module';
 import { RolesModule } from './roles/roles.module';
 import { UsersModule } from './users/users.module';
 import { TimestampUpdateModule } from './timestamp-update/timestamp-update.module';
+import { TrendsModule } from './trends/trends.module';
+import { FormulasService } from './trends/formulas.service';
 
 @Module({
   imports: [
@@ -27,8 +29,9 @@ import { TimestampUpdateModule } from './timestamp-update/timestamp-update.modul
     DatabaseModule,
     DashboardModule,
     TimestampUpdateModule,
+    TrendsModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, FormulasService],
 })
 export class AppModule {}

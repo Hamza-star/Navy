@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Controller, Post, Body } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 
@@ -6,18 +7,20 @@ import { ReportsService } from './reports.service';
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
-  // POST /reports/fuel
-  @Post('fuel')
-  async getFuelReport(@Body() body: any) {
-    const { startDate, endDate, fuelCostPerLitre } = body;
-    if (!startDate || !endDate || !fuelCostPerLitre) {
-      throw new Error('Missing required parameters');
+  @Post('generate')
+  async generate(@Body() payload: any) {
+    try {
+      const result = await this.reportsService.generateReport(payload);
+      return {
+        success: true,
+        count: result.length,
+        data: result,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message || 'Failed to generate report',
+      };
     }
-
-    return this.reportsService.getFuelReport({
-      startDate,
-      endDate,
-      fuelCostPerLitre: +fuelCostPerLitre,
-    });
   }
 }

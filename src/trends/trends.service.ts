@@ -29,19 +29,19 @@ export class TrendsService {
   private formatTimestamp(value: any): string {
     if (!value) return '';
 
-    // If timestamp is already a string (like "2025-10-01T00:00:00.000Z")
-    if (typeof value === 'string') {
-      return value.replace('T', ' ').replace('Z', '').replace('.000', '');
-    }
-
-    // Fallback if it's a Date object
+    // Convert to Date object
     const date = new Date(value);
-    const year = date.getUTCFullYear();
-    const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
-    const day = date.getUTCDate().toString().padStart(2, '0');
-    const hours = date.getUTCHours().toString().padStart(2, '0');
-    const minutes = date.getUTCMinutes().toString().padStart(2, '0');
-    const seconds = date.getUTCSeconds().toString().padStart(2, '0');
+
+    // Subtract 5 hours (to shift from Karachi back to UTC-like time)
+    date.setHours(date.getHours() - 5);
+
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
+
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
   }
 
@@ -51,8 +51,6 @@ export class TrendsService {
   //     startDate,
   //     endDate,
   //     params: selectedParams = [],
-  //     limit = 1000,
-  //     skip = 0,
   //     sortOrder = 'asc',
   //   } = payload;
 
@@ -132,13 +130,11 @@ export class TrendsService {
   //     {},
   //   );
 
-  //   // ✅ Step 2: Fetch data
+  //   // ✅ Step 2: Fetch *ALL* matching data (pagination removed)
   //   const docs = await this.collection
   //     .find(query, { projection })
   //     .sort({ timestamp: sortOrder === 'asc' ? 1 : -1 })
-  //     .skip(skip)
-  //     .limit(limit)
-  //     .toArray();
+  //     .toArray(); // 👈 no skip/limit
 
   //   if (!docs.length) return [];
 
@@ -312,7 +308,7 @@ export class TrendsService {
       throw new Error('Invalid mode');
     }
 
-    // ✅ Step 0: Dependency map (derived → raw)
+    // ✅ Dependency Map (for calculated parameters)
     const dependencyMap: Record<string, string[]> = {
       Load_Percent: ['Genset_Total_kW', 'Genset_Application_kW_Rating_PC2X'],
       Voltage_Imbalance: [
@@ -346,7 +342,7 @@ export class TrendsService {
       Mechanical_Stress: ['Vibration_Amplitude', 'Genset_Total_kW'],
     };
 
-    // ✅ Step 1: Build projection with dependencies
+    // ✅ Step 1: Build projection
     const projectionKeys = new Set<string>(['timestamp']);
     for (const param of selectedParams) {
       projectionKeys.add(param);
@@ -359,23 +355,25 @@ export class TrendsService {
       {},
     );
 
-    // ✅ Step 2: Fetch *ALL* matching data (pagination removed)
-    const docs = await this.collection
+    // ✅ Step 2: Cursor-based streaming (no skip/limit)
+    const cursor = this.collection
       .find(query, { projection })
       .sort({ timestamp: sortOrder === 'asc' ? 1 : -1 })
-      .toArray(); // 👈 no skip/limit
+      .batchSize(1000); // 1000 docs per read batch
 
-    if (!docs.length) return [];
+    const data: any[] = [];
+    for await (const doc of cursor) {
+      data.push({
+        ...doc,
+        timestamp: this.formatTimestamp(doc.timestamp),
+      });
+    }
 
-    const data = docs.map((doc) => ({
-      ...doc,
-      timestamp: this.formatTimestamp(doc.timestamp),
-    }));
+    if (!data.length) return [];
 
-    // ✅ Step 3: Prepare result containers
+    // ✅ Step 3: Multi-point calculations
     const results: any = {};
 
-    // --- Multi-point calculations ---
     if (selectedParams.includes('RPM_Stability_Index')) {
       results.rpm = this.formulasService.calculateRPMStabilityWithLoad(data);
     }
@@ -453,7 +451,7 @@ export class TrendsService {
       return record;
     });
 
-    // ✅ Step 5: Merge batch results
+    // ✅ Step 5: Merge multi-point and single-point results
     const merged: any[] = [];
 
     for (let i = 0; i < singlePointData.length; i++) {

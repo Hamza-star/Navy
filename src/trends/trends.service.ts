@@ -29,11 +29,7 @@ export class TrendsService {
   private formatTimestamp(value: any): string {
     if (!value) return '';
 
-    // Convert to Date object
-    const date = new Date(value);
-
-    // Subtract 5 hours (to shift from Karachi back to UTC-like time)
-    date.setHours(date.getHours() - 5);
+    const date = new Date(value); // use raw Mongo timestamp
 
     const year = date.getFullYear();
     const month = (date.getMonth() + 1).toString().padStart(2, '0');

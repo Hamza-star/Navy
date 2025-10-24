@@ -14,6 +14,7 @@ import { UsersModule } from './users/users.module';
 import { TimestampUpdateModule } from './timestamp-update/timestamp-update.module';
 import { TrendsModule } from './trends/trends.module';
 import { FormulasService } from './trends/formulas.service';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { FormulasService } from './trends/formulas.service';
     DashboardModule,
     TimestampUpdateModule,
     TrendsModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService, FormulasService],

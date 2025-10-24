@@ -20,19 +20,18 @@ export class ReportsService {
 
   private formatTimestamp(value: any): string {
     if (!value) return '';
-
     const date = new Date(value);
-    // Convert UTC → Karachi time (UTC+5)
-    const karachiTime = new Date(date.getTime() + 5 * 60 * 60 * 1000);
-
-    const year = karachiTime.getUTCFullYear();
-    const month = (karachiTime.getUTCMonth() + 1).toString().padStart(2, '0');
-    const day = karachiTime.getUTCDate().toString().padStart(2, '0');
-    const hours = karachiTime.getUTCHours().toString().padStart(2, '0');
-    const minutes = karachiTime.getUTCMinutes().toString().padStart(2, '0');
-    const seconds = karachiTime.getUTCSeconds().toString().padStart(2, '0');
-
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  }
+
+  private toISOStringString(dateStr: string) {
+    return new Date(dateStr).toISOString();
   }
 
   async getFuelReport(payload: {
@@ -45,7 +44,7 @@ export class ReportsService {
     if (!startDate || !endDate)
       throw new Error('startDate and endDate are required');
 
-    // Detect timestamp type from one sample
+    // 🔹 Detect timestamp type
     const sampleDoc = await this.collection.findOne(
       {},
       { projection: { timestamp: 1 } },
@@ -53,9 +52,14 @@ export class ReportsService {
     const isTimestampString =
       sampleDoc && typeof sampleDoc.timestamp === 'string';
 
-    // Build query based on type
+    // 🔹 Query only within date range
     const query = isTimestampString
-      ? { timestamp: { $gte: startDate, $lte: endDate } }
+      ? {
+          timestamp: {
+            $gte: this.toISOStringString(startDate),
+            $lte: this.toISOStringString(endDate),
+          },
+        }
       : {
           timestamp: {
             $gte: new Date(startDate),
@@ -68,6 +72,7 @@ export class ReportsService {
       Fuel_Rate: 1,
       Genset_Total_kW: 1,
       Genset_Application_kW_Rating_PC2X: 1,
+      Genset_Run_SS: 1,
     };
 
     const docs = await this.collection
@@ -75,44 +80,74 @@ export class ReportsService {
       .sort({ timestamp: 1 })
       .toArray();
 
-    if (!docs.length) return [];
+    if (!docs.length) {
+      return [
+        {
+          Duration: '0 mins (0.00 hr)',
+          Fuel_Consumed: '0.00 Ltrs',
+          Production: '0.00 kWh',
+          Cost: '0',
+          TotalCost: '0',
+        },
+      ];
+    }
 
+    // 🔹 Format timestamps
     const data = docs.map((d) => ({
       ...d,
       timestamp: this.formatTimestamp(d.timestamp),
     }));
 
+    // 🔹 Compute fuel per record
     const fuelData = this.formulasService.calculateFuelConsumption(data);
 
-    const groupedByDate: Record<string, any[]> = {};
-    for (const record of fuelData) {
-      const dateKey = record.time.split(' ')[0];
-      if (!groupedByDate[dateKey]) groupedByDate[dateKey] = [];
-      groupedByDate[dateKey].push(record);
-    }
+    // 🔹 Merge fuel data with genset info
+    const merged = fuelData.map((f, i) => ({
+      ...f,
+      Genset_Total_kW: data[i]?.Genset_Total_kW ?? 0,
+      Genset_Run_SS: data[i]?.Genset_Run_SS ?? 0,
+    }));
 
+    // 🔹 Detect ON–OFF intervals
+    const intervals: any[] = [];
+    let currentInterval: any[] = [];
+
+    for (const record of merged) {
+      if (record.Genset_Run_SS >= 1 && record.Genset_Run_SS <= 6) {
+        currentInterval.push(record);
+      } else if (currentInterval.length > 0) {
+        intervals.push(currentInterval);
+        currentInterval = [];
+      }
+    }
+    if (currentInterval.length > 0) intervals.push(currentInterval);
+
+    // 🔹 Calculate per-interval data
     const reportRows: any[] = [];
     let totalFuel = 0;
     let totalProduction = 0;
     let totalCost = 0;
 
-    for (const [date, records] of Object.entries(groupedByDate)) {
-      const start = records[0].time;
-      const end = records[records.length - 1].time;
+    for (const interval of intervals) {
+      const start = interval[0].time;
+      const end = interval[interval.length - 1].time;
+
+      const startDateObj = new Date(start);
+      const endDateObj = new Date(end);
 
       const durationMins =
-        (new Date(end).getTime() - new Date(start).getTime()) / (1000 * 60);
+        (endDateObj.getTime() - startDateObj.getTime()) / (1000 * 60);
       const runHours = +(durationMins / 60).toFixed(2);
 
-      const fuelConsumed = +records
+      const fuelConsumed = +interval
         .reduce((sum, r) => sum + (r.Fuel_Used ?? 0), 0)
         .toFixed(2);
 
       const avgKW =
-        records.reduce((sum, r) => sum + (r.Genset_Total_kW ?? 0), 0) /
-        (records.length || 1);
-      const production = +(avgKW * runHours).toFixed(2);
+        interval.reduce((sum, r) => sum + (r.Genset_Total_kW ?? 0), 0) /
+        (interval.length || 1);
 
+      const production = +(avgKW * runHours).toFixed(2);
       const cost = +(fuelConsumed * fuelCostPerLitre).toFixed(2);
       const costPerUnit = production ? +(cost / production).toFixed(2) : 0;
 
@@ -120,9 +155,15 @@ export class ReportsService {
       totalProduction += production;
       totalCost += cost;
 
+      // Format interval time like “03:00–03:30”
+      const formatTime = (d: Date) =>
+        `${d.getUTCHours().toString().padStart(2, '0')}:${d
+          .getUTCMinutes()
+          .toString()
+          .padStart(2, '0')}`;
+
       reportRows.push({
-        Date: date,
-        Duration: `${Math.floor(durationMins)} mins (${runHours} hr)`,
+        Duration: `${formatTime(startDateObj)}–${formatTime(endDateObj)}`,
         Run_Hours: runHours,
         Fuel_Consumed: `${fuelConsumed} Ltrs`,
         Production: `${production} kWh`,
@@ -132,9 +173,9 @@ export class ReportsService {
       });
     }
 
+    // 🔹 Totals row
     reportRows.push({
-      Date: 'TOTAL',
-      Duration: `${(totalProduction / 60).toFixed(2)} hrs`,
+      Duration: 'TOTAL',
       Fuel_Consumed: `${totalFuel.toFixed(2)} Ltrs`,
       Production: `${totalProduction.toFixed(2)} kWh`,
       Cost: totalCost.toFixed(0),

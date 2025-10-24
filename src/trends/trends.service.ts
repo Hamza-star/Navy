@@ -79,7 +79,7 @@ export class TrendsService {
   //     throw new Error('Invalid mode');
   //   }
 
-  //   // ✅ Step 0: Dependency map (derived → raw)
+  //   // ✅ Dependency Map (for calculated parameters)
   //   const dependencyMap: Record<string, string[]> = {
   //     Load_Percent: ['Genset_Total_kW', 'Genset_Application_kW_Rating_PC2X'],
   //     Voltage_Imbalance: [
@@ -113,7 +113,7 @@ export class TrendsService {
   //     Mechanical_Stress: ['Vibration_Amplitude', 'Genset_Total_kW'],
   //   };
 
-  //   // ✅ Step 1: Build projection with dependencies
+  //   // ✅ Step 1: Build projection
   //   const projectionKeys = new Set<string>(['timestamp']);
   //   for (const param of selectedParams) {
   //     projectionKeys.add(param);
@@ -126,23 +126,25 @@ export class TrendsService {
   //     {},
   //   );
 
-  //   // ✅ Step 2: Fetch *ALL* matching data (pagination removed)
-  //   const docs = await this.collection
+  //   // ✅ Step 2: Cursor-based streaming (no skip/limit)
+  //   const cursor = this.collection
   //     .find(query, { projection })
   //     .sort({ timestamp: sortOrder === 'asc' ? 1 : -1 })
-  //     .toArray(); // 👈 no skip/limit
+  //     .batchSize(1000); // 1000 docs per read batch
 
-  //   if (!docs.length) return [];
+  //   const data: any[] = [];
+  //   for await (const doc of cursor) {
+  //     data.push({
+  //       ...doc,
+  //       timestamp: this.formatTimestamp(doc.timestamp),
+  //     });
+  //   }
 
-  //   const data = docs.map((doc) => ({
-  //     ...doc,
-  //     timestamp: this.formatTimestamp(doc.timestamp),
-  //   }));
+  //   if (!data.length) return [];
 
-  //   // ✅ Step 3: Prepare result containers
+  //   // ✅ Step 3: Multi-point calculations
   //   const results: any = {};
 
-  //   // --- Multi-point calculations ---
   //   if (selectedParams.includes('RPM_Stability_Index')) {
   //     results.rpm = this.formulasService.calculateRPMStabilityWithLoad(data);
   //   }
@@ -220,7 +222,7 @@ export class TrendsService {
   //     return record;
   //   });
 
-  //   // ✅ Step 5: Merge batch results
+  //   // ✅ Step 5: Merge multi-point and single-point results
   //   const merged: any[] = [];
 
   //   for (let i = 0; i < singlePointData.length; i++) {
@@ -304,7 +306,7 @@ export class TrendsService {
       throw new Error('Invalid mode');
     }
 
-    // ✅ Dependency Map (for calculated parameters)
+    // ✅ Dependency map
     const dependencyMap: Record<string, string[]> = {
       Load_Percent: ['Genset_Total_kW', 'Genset_Application_kW_Rating_PC2X'],
       Voltage_Imbalance: [
@@ -338,24 +340,22 @@ export class TrendsService {
       Mechanical_Stress: ['Vibration_Amplitude', 'Genset_Total_kW'],
     };
 
-    // ✅ Step 1: Build projection
+    // ✅ Projection optimization
     const projectionKeys = new Set<string>(['timestamp']);
     for (const param of selectedParams) {
       projectionKeys.add(param);
       const deps = dependencyMap[param];
       if (deps) deps.forEach((d) => projectionKeys.add(d));
     }
-
-    const projection = Array.from(projectionKeys).reduce(
-      (acc, key) => ({ ...acc, [key]: 1 }),
-      {},
+    const projection = Object.fromEntries(
+      [...projectionKeys].map((k) => [k, 1]),
     );
 
-    // ✅ Step 2: Cursor-based streaming (no skip/limit)
+    // ✅ Stream data efficiently
     const cursor = this.collection
       .find(query, { projection })
       .sort({ timestamp: sortOrder === 'asc' ? 1 : -1 })
-      .batchSize(1000); // 1000 docs per read batch
+      .batchSize(1000);
 
     const data: any[] = [];
     for await (const doc of cursor) {
@@ -367,128 +367,134 @@ export class TrendsService {
 
     if (!data.length) return [];
 
-    // ✅ Step 3: Multi-point calculations
-    const results: any = {};
+    // ✅ Run heavy calculations in parallel
+    const [rpmResult, oscResult, fuelResult] = await Promise.all([
+      selectedParams.includes('RPM_Stability_Index')
+        ? this.formulasService.calculateRPMStabilityWithLoad(data)
+        : null,
+      selectedParams.includes('Oscillation_Index')
+        ? this.formulasService.calculateOscillationIndex(data)
+        : null,
+      selectedParams.includes('Fuel_Consumption')
+        ? this.formulasService.calculateFuelConsumption(data)
+        : null,
+    ]);
 
-    if (selectedParams.includes('RPM_Stability_Index')) {
-      results.rpm = this.formulasService.calculateRPMStabilityWithLoad(data);
-    }
+    // ✅ Convert result arrays → Maps for O(1) lookup
+    const rpmMap = rpmResult
+      ? new Map(rpmResult.map((r) => [r.time, r]))
+      : null;
+    const oscMap = oscResult
+      ? new Map(oscResult.map((o) => [o.time, o]))
+      : null;
+    const fuelMap = fuelResult
+      ? new Map(fuelResult.map((f) => [f.time, f]))
+      : null;
 
-    if (selectedParams.includes('Oscillation_Index')) {
-      results.osc = this.formulasService.calculateOscillationIndex(data);
-    }
+    // ✅ Parallel single-point calculations
+    const singlePointData = await Promise.all(
+      data.map(async (doc) => {
+        const record: any = { timestamp: doc.timestamp };
 
-    if (selectedParams.includes('Fuel_Consumption')) {
-      results.fuel = this.formulasService.calculateFuelConsumption(data);
-    }
+        await Promise.all(
+          selectedParams.map(async (param) => {
+            if (
+              [
+                'RPM_Stability_Index',
+                'Oscillation_Index',
+                'Fuel_Consumption',
+              ].includes(param)
+            )
+              return; // skip multi-point handled later
 
-    // ✅ Step 4: Single-point calculations
-    const singlePointData = data.map((doc) => {
-      const record: any = { timestamp: doc.timestamp };
+            switch (param) {
+              case 'Load_Percent':
+                record[param] = this.formulasService.calculateLoadPercent(doc);
+                break;
+              case 'Running_Hours':
+                record[param] = this.formulasService.calculateRunningHours(doc);
+                break;
+              case 'Current_Imbalance':
+                record[param] =
+                  this.formulasService.calculateCurrentImbalance(doc);
+                break;
+              case 'Voltage_Imbalance':
+                record[param] =
+                  this.formulasService.calculateVoltageImbalance(doc);
+                break;
+              case 'Power_Loss_Factor':
+                record[param] =
+                  this.formulasService.calculatePowerLossFactor(doc);
+                break;
+              case 'Thermal_Stress':
+                record[param] =
+                  this.formulasService.calculateThermalStress(doc);
+                break;
+              case 'Neutral_Current':
+                record[param] =
+                  this.formulasService.calculateNeutralCurrent(doc);
+                break;
+              case 'Load_Stress':
+                record[param] = this.formulasService.calculateLoadStress(doc);
+                break;
+              case 'Lubrication_Risk_Index':
+                record[param] =
+                  this.formulasService.calculateLubricationRiskIndex(doc);
+                break;
+              case 'Air_Fuel_Effectiveness':
+                record[param] =
+                  this.formulasService.calculateAirFuelEffectiveness(doc);
+                break;
+              case 'Specific_Fuel_Consumption':
+                record[param] =
+                  this.formulasService.calculateSpecificFuelConsumption(doc);
+                break;
+              case 'Heat_Rate':
+                record[param] = this.formulasService.calculateHeatRate(doc);
+                break;
+              case 'Mechanical_Stress':
+                record[param] =
+                  this.formulasService.calculateMechanicalStress(doc);
+                break;
+              default:
+                record[param] = doc[param] ?? null;
+            }
+          }),
+        );
 
-      for (const param of selectedParams) {
-        if (
-          [
-            'RPM_Stability_Index',
-            'Oscillation_Index',
-            'Fuel_Consumption',
-          ].includes(param)
-        )
-          continue;
+        return record;
+      }),
+    );
 
-        let value: any;
-        switch (param) {
-          case 'Load_Percent':
-            value = this.formulasService.calculateLoadPercent(doc);
-            break;
-          case 'Running_Hours':
-            value = this.formulasService.calculateRunningHours(doc);
-            break;
-          case 'Current_Imbalance':
-            value = this.formulasService.calculateCurrentImbalance(doc);
-            break;
-          case 'Voltage_Imbalance':
-            value = this.formulasService.calculateVoltageImbalance(doc);
-            break;
-          case 'Power_Loss_Factor':
-            value = this.formulasService.calculatePowerLossFactor(doc);
-            break;
-          case 'Thermal_Stress':
-            value = this.formulasService.calculateThermalStress(doc);
-            break;
-          case 'Neutral_Current':
-            value = this.formulasService.calculateNeutralCurrent(doc);
-            break;
-          case 'Load_Stress':
-            value = this.formulasService.calculateLoadStress(doc);
-            break;
-          case 'Lubrication_Risk_Index':
-            value = this.formulasService.calculateLubricationRiskIndex(doc);
-            break;
-          case 'Air_Fuel_Effectiveness':
-            value = this.formulasService.calculateAirFuelEffectiveness(doc);
-            break;
-          case 'Specific_Fuel_Consumption':
-            value = this.formulasService.calculateSpecificFuelConsumption(doc);
-            break;
-          case 'Heat_Rate':
-            value = this.formulasService.calculateHeatRate(doc);
-            break;
-          case 'Mechanical_Stress':
-            value = this.formulasService.calculateMechanicalStress(doc);
-            break;
-          default:
-            value = doc[param] ?? null;
-        }
+    // ✅ Merge results using Maps (O(1))
+    const merged = singlePointData.map((record) => {
+      const mergedRecord = { ...record };
+      const ts = record.timestamp;
 
-        record[param] = value;
+      if (rpmMap?.has(ts)) {
+        const rpm = rpmMap.get(ts);
+        mergedRecord.RPM_Stability_Index = rpm.RPM_Stability_Index;
+        mergedRecord.Load_Percent =
+          rpm.Load_Percent ?? mergedRecord.Load_Percent;
       }
 
-      return record;
+      if (oscMap?.has(ts)) {
+        const osc = oscMap.get(ts);
+        mergedRecord.Oscillation_Index = osc.Oscillation_Index;
+        mergedRecord.Load_Percent =
+          osc.Load_Percent ?? mergedRecord.Load_Percent;
+      }
+
+      if (fuelMap?.has(ts)) {
+        const fuel = fuelMap.get(ts);
+        mergedRecord.Fuel_Used = fuel.Fuel_Used;
+        mergedRecord.Fuel_Cumulative = fuel.Fuel_Cumulative;
+        mergedRecord.Load_Percent =
+          fuel.Load_Percent ?? mergedRecord.Load_Percent;
+      }
+
+      return mergedRecord;
     });
-
-    // ✅ Step 5: Merge multi-point and single-point results
-    const merged: any[] = [];
-
-    for (let i = 0; i < singlePointData.length; i++) {
-      const mergedRecord = { ...singlePointData[i] };
-
-      if (results.rpm) {
-        const rpmMatch = results.rpm.find(
-          (r) => r.time === mergedRecord.timestamp,
-        );
-        if (rpmMatch)
-          Object.assign(mergedRecord, {
-            RPM_Stability_Index: rpmMatch.RPM_Stability_Index,
-            Load_Percent: rpmMatch.Load_Percent ?? mergedRecord.Load_Percent,
-          });
-      }
-
-      if (results.osc) {
-        const oscMatch = results.osc.find(
-          (o) => o.time === mergedRecord.timestamp,
-        );
-        if (oscMatch)
-          Object.assign(mergedRecord, {
-            Oscillation_Index: oscMatch.Oscillation_Index,
-            Load_Percent: oscMatch.Load_Percent ?? mergedRecord.Load_Percent,
-          });
-      }
-
-      if (results.fuel) {
-        const fuelMatch = results.fuel.find(
-          (f) => f.time === mergedRecord.timestamp,
-        );
-        if (fuelMatch)
-          Object.assign(mergedRecord, {
-            Fuel_Used: fuelMatch.Fuel_Used,
-            Fuel_Cumulative: fuelMatch.Fuel_Cumulative,
-            Load_Percent: fuelMatch.Load_Percent ?? mergedRecord.Load_Percent,
-          });
-      }
-
-      merged.push(mergedRecord);
-    }
 
     return merged;
   }

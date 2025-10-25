@@ -408,7 +408,6 @@ export class TrendsService {
       Genset_Application_Nominal_Current_PC2X: [],
       Genset_Standby_Nominal_Current_PC2X: [],
       Genset_Standby_kW_Rating_PC2X: [],
-
       Genset_Standby_kVA_Rating_PC2X: [],
 
       // Derived Formulas

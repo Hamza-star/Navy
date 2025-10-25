@@ -1161,7 +1161,7 @@ export class DashboardController {
   }
 
   // Oil Pressure & Engine Speed Chart
-  @Get('lubrication/lub-pressure-response')
+  @Get('lubrication/lubrication-health')
   async getOilPressureEngineSpeed(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -1615,6 +1615,7 @@ export class DashboardController {
    * --------------------------------------------------- */
 
   @Get('health')
+  // eslint-disable-next-line @typescript-eslint/require-await
   async getHealthStatus() {
     return {
       status: 'healthy',

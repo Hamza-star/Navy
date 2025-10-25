@@ -174,13 +174,13 @@ export class ReportsService {
     }
 
     // 🔹 Totals row
-    reportRows.push({
-      Duration: 'TOTAL',
-      Fuel_Consumed: `${totalFuel.toFixed(2)} Ltrs`,
-      Production: `${totalProduction.toFixed(2)} kWh`,
-      Cost: totalCost.toFixed(0),
-      TotalCost: totalCost.toFixed(0),
-    });
+    // reportRows.push({
+    //   Duration: 'TOTAL',
+    //   Fuel_Consumed: `${totalFuel.toFixed(2)} Ltrs`,
+    //   Production: `${totalProduction.toFixed(2)} kWh`,
+    //   Cost: totalCost.toFixed(0),
+    //   TotalCost: totalCost.toFixed(0),
+    // });
 
     return reportRows;
   }

@@ -1,16 +1,32 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-// src/trends/prewarm.service.ts
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { TrendsService } from './trends.service';
 
 @Injectable()
-export class PrewarmService implements OnModuleInit {
+export class PrewarmService implements OnModuleInit, OnModuleDestroy {
+  private refreshInterval: NodeJS.Timeout | null = null;
+
   constructor(private readonly trendsService: TrendsService) {}
 
   async onModuleInit() {
-    console.log('🚀 Prewarming cache...');
+    console.log('🚀 Prewarming cache (startup)...');
+    await this.runPrewarm();
 
-    // Define prewarm scenarios
+    // ♻️ Auto-refresh every 10 minutes (customize interval here)
+    this.refreshInterval = setInterval(
+      () => {
+        this.runPrewarm().catch((err) =>
+          console.error('⚠️ Cache refresh failed:', err.message),
+        );
+      },
+      10 * 60 * 1000,
+    ); // 10 minutes
+  }
+
+  onModuleDestroy() {
+    if (this.refreshInterval) clearInterval(this.refreshInterval);
+  }
+
+  private async runPrewarm() {
     const prewarmConfigs = [
       {
         mode: 'range',
@@ -29,25 +45,28 @@ export class PrewarmService implements OnModuleInit {
         mode: 'historic',
         startDate: '2025-10-03T00:00:00.000Z',
         endDate: '2025-10-04T00:00:00.000Z',
-        params: ['Genset_L1_Current', 'Coolant_Temperature'],
+        params: [
+          'Genset_L1_Current',
+          'Coolant_Temperature',
+          'Load_Percent',
+          'Fuel_Consumption',
+        ],
       },
     ];
 
-    // Run all prewarm jobs in parallel
-    await Promise.all(
+    const results = await Promise.allSettled(
       prewarmConfigs.map(async (config) => {
-        try {
-          const start = Date.now();
-          await this.trendsService.getTrends(config);
-          console.log(
-            `✅ Cache prewarmed for ${config.mode} in ${Date.now() - start} ms`,
-          );
-        } catch (err) {
-          console.error(`❌ Failed prewarm for ${config.mode}:`, err.message);
-        }
+        const start = Date.now();
+        await this.trendsService.getTrends(config);
+        return `${config.mode} → ${Date.now() - start} ms`;
       }),
     );
 
-    console.log('🔥 All prewarm jobs done — ready for instant responses!');
+    console.log('✅ Cache prewarm cycle complete:');
+    results.forEach((r, i) => {
+      if (r.status === 'fulfilled')
+        console.log(`   • ${prewarmConfigs[i].mode}: ${r.value}`);
+      else console.warn(`   ⚠️ ${prewarmConfigs[i].mode} failed: ${r.reason}`);
+    });
   }
 }

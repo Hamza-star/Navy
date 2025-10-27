@@ -737,7 +737,7 @@ export class DashboardController {
    * --------------------------------------------------- */
 
   // Complete Dashboard 1 Data
-  @Get('operator-level')
+  @Get('operator-level/metrics')
   async getDashboard1Data(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -752,7 +752,7 @@ export class DashboardController {
   }
 
   // Metrics Only
-  @Get('operator-level/metrics')
+  @Get('operator-level')
   async getDashboard1Metrics(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -868,7 +868,7 @@ export class DashboardController {
    * --------------------------------------------------- */
 
   // Complete Dashboard 2 Data
-  @Get('electrical-health')
+  @Get('electrical-health/metrics')
   async getDashboard2Data(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -883,7 +883,7 @@ export class DashboardController {
   }
 
   // Metrics Only
-  @Get('electrical-health/metrics')
+  @Get('electrical-health')
   async getDashboard2Metrics(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -999,7 +999,7 @@ export class DashboardController {
    * --------------------------------------------------- */
 
   // Complete Dashboard 3 Data
-  @Get('thermal-health')
+  @Get('thermal-health/metrics')
   async getDashboard3Data(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -1014,7 +1014,7 @@ export class DashboardController {
   }
 
   // Metrics Only
-  @Get('thermal-health/metrics')
+  @Get('thermal-health')
   async getDashboard3Metrics(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -1114,7 +1114,7 @@ export class DashboardController {
    * --------------------------------------------------- */
 
   // Complete Dashboard 4 Data
-  @Get('lubrication')
+  @Get('lubrication/metrics')
   async getDashboard4Data(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -1129,7 +1129,7 @@ export class DashboardController {
   }
 
   // Metrics Only
-  @Get('lubrication/metrics')
+  @Get('lubrication')
   async getDashboard4Metrics(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -1229,7 +1229,7 @@ export class DashboardController {
    * --------------------------------------------------- */
 
   // Complete Dashboard 5 Data
-  @Get('fuel-combustion')
+  @Get('fuel-combustion/metrics')
   async getDashboard5Data(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -1244,7 +1244,7 @@ export class DashboardController {
   }
 
   // Metrics Only
-  @Get('fuel-combustion/metrics')
+  @Get('fuel-combustion')
   async getDashboard5Metrics(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -1360,7 +1360,7 @@ export class DashboardController {
    * --------------------------------------------------- */
 
   // Complete Dashboard 6 Data
-  @Get('performance-general')
+  @Get('performance-general/metrics')
   async getDashboard6Data(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,
@@ -1375,7 +1375,7 @@ export class DashboardController {
   }
 
   // Metrics Only
-  @Get('performance-general/metrics')
+  @Get('performance-general')
   async getDashboard6Metrics(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,

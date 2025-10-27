@@ -91,76 +91,26 @@ export class TrendsService {
   //     throw new Error('Invalid mode');
   //   }
 
-  //   // ✅ Dependency map
+  //   // ✅ Dependency map (for derived/calculated ones)
   //   const dependencyMap: Record<string, string[]> = {
-  //     // Power
-  //     Genset_L1_kW: [],
-  //     Genset_L2_kW: [],
-  //     Genset_L3_kW: [],
-  //     Genset_Total_kW: [],
-  //     Genset_L1_kVA: [],
-  //     Genset_L2_kVA: [],
-  //     Genset_L3_kVA: [],
-  //     Genset_Total_kVA: [],
-  //     // Voltage
-  //     Genset_L1L2_Voltage: [],
-  //     Genset_L2L3_Voltage: [],
-  //     Genset_L3L1_Voltage: [],
-  //     Genset_L1N_Voltage: [],
-  //     Genset_L2N_Voltage: [],
-  //     Genset_L3N_Voltage: [],
-  //     Genset_LL_Avg_Voltage: [],
-  //     Genset_LN_Avg_Voltage: [],
-  //     // Current
-  //     Genset_L1_Current: [],
-  //     Genset_L2_Current: [],
-  //     Genset_L3_Current: [],
-  //     Genset_Avg_Current: [],
-  //     // Power Factor
-  //     Genset_Total_Power_Factor_calculated: [],
-  //     Genset_Application_kW_Rating_PC2X: [],
-  //     Genset_Standby_kW_Rating_PC2X: [],
-  //     // Engine & Fuel
-  //     Averagr_Engine_Speed: [],
-  //     Fuel_Rate: [],
-  //     Fuel_Pressure: [],
-  //     Oil_Pressure: [],
-  //     Oil_Temperature: [],
-  //     Coolant_Temperature: [],
-  //     Air_Flow: [],
-  //     Boost_Pressure: [],
-  //     // Derived indices
   //     Load_Percent: ['Genset_Total_kW', 'Genset_Application_kW_Rating_PC2X'],
-  //     Current_Imbalance: [
-  //       'Genset_L1_Current',
-  //       'Genset_L2_Current',
-  //       'Genset_L3_Current',
-  //     ],
   //     Voltage_Imbalance: [
   //       'Genset_L1L2_Voltage',
   //       'Genset_L2L3_Voltage',
   //       'Genset_L3L1_Voltage',
+  //     ],
+  //     Current_Imbalance: [
+  //       'Genset_L1_Current',
+  //       'Genset_L2_Current',
+  //       'Genset_L3_Current',
   //     ],
   //     Power_Loss_Factor: ['Genset_Total_Power_Factor_calculated'],
   //     Thermal_Stress: [
   //       'Genset_L1_Current',
   //       'Genset_L2_Current',
   //       'Genset_L3_Current',
+  //       'Genset_Application_kW_Rating_PC2X',
   //     ],
-  //     Neutral_Current: [
-  //       'Genset_L1_Current',
-  //       'Genset_L2_Current',
-  //       'Genset_L3_Current',
-  //     ],
-  //     Load_Stress: ['Genset_Total_kW', 'Genset_Application_kW_Rating_PC2X'],
-  //     Cooling_Margin: ['Coolant_Temperature'],
-  //     OTSR: ['Oil_Temperature'],
-  //     Lubrication_Risk_Index: ['Oil_Pressure', 'Oil_Temperature'],
-  //     Air_Fuel_Effectiveness: ['Air_Flow', 'Fuel_Rate'],
-  //     Specific_Fuel_Consumption: ['Fuel_Rate', 'Genset_Total_kW'],
-  //     Heat_Rate: ['Fuel_Rate', 'Genset_Total_kW'],
-  //     Fuel_Flow_Change: ['Fuel_Rate'],
-  //     Mechanical_Stress: ['Averagr_Engine_Speed'],
   //     RPM_Stability_Index: ['Averagr_Engine_Speed'],
   //     Oscillation_Index: ['Genset_Total_kW', 'Genset_Total_kVA'],
   //     Fuel_Consumption: [
@@ -168,23 +118,30 @@ export class TrendsService {
   //       'Genset_Total_kW',
   //       'Genset_Application_kW_Rating_PC2X',
   //     ],
+  //     Lubrication_Risk_Index: ['Oil_Temperature', 'Oil_Pressure'],
+  //     Air_Fuel_Effectiveness: ['Air_Flow', 'Fuel_Rate'],
+  //     Specific_Fuel_Consumption: ['Genset_Total_kW', 'Fuel_Rate'],
+  //     Heat_Rate: ['Fuel_Rate', 'Genset_Total_kW'],
+  //     Mechanical_Stress: ['Vibration_Amplitude', 'Genset_Total_kW'],
+  //     Fuel_Flow_Change: ['Fuel_Rate'],
+  //     Cooling_Margin: ['Coolant_Temperature'],
+  //     OTSR: ['Oil_Temperature'],
   //   };
 
   //   // ✅ Step 1: Load or query base data
   //   let baseData: any[] = (cache.get(baseKey) as any[]) || [];
 
   //   if (baseData.length === 0) {
+  //     // 🧩 Always include timestamp
   //     const projection: Record<string, number> = { timestamp: 1 };
 
+  //     // 🧩 Include all direct params (from utils/params.ts)
+  //     for (const tag of ALL_PARAMS) projection[tag] = 1;
+
+  //     // 🧩 Include any dependencies for selected params
   //     for (const param of selectedParams) {
-  //       projection[param] = 1;
   //       const deps = dependencyMap[param];
   //       if (deps) deps.forEach((d) => (projection[d] = 1));
-  //     }
-
-  //     // ✅ Ensure every selected param is projected
-  //     for (const param of selectedParams) {
-  //       if (!projection[param]) projection[param] = 1;
   //     }
 
   //     const pipeline = [
@@ -306,7 +263,7 @@ export class TrendsService {
   //           value = this.formulasService.calculateOTSRF(doc);
   //           break;
   //         default:
-  //           value = doc[param] ?? null; // Direct DB value fallback
+  //           value = doc[param] ?? null; // direct DB field fallback
   //       }
 
   //       record[param] = value;
@@ -354,29 +311,26 @@ export class TrendsService {
       sortOrder,
     });
 
-    // ⚡ Cached instant return
+    // ⚡ Cached fast return
     if (cache.has(finalKey)) {
       const data = cache.get(finalKey);
       console.log(`⚡ Instant from cache: ${performance.now() - startPerf} ms`);
       return data;
     }
 
-    // ✅ Build query
+    // ✅ Query setup
     let query: any = {};
     if (mode === 'historic') {
       if (!startDate || !endDate)
         throw new Error('startDate and endDate are required');
-      query.timestamp = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate),
-      };
+      query.timestamp = { $gte: new Date(startDate), $lte: new Date(endDate) };
     } else if (mode === 'range') {
       query.Genset_Run_SS = { $gte: 1, $lte: 6 };
     } else {
       throw new Error('Invalid mode');
     }
 
-    // ✅ Dependency map (for derived/calculated ones)
+    // ✅ Dependency Map
     const dependencyMap: Record<string, string[]> = {
       Load_Percent: ['Genset_Total_kW', 'Genset_Application_kW_Rating_PC2X'],
       Voltage_Imbalance: [
@@ -408,36 +362,67 @@ export class TrendsService {
       Specific_Fuel_Consumption: ['Genset_Total_kW', 'Fuel_Rate'],
       Heat_Rate: ['Fuel_Rate', 'Genset_Total_kW'],
       Mechanical_Stress: ['Vibration_Amplitude', 'Genset_Total_kW'],
+      Cooling_Margin: ['Coolant_Temperature', 'Oil_Temperature'],
+      Cooling_Margin_C: ['Coolant_Temperature', 'Oil_Temperature'],
+      OTSR: ['Oil_Temperature', 'Coolant_Temperature'],
+      OTSR_C: ['Oil_Temperature', 'Coolant_Temperature'],
       Fuel_Flow_Change: ['Fuel_Rate'],
-      Cooling_Margin: ['Coolant_Temperature'],
-      OTSR: ['Oil_Temperature'],
     };
 
-    // ✅ Step 1: Load or query base data
+    // ✅ Step 1: Check or build base cache (with batching)
     let baseData: any[] = (cache.get(baseKey) as any[]) || [];
-
     if (baseData.length === 0) {
-      // 🧩 Always include timestamp
-      const projection: Record<string, number> = { timestamp: 1 };
+      const projectionBase: Record<string, number> = { timestamp: 1 };
 
-      // 🧩 Include all direct params (from utils/params.ts)
-      for (const tag of ALL_PARAMS) projection[tag] = 1;
-
-      // 🧩 Include any dependencies for selected params
+      const allNeeded = new Set<string>();
       for (const param of selectedParams) {
+        allNeeded.add(param);
         const deps = dependencyMap[param];
-        if (deps) deps.forEach((d) => (projection[d] = 1));
+        if (deps) deps.forEach((d) => allNeeded.add(d));
       }
 
-      const pipeline = [
-        { $match: query },
-        { $project: projection },
-        { $sort: { timestamp: sortOrder === 'asc' ? 1 : -1 } },
-      ];
+      // Include ALL_PARAMS to make sure all raw tags exist
+      ALL_PARAMS.forEach((p) => allNeeded.add(p));
 
-      const docs = await this.collection.aggregate(pipeline).toArray();
+      const allFields = Array.from(allNeeded);
 
-      baseData = docs.map((doc) => ({
+      // 🧩 Batch in 12-field chunks
+      const batches: string[][] = [];
+      const batchSize = 12;
+      for (let i = 0; i < allFields.length; i += batchSize) {
+        batches.push(allFields.slice(i, i + batchSize));
+      }
+
+      console.time('⏳ Mongo parallel fetch');
+
+      const results = await Promise.all(
+        batches.map(async (fields) => {
+          const projection: Record<string, number> = { ...projectionBase };
+          for (const f of fields) projection[f] = 1;
+
+          const pipeline = [
+            { $match: query },
+            { $project: projection },
+            { $sort: { timestamp: sortOrder === 'asc' ? 1 : -1 } },
+          ];
+
+          return await this.collection.aggregate(pipeline).toArray();
+        }),
+      );
+
+      console.timeEnd('⏳ Mongo parallel fetch');
+
+      // 🧩 Merge all batch results by timestamp
+      const map = new Map<string, any>();
+      for (const batch of results) {
+        for (const doc of batch) {
+          const key = doc.timestamp?.toISOString?.() ?? doc.timestamp;
+          if (!map.has(key)) map.set(key, { timestamp: doc.timestamp });
+          Object.assign(map.get(key), doc);
+        }
+      }
+
+      baseData = Array.from(map.values()).map((doc) => ({
         ...doc,
         timestamp: moment(doc.timestamp)
           .tz('Asia/Karachi')
@@ -448,7 +433,7 @@ export class TrendsService {
       console.log(`🧠 Base data cached: ${baseData.length} records`);
     }
 
-    // ✅ Step 2: Multi-point calculations
+    // ✅ Step 2: Multi-point formulas (parallel)
     const calcPromises: Promise<{ key: string; val: any }>[] = [];
 
     const addCachedFormula = (param: string, fn: () => any) => {
@@ -539,16 +524,16 @@ export class TrendsService {
             value = this.formulasService.calculateMechanicalStress(doc);
             break;
           case 'Cooling_Margin':
-            // value = this.formulasService.calculateCoolingMargin(doc);
+            value = this.formulasService.calculateCoolingMarginF(doc);
+            break;
+          case 'OTSR':
+            value = this.formulasService.calculateOTSRF(doc);
             break;
           case 'Fuel_Flow_Change':
             // value = this.formulasService.calculateFuelFlowChange(doc);
             break;
-          case 'OTSR':
-            // value = this.formulasService.calculateOTSR(doc);
-            break;
           default:
-            value = doc[param] ?? null; // direct DB field fallback
+            value = doc[param] ?? null;
         }
 
         record[param] = value;
@@ -570,6 +555,7 @@ export class TrendsService {
     cache.set(finalKey, merged);
     const elapsed = performance.now() - startPerf;
     console.log(`✅ Response ready in ${elapsed.toFixed(2)} ms`);
+
     return merged;
   }
 }

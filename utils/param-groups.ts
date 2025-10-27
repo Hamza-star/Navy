@@ -65,7 +65,6 @@ export const params = [
 
   // --- 🧮 Calculated (Formulas) ---
   'Load_Percent',
-  'Running_Hours',
   'Current_Imbalance',
   'Voltage_Imbalance',
   'Power_Loss_Factor',
@@ -73,11 +72,11 @@ export const params = [
   'Neutral_Current',
   'Load_Stress',
   'Cooling_Margin',
-  'Cooling_Margin_C',
+  // 'Cooling_Margin_C',
   'Thermal_Stress',
-  'Thermal_Stress_C',
+  // 'Thermal_Stress_C',
   'OTSR',
-  'OTSR_C',
+  // 'OTSR_C',
   'Lubrication_Risk_Index',
   'Air_Fuel_Effectiveness',
   'Specific_Fuel_Consumption',

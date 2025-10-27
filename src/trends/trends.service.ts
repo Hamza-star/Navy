@@ -10,6 +10,7 @@ import { FormulasService } from './formulas.service';
 import { params } from 'utils/param-groups';
 import * as moment from 'moment-timezone';
 import { performance } from 'perf_hooks';
+import { params as ALL_PARAMS } from '../../utils/param-groups';
 
 const cache = new Map();
 
@@ -68,7 +69,7 @@ export class TrendsService {
   //     sortOrder,
   //   });
 
-  //   // ⚡ Instant cache return
+  //   // ⚡ Cached instant return
   //   if (cache.has(finalKey)) {
   //     const data = cache.get(finalKey);
   //     console.log(`⚡ Instant from cache: ${performance.now() - startPerf} ms`);
@@ -80,7 +81,6 @@ export class TrendsService {
   //   if (mode === 'historic') {
   //     if (!startDate || !endDate)
   //       throw new Error('startDate and endDate are required');
-
   //     query.timestamp = {
   //       $gte: new Date(startDate),
   //       $lte: new Date(endDate),
@@ -91,13 +91,46 @@ export class TrendsService {
   //     throw new Error('Invalid mode');
   //   }
 
-  //   // ✅ Updated Dependency Map (aligned with FormulasService)
+  //   // ✅ Dependency map
   //   const dependencyMap: Record<string, string[]> = {
-  //     // Dashboard 1
+  //     // Power
+  //     Genset_L1_kW: [],
+  //     Genset_L2_kW: [],
+  //     Genset_L3_kW: [],
+  //     Genset_Total_kW: [],
+  //     Genset_L1_kVA: [],
+  //     Genset_L2_kVA: [],
+  //     Genset_L3_kVA: [],
+  //     Genset_Total_kVA: [],
+  //     // Voltage
+  //     Genset_L1L2_Voltage: [],
+  //     Genset_L2L3_Voltage: [],
+  //     Genset_L3L1_Voltage: [],
+  //     Genset_L1N_Voltage: [],
+  //     Genset_L2N_Voltage: [],
+  //     Genset_L3N_Voltage: [],
+  //     Genset_LL_Avg_Voltage: [],
+  //     Genset_LN_Avg_Voltage: [],
+  //     // Current
+  //     Genset_L1_Current: [],
+  //     Genset_L2_Current: [],
+  //     Genset_L3_Current: [],
+  //     Genset_Avg_Current: [],
+  //     // Power Factor
+  //     Genset_Total_Power_Factor_calculated: [],
+  //     Genset_Application_kW_Rating_PC2X: [],
+  //     Genset_Standby_kW_Rating_PC2X: [],
+  //     // Engine & Fuel
+  //     Averagr_Engine_Speed: [],
+  //     Fuel_Rate: [],
+  //     Fuel_Pressure: [],
+  //     Oil_Pressure: [],
+  //     Oil_Temperature: [],
+  //     Coolant_Temperature: [],
+  //     Air_Flow: [],
+  //     Boost_Pressure: [],
+  //     // Derived indices
   //     Load_Percent: ['Genset_Total_kW', 'Genset_Application_kW_Rating_PC2X'],
-  //     Running_Hours: ['Engine_Running_Time_calculated'],
-
-  //     // Dashboard 2
   //     Current_Imbalance: [
   //       'Genset_L1_Current',
   //       'Genset_L2_Current',
@@ -119,43 +152,21 @@ export class TrendsService {
   //       'Genset_L2_Current',
   //       'Genset_L3_Current',
   //     ],
-  //     Load_Stress: [
-  //       'Genset_Total_kW',
-  //       'Genset_Application_kW_Rating_PC2X',
-  //       'Genset_Total_Power_Factor_calculated',
-  //     ],
-
-  //     // Dashboard 3
+  //     Load_Stress: ['Genset_Total_kW', 'Genset_Application_kW_Rating_PC2X'],
   //     Cooling_Margin: ['Coolant_Temperature'],
   //     OTSR: ['Oil_Temperature'],
-  //     Avg_LL_Voltage: [
-  //       'Genset_L1L2_Voltage',
-  //       'Genset_L2L3_Voltage',
-  //       'Genset_L3L1_Voltage',
-  //     ],
-
-  //     // Dashboard 4
   //     Lubrication_Risk_Index: ['Oil_Pressure', 'Oil_Temperature'],
-
-  //     // Dashboard 5
-  //     Air_Fuel_Effectiveness: ['Fuel_Rate', 'Boost_Pressure'],
+  //     Air_Fuel_Effectiveness: ['Air_Flow', 'Fuel_Rate'],
   //     Specific_Fuel_Consumption: ['Fuel_Rate', 'Genset_Total_kW'],
   //     Heat_Rate: ['Fuel_Rate', 'Genset_Total_kW'],
   //     Fuel_Flow_Change: ['Fuel_Rate'],
   //     Mechanical_Stress: ['Averagr_Engine_Speed'],
-
-  //     // Dashboard 6
-  //     RPM_Stability_Index: [
-  //       'Averagr_Engine_Speed',
-  //       'Genset_Total_kW',
-  //       'Genset_Application_kW_Rating_PC2X',
-  //     ],
+  //     RPM_Stability_Index: ['Averagr_Engine_Speed'],
   //     Oscillation_Index: ['Genset_Total_kW', 'Genset_Total_kVA'],
   //     Fuel_Consumption: [
   //       'Fuel_Rate',
   //       'Genset_Total_kW',
   //       'Genset_Application_kW_Rating_PC2X',
-  //       'Nominal_Battery_Voltage',
   //     ],
   //   };
 
@@ -165,14 +176,18 @@ export class TrendsService {
   //   if (baseData.length === 0) {
   //     const projection: Record<string, number> = { timestamp: 1 };
 
-  //     // Add selected params + dependencies
   //     for (const param of selectedParams) {
   //       projection[param] = 1;
   //       const deps = dependencyMap[param];
   //       if (deps) deps.forEach((d) => (projection[d] = 1));
   //     }
 
-  //     const pipeline: any[] = [
+  //     // ✅ Ensure every selected param is projected
+  //     for (const param of selectedParams) {
+  //       if (!projection[param]) projection[param] = 1;
+  //     }
+
+  //     const pipeline = [
   //       { $match: query },
   //       { $project: projection },
   //       { $sort: { timestamp: sortOrder === 'asc' ? 1 : -1 } },
@@ -229,7 +244,7 @@ export class TrendsService {
   //   const resultsArray = await Promise.all(calcPromises);
   //   const results = Object.fromEntries(resultsArray.map((r) => [r.key, r.val]));
 
-  //   // ✅ Step 3: Single-point calculations
+  //   // ✅ Step 3: Single-point formulas
   //   const singlePointData = baseData.map((doc) => {
   //     const record: any = { timestamp: doc.timestamp };
 
@@ -281,8 +296,17 @@ export class TrendsService {
   //         case 'Mechanical_Stress':
   //           value = this.formulasService.calculateMechanicalStress(doc);
   //           break;
+  //         case 'Cooling_Margin':
+  //           value = this.formulasService.calculateCoolingMarginF(doc);
+  //           break;
+  //         case 'Fuel_Flow_Change':
+  //           // value = this.formulasService.calculateFuelFlowChange(doc);
+  //           break;
+  //         case 'OTSR':
+  //           value = this.formulasService.calculateOTSRF(doc);
+  //           break;
   //         default:
-  //           value = doc[param] ?? null;
+  //           value = doc[param] ?? null; // Direct DB value fallback
   //       }
 
   //       record[param] = value;
@@ -294,18 +318,14 @@ export class TrendsService {
   //   // ✅ Step 4: Merge multi-point results
   //   const merged = singlePointData.map((record) => {
   //     const timestamp = record.timestamp;
-
   //     for (const [param, arr] of Object.entries(results)) {
   //       const match = arr.find((x: any) => x.time === timestamp);
   //       if (match) Object.assign(record, match);
   //     }
-
   //     return record;
   //   });
 
-  //   // ✅ Cache final merged result
   //   cache.set(finalKey, merged);
-
   //   const elapsed = performance.now() - startPerf;
   //   console.log(`✅ Response ready in ${elapsed.toFixed(2)} ms`);
   //   return merged;
@@ -334,19 +354,18 @@ export class TrendsService {
       sortOrder,
     });
 
-    // ⚡ Return from cache instantly
+    // ⚡ Cached instant return
     if (cache.has(finalKey)) {
       const data = cache.get(finalKey);
       console.log(`⚡ Instant from cache: ${performance.now() - startPerf} ms`);
       return data;
     }
 
-    // ✅ Query
+    // ✅ Build query
     let query: any = {};
     if (mode === 'historic') {
       if (!startDate || !endDate)
         throw new Error('startDate and endDate are required');
-
       query.timestamp = {
         $gte: new Date(startDate),
         $lte: new Date(endDate),
@@ -357,96 +376,26 @@ export class TrendsService {
       throw new Error('Invalid mode');
     }
 
-    // ✅ Complete Dependency Map (based on FormulasService + params.ts)
+    // ✅ Dependency map (for derived/calculated ones)
     const dependencyMap: Record<string, string[]> = {
-      // Power
-      Genset_L1_kW: [],
-      Genset_L2_kW: [],
-      Genset_L3_kW: [],
-      Genset_Total_kW: [],
-      Genset_L1_kVA: [],
-      Genset_L2_kVA: [],
-      Genset_L3_kVA: [],
-      Genset_Total_kVA: [],
-
-      // Current
-      Genset_L1_Current: [],
-      Genset_L2_Current: [],
-      Genset_L3_Current: [],
-      Genset_Avg_Current: [],
-
-      // Voltage
-      Genset_L1L2_Voltage: [],
-      Genset_L2L3_Voltage: [],
-      Genset_L3L1_Voltage: [],
-      Genset_L1N_Voltage: [],
-      Genset_L2N_Voltage: [],
-      Genset_L3N_Voltage: [],
-      Genset_LL_Avg_Voltage: [],
-      Genset_LN_Avg_Voltage: [],
-
-      // PF, Fuel & Engine
-      Genset_Total_Power_Factor_calculated: [],
-      Total_Fuel_Consumption_calculated: [],
-      Averagr_Engine_Speed: [],
-      Engine_Running_Time_calculated: [],
-      Fuel_Rate: [],
-      Oil_Pressure: [],
-      Boost_Pressure: [],
-      Oil_Temperature: [],
-      Coolant_Temperature: [],
-      Genset_Application_kW_Rating_PC2X: [],
-      Genset_Application_kVA_Rating_PC2X: [],
-
-      // Battery
-      Nominal_Battery_Voltage: [],
-      Battery_Voltage_calculated: [],
-      Base_Frequency_calculated: [],
-      V_Hz_Rolloff_Slope: [],
-      V_Hz_Knee_Frequency: [],
-      Genset_Frequency_OP_calculated: [],
-      Genset_Application_Nominal_Current_PC2X: [],
-      Genset_Standby_Nominal_Current_PC2X: [],
-      Genset_Standby_kW_Rating_PC2X: [],
-      Genset_Standby_kVA_Rating_PC2X: [],
-
-      // Derived Formulas
       Load_Percent: ['Genset_Total_kW', 'Genset_Application_kW_Rating_PC2X'],
-      Running_Hours: ['Engine_Running_Time_calculated'],
-      Current_Imbalance: [
-        'Genset_L1_Current',
-        'Genset_L2_Current',
-        'Genset_L3_Current',
-      ],
       Voltage_Imbalance: [
         'Genset_L1L2_Voltage',
         'Genset_L2L3_Voltage',
         'Genset_L3L1_Voltage',
+      ],
+      Current_Imbalance: [
+        'Genset_L1_Current',
+        'Genset_L2_Current',
+        'Genset_L3_Current',
       ],
       Power_Loss_Factor: ['Genset_Total_Power_Factor_calculated'],
       Thermal_Stress: [
         'Genset_L1_Current',
         'Genset_L2_Current',
         'Genset_L3_Current',
-      ],
-      Neutral_Current: [
-        'Genset_L1_Current',
-        'Genset_L2_Current',
-        'Genset_L3_Current',
-      ],
-      Load_Stress: [
-        'Genset_Total_kW',
         'Genset_Application_kW_Rating_PC2X',
-        'Genset_Total_Power_Factor_calculated',
       ],
-      Cooling_Margin: ['Coolant_Temperature'],
-      OTSR: ['Oil_Temperature'],
-      Lubrication_Risk_Index: ['Oil_Pressure', 'Oil_Temperature'],
-      Air_Fuel_Effectiveness: ['Fuel_Rate', 'Boost_Pressure'],
-      Specific_Fuel_Consumption: ['Fuel_Rate', 'Genset_Total_kW'],
-      Heat_Rate: ['Fuel_Rate', 'Genset_Total_kW'],
-      Fuel_Flow_Change: ['Fuel_Rate'],
-      Mechanical_Stress: ['Averagr_Engine_Speed'],
       RPM_Stability_Index: ['Averagr_Engine_Speed'],
       Oscillation_Index: ['Genset_Total_kW', 'Genset_Total_kVA'],
       Fuel_Consumption: [
@@ -454,16 +403,28 @@ export class TrendsService {
         'Genset_Total_kW',
         'Genset_Application_kW_Rating_PC2X',
       ],
+      Lubrication_Risk_Index: ['Oil_Temperature', 'Oil_Pressure'],
+      Air_Fuel_Effectiveness: ['Air_Flow', 'Fuel_Rate'],
+      Specific_Fuel_Consumption: ['Genset_Total_kW', 'Fuel_Rate'],
+      Heat_Rate: ['Fuel_Rate', 'Genset_Total_kW'],
+      Mechanical_Stress: ['Vibration_Amplitude', 'Genset_Total_kW'],
+      Fuel_Flow_Change: ['Fuel_Rate'],
+      Cooling_Margin: ['Coolant_Temperature'],
+      OTSR: ['Oil_Temperature'],
     };
 
-    // ✅ Step 1: Load or build base data
+    // ✅ Step 1: Load or query base data
     let baseData: any[] = (cache.get(baseKey) as any[]) || [];
 
     if (baseData.length === 0) {
+      // 🧩 Always include timestamp
       const projection: Record<string, number> = { timestamp: 1 };
 
+      // 🧩 Include all direct params (from utils/params.ts)
+      for (const tag of ALL_PARAMS) projection[tag] = 1;
+
+      // 🧩 Include any dependencies for selected params
       for (const param of selectedParams) {
-        projection[param] = 1;
         const deps = dependencyMap[param];
         if (deps) deps.forEach((d) => (projection[d] = 1));
       }
@@ -487,7 +448,7 @@ export class TrendsService {
       console.log(`🧠 Base data cached: ${baseData.length} records`);
     }
 
-    // ✅ Step 2: Multi-point formula calculations
+    // ✅ Step 2: Multi-point calculations
     const calcPromises: Promise<{ key: string; val: any }>[] = [];
 
     const addCachedFormula = (param: string, fn: () => any) => {
@@ -525,7 +486,7 @@ export class TrendsService {
     const resultsArray = await Promise.all(calcPromises);
     const results = Object.fromEntries(resultsArray.map((r) => [r.key, r.val]));
 
-    // ✅ Step 3: Single-point calculations
+    // ✅ Step 3: Single-point formulas
     const singlePointData = baseData.map((doc) => {
       const record: any = { timestamp: doc.timestamp };
 
@@ -540,7 +501,6 @@ export class TrendsService {
           continue;
 
         let value: any;
-
         switch (param) {
           case 'Load_Percent':
             value = this.formulasService.calculateLoadPercent(doc);
@@ -579,19 +539,16 @@ export class TrendsService {
             value = this.formulasService.calculateMechanicalStress(doc);
             break;
           case 'Cooling_Margin':
-            value = this.formulasService.calculateCoolingMarginC(doc);
+            // value = this.formulasService.calculateCoolingMargin(doc);
+            break;
+          case 'Fuel_Flow_Change':
+            // value = this.formulasService.calculateFuelFlowChange(doc);
             break;
           case 'OTSR':
-            value = this.formulasService.calculateOTSRC(doc);
+            // value = this.formulasService.calculateOTSR(doc);
             break;
-          case 'Fuel_Flow_Change': {
-            const idx = baseData.indexOf(doc);
-            const prev = idx > 0 ? baseData[idx - 1] : null;
-            value = this.formulasService.calculateFuelFlowRateChange(doc, prev);
-            break;
-          }
           default:
-            value = doc[param] ?? null;
+            value = doc[param] ?? null; // direct DB field fallback
         }
 
         record[param] = value;
@@ -611,7 +568,6 @@ export class TrendsService {
     });
 
     cache.set(finalKey, merged);
-
     const elapsed = performance.now() - startPerf;
     console.log(`✅ Response ready in ${elapsed.toFixed(2)} ms`);
     return merged;

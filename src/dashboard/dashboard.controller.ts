@@ -1161,7 +1161,7 @@ export class DashboardController {
   }
 
   // Oil Pressure & Engine Speed Chart
-  @Get('lubrication/lubrication-health')
+  @Get('lubrication/oil')
   async getOilPressureEngineSpeed(
     @Query('mode') mode: 'live' | 'historic' | 'range' = 'live',
     @Query('start') start?: string,

@@ -84,6 +84,7 @@ export class DashboardService {
         'Barometric_Absolute_Pressure',
         'Genset_Total_kW',
         'Genset_Application_kW_Rating_PC2X',
+        'Genset_Frequency_OP_calculated',
       ]),
       metricsMapper: (doc: any) => this.mapMetricsDashboard4(doc),
       chartsMapper: (data: any[]) => this.mapChartsDashboard4(data),
@@ -95,6 +96,7 @@ export class DashboardService {
         'Genset_Total_kW',
         'Genset_Application_kW_Rating_PC2X',
         'Fuel_Outlet_Pressure_calculated',
+        'Genset_Frequency_OP_calculated',
       ]),
       metricsMapper: (doc: any) => this.mapMetricsDashboard5(doc),
       chartsMapper: (data: any[]) => this.mapChartsDashboard5(data),
@@ -739,6 +741,7 @@ export class DashboardService {
       time: d.timestamp,
       SpecificFuelConsumption:
         this.formulas.calculateSpecificFuelConsumption(d),
+      Genset_Efficiency: d.Genset_Frequency_OP_calculated ?? 0,
     }));
 
     charts.heatRate = data.map((d) => ({

@@ -23,11 +23,6 @@ export class AlarmsController {
     return this.alarmsService.getAllAlarmTypes();
   }
 
-  // @Get('mapped-location')
-  // getMappedLocation() {
-  //   return this.alarmsService.getMappedLocation();
-  // }
-
   @Get('mapped-location')
   getMappedLocation() {
     return this.alarmsService.getMappedLocation();

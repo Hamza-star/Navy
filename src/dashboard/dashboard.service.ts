@@ -15,7 +15,7 @@ interface DashboardConfig {
 export class DashboardService {
   private collection;
   private cache = new Map();
-  private readonly CACHE_TTL = 30000; // 30 seconds
+  private readonly CACHE_TTL = 360000; // 30 min
 
   constructor(
     @Inject('MONGO_CLIENT') private readonly db: Db,
@@ -748,6 +748,7 @@ export class DashboardService {
     charts.heatRate = data.map((d) => ({
       time: d.timestamp,
       HeatRate: this.formulas.calculateHeatRate(d),
+      ThermalEfficiency: this.formulas.calculateThermalEfficiency(d),
     }));
 
     charts.fuelFlowRateChange = data.map((d, i) => ({
@@ -805,6 +806,7 @@ export class DashboardService {
     charts.mechanicalStress = data.map((d) => ({
       time: d.timestamp,
       Mechanical_Stress: this.formulas.calculateMechanicalStress(d),
+      Electrical_Stress: this.formulas.calculateElectricalStress(d),
     }));
 
     charts.gensetPowerFactor = data.map((d) => ({

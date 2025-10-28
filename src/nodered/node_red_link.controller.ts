@@ -5,8 +5,8 @@ import { NodeRedLinkService } from './node_red_link.service';
 export class NodeRedLinkController {
   constructor(private readonly nodeRedLinkService: NodeRedLinkService) {}
 
-  @Get('nodered-ifl-realtimedata')
-  async getNodeRedData() {
-    return await this.nodeRedLinkService.fetchNodeRedData();
+  @Get('navy')
+  async fetchData() {
+    return this.nodeRedLinkService.fetchDataFromNodeRed();
   }
 }

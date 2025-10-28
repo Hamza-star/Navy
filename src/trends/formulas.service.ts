@@ -313,4 +313,74 @@ export class FormulasService {
     const avg = doc.Averagr_Engine_Speed ?? 0;
     return +((avg - 1500) / 1500).toFixed(3);
   }
+
+  calculateElectricalStress(doc: any): number {
+    // Voltage Unbalance (VU)
+    const VL1 = doc.Genset_L1L2_Voltage ?? 0;
+    const VL2 = doc.Genset_L2L3_Voltage ?? 0;
+    const VL3 = doc.Genset_L3L1_Voltage ?? 0;
+    const Vavg = (VL1 + VL2 + VL3) / 3 || 1;
+    const VmaxDev =
+      (Math.max(
+        Math.abs(VL1 - Vavg),
+        Math.abs(VL2 - Vavg),
+        Math.abs(VL3 - Vavg),
+      ) /
+        Vavg) *
+      100;
+    const VU = Math.min(1, VmaxDev / 2); // 2% typical limit
+
+    // Current Unbalance (CU)
+    const IA = doc.Genset_L1_Current ?? 0;
+    const IB = doc.Genset_L2_Current ?? 0;
+    const IC = doc.Genset_L3_Current ?? 0;
+    const Iavg = (IA + IB + IC) / 3 || 1;
+    const ImaxDev =
+      (Math.max(Math.abs(IA - Iavg), Math.abs(IB - Iavg), Math.abs(IC - Iavg)) /
+        Iavg) *
+      100;
+    const CU = Math.min(1, ImaxDev / 10); // 10% typical limit
+
+    // Overload Index (OL)
+    const Inom = doc.Genset_Application_Nominal_Current_PC2X ?? 1;
+    const IpuA = IA / Inom;
+    const IpuB = IB / Inom;
+    const IpuC = IC / Inom;
+    const OL = Math.min(1, Math.max(IpuA, IpuB, IpuC) - 1);
+
+    // Power Factor Index (PFI)
+    const pf = doc.Genset_Total_Power_Factor_calculated ?? 1;
+    const pf_nom = 0.8; // datasheet value
+    const PFI = Math.min(1, (pf_nom - pf) / 0.1);
+
+    // Frequency Index (FI)
+    const freq = doc.Genset_Frequency ?? 50;
+    const deltaF = Math.abs(freq - 50);
+    const FI = Math.min(1, (deltaF * 100) / 50);
+
+    // Torque Index (TI)
+    const torquePct = doc.Percent_Engine_Torque_or_Duty_Cycle ?? 0; // 0–100
+    const TI = Math.min(1, torquePct / 100);
+
+    // Weighted Electrical Stress Index
+    const ESI =
+      0.2 * VU + 0.2 * CU + 0.25 * OL + 0.15 * PFI + 0.1 * FI + 0.1 * TI;
+    const ESI_percent = +(ESI * 100).toFixed(2);
+
+    return ESI_percent;
+  }
+
+  calculateThermalEfficiency(doc: any): number {
+    const fuelRate = doc.Fuel_Rate ?? 0; // gallons per hour
+    const gensetPower = doc.Genset_Total_kW ?? 0;
+
+    // Fuel energy in kW
+    const fuelEnergy_kW = (fuelRate * 3.7854 * 0.85 * 43000) / 3600;
+
+    // Thermal efficiency (%)
+    const thermalEff =
+      fuelEnergy_kW > 0 ? (gensetPower / fuelEnergy_kW) * 100 : 0;
+
+    return +thermalEff.toFixed(2);
+  }
 }

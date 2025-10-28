@@ -821,7 +821,7 @@ interface DashboardConfig {
 export class DashboardService {
   private collection;
   private cache = new Map();
-  private readonly CACHE_TTL = 30000; // 30 seconds
+  private readonly CACHE_TTL = 3600000; // 30 seconds
 
   constructor(
     @Inject('MONGO_CLIENT') private readonly db: Db,
@@ -901,6 +901,7 @@ export class DashboardService {
         'Genset_Total_kW',
         'Genset_Application_kW_Rating_PC2X',
         'Fuel_Outlet_Pressure_calculated',
+        'Genset_Frequency_OP_calculated',
       ]),
       metricsMapper: (doc: any) => this.mapMetricsDashboard5(doc),
       chartsMapper: (data: any[]) => this.mapChartsDashboard5(data),
@@ -917,6 +918,7 @@ export class DashboardService {
         'Genset_Total_Power_Factor_calculated',
         'Genset_Total_kW',
         'Genset_Application_kW_Rating_PC2X',
+        'Genset_Frequency_OP_calculated',
       ]),
       metricsMapper: (doc: any) => this.mapMetricsDashboard6(doc),
       chartsMapper: (data: any[]) => this.mapChartsDashboard6(data),
@@ -1457,7 +1459,11 @@ export class DashboardService {
       'Genset_L3L1_Voltage',
       'Genset_LL_Avg_Voltage',
     ],
-    loadVsPowerFactor: ['LoadPercent', 'Genset_Total_Power_Factor_calculated'],
+    loadVsPowerFactor: [
+      'Genset_Total_kW',
+      'Genset_Application_kW_Rating_PC2X',
+      'Genset_Total_Power_Factor_calculated',
+    ],
     electroMechanicalStress: [
       'LoadPercent',
       'Genset_Total_Power_Factor_calculated',
@@ -1590,6 +1596,16 @@ export class DashboardService {
       Genset_L3_Current: d.Genset_L3_Current ?? 0,
     }));
 
+    // ✅ FIXED: loadVsPowerFactor chart
+    charts.loadVsPowerFactor = data.map((d) => ({
+      time: d.timestamp,
+      // LoadPercent calculate karen
+      LoadPercent: this.formulas.calculateLoadPercent(d),
+      // Direct field use karen
+      Genset_Total_Power_Factor_calculated:
+        d.Genset_Total_Power_Factor_calculated ?? 0,
+    }));
+
     charts.voltageQualitySymmetry = data.map((d) => ({
       time: d.timestamp,
       Genset_L1L2_Voltage: d.Genset_L1L2_Voltage ?? 0,
@@ -1601,7 +1617,7 @@ export class DashboardService {
 
     charts.electroMechanicalStress = data.map((d) => ({
       time: d.timestamp,
-      LoadPercent: this.formulas.calculateLoadPercent(d),
+      LoadStress: this.formulas.calculateLoadStress(d),
       PowerLossFactor: this.formulas.calculatePowerLossFactor(d),
     }));
 
@@ -1707,6 +1723,7 @@ export class DashboardService {
       time: d.timestamp,
       SpecificFuelConsumption:
         this.formulas.calculateSpecificFuelConsumption(d),
+      Genset_Efficiency: d.Genset_Frequency_OP_calculated,
     }));
 
     charts.heatRate = data.map((d) => ({
@@ -1763,6 +1780,7 @@ export class DashboardService {
     charts.loadPercent = data.map((d) => ({
       time: d.timestamp,
       load_Percent: this.formulas.calculateLoadPercent(d),
+      Genset_Efficiency: d.Genset_Frequency_OP_calculated,
     }));
 
     charts.mechanicalStress = data.map((d) => ({
@@ -1773,6 +1791,7 @@ export class DashboardService {
     charts.gensetPowerFactor = data.map((d) => ({
       time: d.timestamp,
       Genset_Total_kW: d.Genset_Total_kW ?? 0,
+      Geneset_Efficiency: d.Genset_Frequency_OP_calculated,
     }));
 
     // Use FormulasService for complex calculations

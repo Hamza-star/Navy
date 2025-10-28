@@ -113,6 +113,7 @@ export class DashboardService {
         'Genset_Total_Power_Factor_calculated',
         'Genset_Total_kW',
         'Genset_Application_kW_Rating_PC2X',
+        'Genset_Frequency_OP_calculated',
       ]),
       metricsMapper: (doc: any) => this.mapMetricsDashboard6(doc),
       chartsMapper: (data: any[]) => this.mapChartsDashboard6(data),
@@ -798,6 +799,7 @@ export class DashboardService {
     charts.loadPercent = data.map((d) => ({
       time: d.timestamp,
       load_Percent: this.formulas.calculateLoadPercent(d),
+      Genset_Efficiency: d.Genset_Frequency_OP_calculated,
     }));
 
     charts.mechanicalStress = data.map((d) => ({
@@ -808,6 +810,7 @@ export class DashboardService {
     charts.gensetPowerFactor = data.map((d) => ({
       time: d.timestamp,
       Genset_Total_kW: d.Genset_Total_kW ?? 0,
+      Genset_Efficiency: d.Genset_Frequency_OP_calculated,
     }));
 
     // Use FormulasService for complex calculations

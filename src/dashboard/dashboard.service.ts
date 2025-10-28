@@ -478,7 +478,11 @@ export class DashboardService {
       'Genset_L3L1_Voltage',
       'Genset_LL_Avg_Voltage',
     ],
-    loadVsPowerFactor: ['LoadPercent', 'Genset_Total_Power_Factor_calculated'],
+    loadVsPowerFactor: [
+      'Genset_Total_kW',
+      'Genset_Application_kW_Rating_PC2X',
+      'Genset_Total_Power_Factor_calculated',
+    ],
     electroMechanicalStress: [
       'LoadPercent',
       'Genset_Total_Power_Factor_calculated',
@@ -620,10 +624,17 @@ export class DashboardService {
       Genset_LL_Avg_Voltage: this.formulas.calculateAvgLLVoltage(d),
     }));
 
+    charts.loadVsPowerFactor = data.map((d) => ({
+      time: d.timestamp,
+      LoadPercent: this.formulas.calculateLoadPercent?.(d),
+      Genset_Total_Power_Factor_calculated:
+        d.Genset_Total_Power_Factor_calculated ?? 0,
+    }));
+
     charts.electroMechanicalStress = data.map((d) => ({
       time: d.timestamp,
-      LoadPercent: this.formulas.calculateLoadPercent(d),
-      PowerLossFactor: this.formulas.calculatePowerLossFactor(d),
+      LoadStress: this.formulas.calculateLoadStress(d),
+      // PowerLossFactor: this.formulas.calculatePowerLossFactor(d),
     }));
 
     charts.lossesThermalStress = data.map((d) => ({

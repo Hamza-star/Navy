@@ -33,6 +33,11 @@ export class AlarmsController {
     return this.alarmsService.getAlarmsTypeName();
   }
 
+  @Get('test-process')
+  async testProcess() {
+    return this.alarmsService.processActiveAlarms();
+  }
+
   @Put('update-types-alarms')
   update(@Body() dto: GetUpdateIdDto, @Body() updateDto: AlarmsTypeDto) {
     return this.alarmsService.updateAlarmType(dto.typeId, updateDto);

@@ -18,10 +18,10 @@ export class alarmsConfiguration {
   @Prop({ required: true })
   alarmLocation: string;
 
-  @Prop({ required: true })
+  @Prop({ required: false })
   alarmSubLocation: string;
 
-  @Prop({ required: true })
+  @Prop({ required: false })
   alarmDevice: string;
 
   @Prop({ required: true })

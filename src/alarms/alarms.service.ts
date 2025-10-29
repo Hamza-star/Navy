@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/restrict-template-expressions */
 /* eslint-disable @typescript-eslint/require-await */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-base-to-string */
@@ -8,6 +9,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -39,6 +41,7 @@ type AlarmConfigWithPopulate = alarmsConfiguration & {
 };
 @Injectable()
 export class AlarmsService {
+  private readonly logger = new Logger(AlarmsService.name);
   constructor(
     @InjectModel(AlarmsType.name) private alarmTypeModel: Model<AlarmsType>,
     @InjectModel(alarmsConfiguration.name)
@@ -397,16 +400,43 @@ export class AlarmsService {
    * @param dto The data transfer object containing alarm details.
    * @returns The created alarm.
    */
+  // async addAlarm(dto: ConfigAlarmDto) {
+  //   const ruleset = new this.alarmsRulesSetModel(dto.alarmTriggerConfig);
+  //   await ruleset.save();
+
+  //   const alarm = new this.alarmsModel({
+  //     ...dto,
+  //     alarmTypeId: new Types.ObjectId(dto.alarmTypeId),
+  //     alarmTriggerConfig: ruleset._id,
+  //   });
+
+  //   await alarm.save();
+
+  //   return {
+  //     message: 'Alarm added successfully',
+  //     data: alarm,
+  //   };
+  // }
+
   async addAlarm(dto: ConfigAlarmDto) {
+    // 1️⃣ Save ruleset first
     const ruleset = new this.alarmsRulesSetModel(dto.alarmTriggerConfig);
     await ruleset.save();
 
-    const alarm = new this.alarmsModel({
+    // 2️⃣ Build alarm object
+    const alarmObj: any = {
       ...dto,
-      alarmTypeId: new Types.ObjectId(dto.alarmTypeId),
       alarmTriggerConfig: ruleset._id,
-    });
+      alarmTypeId: new Types.ObjectId(dto.alarmTypeId),
+      // Make device and subLocation optional
+      alarmDevice: dto.alarmDevice || null,
+      alarmSubLocation: dto.alarmSubLocation || null,
+      // Ensure location & parameter are separate
+      alarmLocation: dto.alarmLocation || null,
+      alarmParameter: dto.alarmParameter,
+    };
 
+    const alarm = new this.alarmsModel(alarmObj);
     await alarm.save();
 
     return {
@@ -718,56 +748,209 @@ export class AlarmsService {
    * Process active alarms by fetching real-time data and evaluating alarm conditions.
    * @returns An array of triggered alarm events.
    */
+
+  // async processActiveAlarms() {
+  //   this.logger.log('🚀 Starting alarm processing...');
+
+  //   // ✅ 1️⃣ Get Node-RED real-time data
+  //   const resp = await firstValueFrom(
+  //     this.httpService.get('http://127.0.0.1:1880/navy'),
+  //   );
+
+  //   const payload = resp.data as Record<string, any>;
+  //   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+  //     this.logger.error('❌ Invalid data received from Node-RED');
+  //     throw new BadRequestException('Invalid data received from Node-RED');
+  //   }
+
+  //   this.logger.log(
+  //     `✅ Node-RED data received (${Object.keys(payload).length} tags)`,
+  //   );
+
+  //   // ✅ 2️⃣ Fetch all alarms from DB
+  //   const alarms = (await this.alarmsModel
+  //     .find()
+  //     .populate<{ alarmTriggerConfig: AlarmRulesSet }>('alarmTriggerConfig')
+  //     .populate<{ alarmTypeId: AlarmsType }>('alarmTypeId')
+  //     .exec()) as unknown as AlarmConfigWithPopulate[];
+
+  //   this.logger.log(`🔍 Total alarms loaded: ${alarms.length}`);
+
+  //   const triggeredAlarms: any[] = [];
+  //   const activeConfigIds = new Set<string>();
+
+  //   // ✅ 3️⃣ Evaluate each alarm
+  //   for (const alarm of alarms) {
+  //     const key = Object.keys(payload).find(
+  //       (k) => k.toLowerCase() === alarm.alarmParameter.toLowerCase(),
+  //     );
+
+  //     if (!key) {
+  //       this.logger.debug(
+  //         `⚠️ Tag not found for alarm: ${alarm.alarmParameter}`,
+  //       );
+  //       continue;
+  //     }
+
+  //     const value = Number(payload[key]);
+  //     const rules = alarm.alarmTriggerConfig;
+
+  //     if (!rules || !rules.thresholds?.length) {
+  //       this.logger.debug(`⚠️ No trigger rules for: ${alarm.alarmName}`);
+  //       continue;
+  //     }
+
+  //     const triggered = this.getTriggeredThreshold(value, rules);
+
+  //     // 🔹 Case A: Alarm condition cleared
+  //     if (!triggered) {
+  //       const now = new Date();
+  //       const activeOccurrence = await this.alarmOccurrenceModel
+  //         .findOne({ alarmConfigId: alarm._id, alarmStatus: true })
+  //         .sort({ date: -1 });
+
+  //       if (activeOccurrence) {
+  //         const durationSec = Math.floor(
+  //           (now.getTime() - new Date(activeOccurrence.date).getTime()) / 1000,
+  //         );
+
+  //         await this.alarmOccurrenceModel.updateOne(
+  //           { _id: activeOccurrence._id },
+  //           {
+  //             $set: {
+  //               alarmStatus: false,
+  //               alarmDuration: durationSec,
+  //               updatedAt: now,
+  //             },
+  //           },
+  //         );
+
+  //         await this.alarmsEventModel.updateOne(
+  //           { alarmConfigId: alarm._id },
+  //           { $set: { alarmLastOccurrence: now } },
+  //         );
+
+  //         this.logger.log(
+  //           `✅ Alarm cleared: ${alarm.alarmName} | Duration: ${durationSec}s`,
+  //         );
+  //       }
+
+  //       continue;
+  //     }
+
+  //     // 🔹 Case B: Alarm triggered
+  //     const result = await this.upsertTriggeredAlarm(alarm, rules, value);
+  //     if (!result) continue;
+
+  //     const { event, occurrence } = result;
+  //     activeConfigIds.add(alarm._id.toString());
+
+  //     triggeredAlarms.push({
+  //       alarmOccurenceId: occurrence._id,
+  //       alarmId: occurrence.alarmID,
+  //       alarmStatus: occurrence.alarmStatus,
+  //       alarmName: alarm.alarmName,
+  //       location: alarm.alarmLocation,
+  //       subLocation: alarm.alarmSubLocation,
+  //       device: alarm.alarmDevice,
+  //       parameter: alarm.alarmParameter,
+  //       value,
+  //       threshold: triggered,
+  //       triggeredAt: occurrence.date,
+  //       alarmType: alarm.alarmTypeId?.type,
+  //       priority: alarm.alarmTypeId?.priority,
+  //       color: alarm.alarmTypeId?.color,
+  //       code: alarm.alarmTypeId?.code,
+  //       alarmSnoozeStatus: occurrence.alarmSnooze,
+  //       alarmSnoozeDuration: occurrence.snoozeDuration,
+  //       alarmSnoozeAt: occurrence.snoozeAt,
+  //     });
+
+  //     this.logger.warn(
+  //       `🚨 Alarm triggered: ${alarm.alarmName} | Value: ${value} | Threshold: ${triggered}`,
+  //     );
+  //   }
+
+  //   // ✅ 4️⃣ Deactivate resolved alarms
+  //   await this.deactivateResolvedAlarms(activeConfigIds);
+
+  //   this.logger.log(
+  //     `🏁 Alarm processing complete | Active alarms: ${triggeredAlarms.length}`,
+  //   );
+
+  //   return triggeredAlarms;
+  // }
+
   async processActiveAlarms() {
+    this.logger.log('🚀 Starting alarm processing...');
+
+    // ✅ 1️⃣ Get Node-RED real-time data
     const resp = await firstValueFrom(
       this.httpService.get('http://127.0.0.1:1880/navy'),
     );
-    // const resp = {
-    //   data: {
-    //     CHCT1_EM01_Voltage_AN_V: 213,
-    //   },
-    // };
-    const payload = resp.data as Record<string, unknown>;
 
+    const payload = resp.data as Record<string, any>;
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-      throw new BadRequestException('No data from Node-RED');
+      this.logger.error('❌ Invalid data received from Node-RED');
+      throw new BadRequestException('Invalid data received from Node-RED');
     }
 
+    this.logger.log(
+      `✅ Node-RED data received (${Object.keys(payload).length} tags)`,
+    );
+
+    // ✅ 2️⃣ Fetch all alarms from DB
     const alarms = (await this.alarmsModel
       .find()
       .populate<{ alarmTriggerConfig: AlarmRulesSet }>('alarmTriggerConfig')
       .populate<{ alarmTypeId: AlarmsType }>('alarmTypeId')
       .exec()) as unknown as AlarmConfigWithPopulate[];
 
-    const triggeredAlarms: Array<any> = [];
+    this.logger.log(`🔍 Total alarms loaded: ${alarms.length}`);
+
+    const triggeredAlarms: any[] = [];
     const activeConfigIds = new Set<string>();
 
+    // ✅ 3️⃣ Evaluate each alarm
     for (const alarm of alarms) {
-      const key = Object.keys(payload).find((k) => {
-        const parts = k.split('_').map((p) => p.toLowerCase());
+      // 🔹 Match Node-RED tags like "Genset_L1N_Voltage"
+      const matchingKey = Object.keys(payload).find((tag) => {
+        const [tagLocation, ...tagParts] = tag.split('_');
+        const tagParameter = tagParts.join('_'); // e.g. L1N_Voltage
 
-        return (
-          parts[0] === alarm.alarmSubLocation.toLowerCase() && // exact sublocation match
-          parts[1] === alarm.alarmDevice.toLowerCase() && // exact device match
-          parts.slice(2).join('_') === alarm.alarmParameter.toLowerCase() // exact parameter match
-        );
+        const matchesLocation =
+          !alarm.alarmLocation ||
+          tagLocation.toLowerCase() === alarm.alarmLocation.toLowerCase();
+
+        const matchesParameter =
+          tagParameter.toLowerCase() === alarm.alarmParameter.toLowerCase();
+
+        return matchesParameter && matchesLocation;
       });
 
-      if (!key) continue;
+      if (!matchingKey) {
+        this.logger.debug(
+          `⚠️ Tag not found for alarm: ${alarm.alarmLocation}_${alarm.alarmParameter}`,
+        );
+        continue;
+      }
 
-      const value = Number(payload[key]);
+      const value = Number(payload[matchingKey]);
       const rules = alarm.alarmTriggerConfig;
-      if (!rules || !rules.thresholds?.length) continue;
+
+      if (!rules || !rules.thresholds?.length) {
+        this.logger.debug(`⚠️ No trigger rules for: ${alarm.alarmName}`);
+        continue;
+      }
 
       const triggered = this.getTriggeredThreshold(value, rules);
 
-      // inside processActiveAlarms loop, when !triggered:
+      // 🔹 Case A: Alarm condition cleared
       if (!triggered) {
         const now = new Date();
-        // fetch the active occurrence to get its start time
         const activeOccurrence = await this.alarmOccurrenceModel
           .findOne({ alarmConfigId: alarm._id, alarmStatus: true })
-          .sort({ date: -1 }); // in case you ever have more than one
+          .sort({ date: -1 });
 
         if (activeOccurrence) {
           const durationSec = Math.floor(
@@ -789,11 +972,16 @@ export class AlarmsService {
             { alarmConfigId: alarm._id },
             { $set: { alarmLastOccurrence: now } },
           );
+
+          this.logger.log(
+            `✅ Alarm cleared: ${alarm.alarmName} | Duration: ${durationSec}s`,
+          );
         }
 
         continue;
       }
 
+      // 🔹 Case B: Alarm triggered
       const result = await this.upsertTriggeredAlarm(alarm, rules, value);
       if (!result) continue;
 
@@ -805,9 +993,9 @@ export class AlarmsService {
         alarmId: occurrence.alarmID,
         alarmStatus: occurrence.alarmStatus,
         alarmName: alarm.alarmName,
-        Location: alarm.alarmLocation,
-        subLocation: alarm.alarmSubLocation,
-        device: alarm.alarmDevice,
+        location: alarm.alarmLocation || matchingKey.split('_')[0],
+        subLocation: alarm.alarmSubLocation || null,
+        device: alarm.alarmDevice || null,
         parameter: alarm.alarmParameter,
         value,
         threshold: triggered,
@@ -820,9 +1008,18 @@ export class AlarmsService {
         alarmSnoozeDuration: occurrence.snoozeDuration,
         alarmSnoozeAt: occurrence.snoozeAt,
       });
+
+      this.logger.warn(
+        `🚨 Alarm triggered: ${alarm.alarmName} | Value: ${value} | Threshold: ${triggered}`,
+      );
     }
 
+    // ✅ 4️⃣ Deactivate resolved alarms
     await this.deactivateResolvedAlarms(activeConfigIds);
+
+    this.logger.log(
+      `🏁 Alarm processing complete | Active alarms: ${triggeredAlarms.length}`,
+    );
 
     return triggeredAlarms;
   }

@@ -720,7 +720,7 @@ export class AlarmsService {
    */
   async processActiveAlarms() {
     const resp = await firstValueFrom(
-      this.httpService.get('http://13.234.241.103:1880/ifl_realtime'),
+      this.httpService.get('http://127.0.0.1:1880/navy'),
     );
     // const resp = {
     //   data: {
